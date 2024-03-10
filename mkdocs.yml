@@ -1,5 +1,5 @@
 site_name: toomanycells
-site_description: A python package for spectral clustering based on the powerful s
+site_description: Spectral clustering
 site_author: JRR3
 site_url: https://JRR3.github.io/toomanycells
 repo_url: https://github.com/JRR3/toomanycells

@@ -1,7 +1,6 @@
+scanpy
+scipy
 numpy
 pandas
 networkx
-scipy
-scanpy
-sklearn
-anndata
+scikit-learn

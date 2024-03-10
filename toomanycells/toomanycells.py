@@ -10,18 +10,18 @@
 #########################################################
 #Questions? Email me at: javier.ruizramirez@uhn.ca
 #########################################################
+from typing import Optional
 from common import MultiIndexList
 import networkx as nx
 from scipy import sparse as sp
 from scipy.io import mmread
 from time import perf_counter as clock
 import scanpy as sc
+from scanpy import AnnData
 import numpy as np
 import pandas as pd
 import re
 from sklearn.decomposition import TruncatedSVD
-from typing import Optional
-from anndata import AnnData
 from collections import deque
 import os
 import subprocess
@@ -63,7 +63,7 @@ class TooManyCells:
     def __init__(self,
             input: AnnData | str,
             output: str,
-            input_is_matrix_market: bool = False,
+            input_is_matrix_market: Optional[bool] = False,
             ):
         """
         The constructor takes the following inputs.
@@ -83,7 +83,13 @@ class TooManyCells:
 
         if isinstance(input, str):
             if input.endswith('.h5ad'):
+                self.t0 = clock()
                 self.A = sc.read_h5ad(input)
+                self.tf = clock()
+                delta = self.tf - self.t0
+                txt = ('Elapsed time for loading: ' +
+                        f'{delta:.2f} seconds.')
+                print(txt)
             else:
                 self.source = input
                 if input_is_matrix_market:
@@ -92,7 +98,15 @@ class TooManyCells:
                     for f in os.listdir(input):
                         if f.endswith('.h5ad'):
                             fname = os.path.join(input, f)
+                            self.t0 = clock()
                             self.A = sc.read_h5ad(fname)
+                            self.tf = clock()
+                            delta = self.tf - self.t0
+                            txt = ('Elapsed time for ' +
+                                   'loading: ' +
+                                    f'{delta:.2f} seconds.')
+                            print(txt)
+                            break
 
         elif isinstance(input, AnnData):
             self.A = input
@@ -115,6 +129,8 @@ class TooManyCells:
         self.path_column_index = t
 
 
+        #Create a copy to avoid direct modifications
+        #to the original count matrix X.
         self.X = self.A.X.copy()
 
         self.n_cells, self.n_genes = self.A.shape
@@ -126,8 +142,11 @@ class TooManyCells:
                 n_iter=5,
                 algorithm='randomized')
 
+        #We use a deque to enforce a breadth-first traversal.
         self.Dq = deque()
 
+        #We use a directed graph to enforce the parent
+        #to child relation.
         self.G = nx.DiGraph()
 
         self.set_of_leaf_nodes = set()
@@ -158,22 +177,6 @@ class TooManyCells:
         self.load_dot_file   = False
         self.use_twopi_cmd   = True
         self.verbose_mode    = False
-
-    #=====================================
-    def apply_tf_idf(self):
-        """
-        Term frequency-inverse document frequency\
-                We no longer use this function \
-                since the scope of this program \
-                is solely doing the clustering. \
-                For normalization procedures, \
-                please use the tools from scanpy.
-        """
-
-        print('Applying TD-IDF transform.')
-
-        tf_idf_normalize = TfidfTransformer(norm=None)
-        self.X = tf_idf_normalize.fit_transform(self.X)
 
     #=====================================
     def normalize_rows(self):
@@ -553,7 +556,7 @@ class TooManyCells:
     def visualize_with_tmc_interactive(self,
             path_to_tmc_interactive: str,
             use_column_for_labels: str = '',
-            port: int = 1137) -> None:
+            port: Optional[int] = 9991) -> None:
         """
         This function produces a visualization\
                 using too-many-cells-interactive.
@@ -602,7 +605,9 @@ class TooManyCells:
 
         command = list(filter(len,command))
         command = ' '.join(command)
-        #print(command)
+        
+        #Run the command as if we were inside the
+        #too-many-cells-interactive folder.
         final_command = (f"(cd {path_to_tmc_interactive} "
                 f"&& {command})")
         #print(final_command)
