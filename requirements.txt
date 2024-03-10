@@ -1,1 +1,7 @@
 numpy
+pandas
+networkx
+scipy
+scanpy
+sklearn
+anndata
