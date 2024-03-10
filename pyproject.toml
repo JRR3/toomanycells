@@ -1,0 +1,82 @@
+[project]
+name = "toomanycells"
+version = "0.0.1"
+dynamic = [
+    "dependencies",
+]
+description = "A python package for spectral clustering based on the powerful s"
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = [
+    "toomanycells",
+]
+license = {text = "BSD License"}
+authors = [
+  {name = "Javier Ruiz-Ramirez", email = "javier.ruizramirez@uhn.ca"},
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.entry-points."console_scripts"]
+toomanycells = "toomanycells.cli:main"
+
+[project.optional-dependencies]
+all = [
+    "toomanycells[extra]",
+]
+
+extra = [
+    "pandas",
+]
+
+
+[tool]
+[tool.setuptools.packages.find]
+include = ["toomanycells*"]
+exclude = ["docs*"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+
+[tool.distutils.bdist_wheel]
+universal = true
+
+
+[tool.bumpversion]
+current_version = "0.0.1"
+commit = true
+tag = true
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "toomanycells/__init__.py"
+search = '__version__ = "{current_version}"'
+replace = '__version__ = "{new_version}"'
+
+
+[tool.flake8]
+exclude = [
+    "docs",
+]
+max-line-length = 88
+
+
+[project.urls]
+Homepage = "https://github.com/JRR3/toomanycells"
+
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
