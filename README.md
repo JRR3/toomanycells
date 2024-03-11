@@ -58,7 +58,7 @@
 ```
 home-manager switch
 ```
-10. This step might not be stritly necessary, but in my case to successfully run Docker I had to run the following two commands
+10. This step might not be stritly necessary, but in order to successfully run Docker in my computer I had to run the following two commands
 ```
 sudo dockerd
 ```
@@ -79,4 +79,5 @@ to let Docker read and write to that folder.
             cell_annotations,
             port_id)
    ```
-   In my case it took a little less than 3 minutes to load the app with ~100K cells (observations) and ~30K genes (features).
+   In my case it took a little less than 3 minutes to load the app with ~90K cells (observations) and ~30K genes (features).
+   ![Visualization example](https://github.com/JRR3/toomanycells/blob/main/tests/example_1.png)
