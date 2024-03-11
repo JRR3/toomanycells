@@ -436,14 +436,14 @@ class TooManyCells:
 
         if self.use_twopi_cmd:
 
-            fname = 'output_graph.pdf'
+            fname = 'output_graph.svg'
             fname = os.path.join(self.output, fname)
 
             command = ['twopi',
                     '-Groot=0',
                     '-Goverlap=true',
                     '-Granksep=2',
-                    '-Tpdf',
+                    '-Tsvg',
                     dot_fname,
                     '>',
                     fname,
@@ -538,12 +538,12 @@ class TooManyCells:
     def convert_graph_to_json(self):
         """
         The graph structure stored in the attribute\
-                self.J has to be formatted into a \
-                JSON file. This function takes care\
-                of that task. The output file is \
-                named 'cluster_tree_hm.json' and is\
-                equivalent to the 'cluster_tree.json'\
-                file produced by too-many-cells.
+            self.J has to be formatted into a \
+            JSON file. This function takes care\
+            of that task. The output file is \
+            named 'cluster_tree_hm.json' and is\
+            equivalent to the 'cluster_tree.json'\
+            file produced by too-many-cells.
         """
         fname = 'cluster_tree_hm.json'
         fname = os.path.join(self.output, fname)
@@ -561,14 +561,14 @@ class TooManyCells:
             column: str) -> None:
         """
         This function stores a CSV file with\
-                the labels for each cell.
+            the labels for each cell.
 
         :param column: Name of the\
-                column in the .obs data frame of\
-                the AnnData object that contains\
-                the labels to be used for the tree\
-                visualization. For example, cell \
-                types.
+            column in the .obs data frame of\
+            the AnnData object that contains\
+            the labels to be used for the tree\
+            visualization. For example, cell \
+            types.
 
         """
         fname = 'cell_annotation_labels.csv'
@@ -658,3 +658,5 @@ class TooManyCells:
 #path_to_tmc_interactive,
 #column_containing_cell_annotations,
 #)
+
+pygraphviz
