@@ -2,6 +2,7 @@ scanpy
 scipy
 numpy
 pandas
+graphviz
 networkx
 pygraphviz
 scikit-learn

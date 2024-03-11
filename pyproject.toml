@@ -4,7 +4,7 @@ version = "1.0.0"
 dynamic = [
     "dependencies",
 ]
-description = "A python package for spectral clustering based on the powerful s"
+description = "A python package for spectral clustering."
 readme = "README.md"
 requires-python = ">=3.8"
 keywords = [

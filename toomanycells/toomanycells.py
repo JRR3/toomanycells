@@ -62,7 +62,7 @@ class TooManyCells:
     #=================================================
     def __init__(self,
             input: AnnData | str,
-            output: str,
+            output: Optional[str] = "",
             input_is_matrix_market: Optional[bool] = False,
             ):
         """
@@ -112,6 +112,9 @@ class TooManyCells:
             self.A = input
         else:
             raise ValueError('Unexpected input type.')
+
+        if output == "":
+            output = os.getcwd()
 
         if not os.path.exists(output):
             os.makedirs(output)
@@ -174,7 +177,6 @@ class TooManyCells:
         #of cells.
         self.eps = 1e-9
 
-        self.load_dot_file   = False
         self.use_twopi_cmd   = True
         self.verbose_mode    = False
 
@@ -372,19 +374,32 @@ class TooManyCells:
         return (Q, partition)
 
     #=====================================
-    def plot_graph(self):
+    def store_outputs(self,
+                   load_dot_file: Optional[bool]=False):
         """
-        Plot the branching tree.
+        Plot the branching tree. If the .dot file already\
+            exists, one can specify such condition with \
+            the flag `load_dot_file=True`. This function \
+            also generates two CSV files. One is the \
+            clusters_hm.csv file, which stores the \
+            relation between cell ids and the cluster they \
+            belong. The second is node_info_hm.csv, which \
+            provides information regarding the number of \
+            cells belonging to that node and its \
+            modularity if it has children. Lastly, a file \
+            named cluster_tree_hm.json is produced, which \
+            stores the tree structure in the JSON format. \
+            This last file can be used with too-many-cells \
+            interactive.
         """
 
         self.t0 = clock()
-        print(self.G)
 
 
         fname = 'graph.dot'
         dot_fname = os.path.join(self.output, fname)
 
-        if self.load_dot_file:
+        if load_dot_file:
             self.G = nx.nx_agraph.read_dot(dot_fname)
             self.G = nx.DiGraph(self.G)
             self.G = nx.convert_node_labels_to_integers(
@@ -393,12 +408,17 @@ class TooManyCells:
             nx.nx_agraph.write_dot(self.G, dot_fname)
             #Write cell to node data frame.
             self.write_cell_assignment_to_csv()
+            self.convert_graph_to_json()
 
-        self.convert_graph_to_json()
+        print(self.G)
 
+        #Number of cells for each node
         size_list = []
+        #Modularity for each node
         Q_list = []
+        #Node label
         node_list = []
+
         for node, attr in self.G.nodes(data=True):
             node_list.append(node)
             size_list.append(attr['size'])
@@ -497,6 +517,14 @@ class TooManyCells:
 
     #=====================================
     def write_cell_assignment_to_csv(self):
+        """
+        This function creates a CSV file that indicates \
+            the assignment of each cell to a specific \
+            cluster. The first column is the cell id, \
+            the second column is the cluster id, and \
+            the third column is the path from the root \
+            node to the given node.
+        """
         fname = 'clusters_hm.csv'
         fname = os.path.join(self.output, fname)
         labels = ['sp_cluster','sp_path']
@@ -625,7 +653,7 @@ class TooManyCells:
 #import toomanycells as tmc
 #obj = tmc.TooManyCells(path_to_source, path_to_output)
 #obj.run_spectral_clustering()
-#obj.plot_graph()
+#obj.store_outputs()
 #obj.visualize_with_tmc_interactive(
 #path_to_tmc_interactive,
 #column_containing_cell_annotations,
