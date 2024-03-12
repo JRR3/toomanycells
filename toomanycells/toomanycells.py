@@ -25,6 +25,7 @@ from sklearn.decomposition import TruncatedSVD
 from collections import deque
 import os
 import subprocess
+from tqdm import tqdm
 
 #=====================================================
 class TooManyCells:
@@ -255,60 +256,63 @@ class TooManyCells:
         #Update the node counter
         self.node_counter += 1
 
-        while 0 < len(self.Dq):
-            rows, node_id = self.Dq.popleft()
-            Q,S = self.compute_partition(rows)
-            current_path = self.node_to_path[node_id]
-            j_index = self.node_to_j_index[node_id]
-            if self.eps < Q:
+        max_total = np.round(np.log2(self.n_cells) * 150)
+        with tqdm(total=max_total) as pbar:
+            while 0 < len(self.Dq):
+                rows, node_id = self.Dq.popleft()
+                Q,S = self.compute_partition(rows)
+                current_path = self.node_to_path[node_id]
+                j_index = self.node_to_j_index[node_id]
+                if self.eps < Q:
 
-                D = self.modularity_to_json(Q)
-                if j_index is None:
-                    self.J.append(D)
-                    self.J.append([[],[]])
-                    j_index = (1,)
+                    D = self.modularity_to_json(Q)
+                    if j_index is None:
+                        self.J.append(D)
+                        self.J.append([[],[]])
+                        j_index = (1,)
+                    else:
+                        self.J[j_index].append(D)
+                        self.J[j_index].append([[],[]])
+                        j_index += (1,)
+
+                    self.G.nodes[node_id]['Q'] = Q
+
+                    for k,indices in enumerate(S):
+                        new_node = self.node_counter
+                        self.G.add_node(new_node,
+                                size=len(indices))
+                        self.G.add_edge(node_id, new_node)
+                        T = (indices, new_node)
+                        self.Dq.append(T)
+
+                        #Update path for the new node
+                        new_path = current_path 
+                        new_path += '/' + str(new_node) 
+                        self.node_to_path[new_node] = new_path
+
+                        seq = j_index + (k,)
+                        self.node_to_j_index[new_node] = seq
+
+                        self.node_counter += 1
                 else:
-                    self.J[j_index].append(D)
-                    self.J[j_index].append([[],[]])
-                    j_index += (1,)
+                    #Update the relation between a set of
+                    #cells and the corresponding leaf node.
+                    #Also include the path to reach that node.
+                    c = self.cluster_column_index
+                    self.A.obs.iloc[rows, c] = node_id
 
-                self.G.nodes[node_id]['Q'] = Q
+                    reversed_path = current_path[::-1]
+                    p = self.path_column_index
+                    self.A.obs.iloc[rows, p] = reversed_path
 
-                for k,indices in enumerate(S):
-                    new_node = self.node_counter
-                    self.G.add_node(new_node,
-                            size=len(indices))
-                    self.G.add_edge(node_id, new_node)
-                    T = (indices, new_node)
-                    self.Dq.append(T)
+                    self.set_of_leaf_nodes.add(node_id)
 
-                    #Update path for the new node
-                    new_path = current_path 
-                    new_path += '/' + str(new_node) 
-                    self.node_to_path[new_node] = new_path
+                    #Update the JSON structure for a leaf node.
+                    L = self.cells_to_json(rows)
+                    self.J[j_index].append(L)
+                    self.J[j_index].append([])
 
-                    seq = j_index + (k,)
-                    self.node_to_j_index[new_node] = seq
-
-                    self.node_counter += 1
-            else:
-                #Update the relation between a set of
-                #cells and the corresponding leaf node.
-                #Also include the path to reach that node.
-                c = self.cluster_column_index
-                self.A.obs.iloc[rows, c] = node_id
-
-                reversed_path = current_path[::-1]
-                p = self.path_column_index
-                self.A.obs.iloc[rows, p] = reversed_path
-
-                self.set_of_leaf_nodes.add(node_id)
-
-                #Update the JSON structure for a leaf node.
-                L = self.cells_to_json(rows)
-                self.J[j_index].append(L)
-                self.J[j_index].append([])
-
+                pbar.update()
                 #==============END OF WHILE==============
 
         self.tf = clock()
@@ -658,5 +662,3 @@ class TooManyCells:
 #path_to_tmc_interactive,
 #column_containing_cell_annotations,
 #)
-
-pygraphviz
