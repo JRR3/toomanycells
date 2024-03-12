@@ -1,3 +1,4 @@
+from typing import Union
 #=====================================================
 class MultiIndexList(list):
     """
@@ -13,7 +14,7 @@ class MultiIndexList(list):
         composed of nested lists and dictionaries.
     """
     #=================================================
-    def __getitem__(self, indices: list | int):
+    def __getitem__(self, indices: Union[list,int]):
         """
         This implementation of the __getitem__ method \
             allows the possibility of indexing a nested \

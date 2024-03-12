@@ -11,6 +11,7 @@
 #Questions? Email me at: javier.ruizramirez@uhn.ca
 #########################################################
 from typing import Optional
+from typing import Union
 import networkx as nx
 from scipy import sparse as sp
 from scipy.io import mmread
@@ -66,7 +67,7 @@ class TooManyCells:
     """
     #=================================================
     def __init__(self,
-            input: AnnData | str,
+            input: Union[AnnData, str],
             output: Optional[str] = "",
             input_is_matrix_market: Optional[bool] = False,
             ):
