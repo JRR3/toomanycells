@@ -5,6 +5,3 @@ pandas
 networkx
 tqdm
 scikit-learn
-libgraphviz-dev
-graphviz
-pygraphviz
