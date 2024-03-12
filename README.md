@@ -49,15 +49,12 @@ in your home environment.
    ```
    tmc_obj.run_spectral_clustering()
    ```
-6. Once your data has been loaded successfully, you can start the clustering process with the following command
-   ```
-   tmc_obj.run_spectral_clustering()
-   ```
-7. At the end of the clustering process the `.obs` data frame of the AnnData object should have two columns named `['sp_cluster', 'sp_path']` which contain the cluster labels and the path from the root node to the leaf node, respectively.
+   In my desktop computer a data set with ~90K cells (observations) and ~30K genes (features) it took a little less than 6 minutes in 1809 iterations. Note that the progress bar only produces an estimate of the total number of iterations.
+6. At the end of the clustering process the `.obs` data frame of the AnnData object should have two columns named `['sp_cluster', 'sp_path']` which contain the cluster labels and the path from the root node to the leaf node, respectively.
    ```
    tmc_obj.A.obs[['sp_cluster', 'sp_path']]
    ```
-8. To generate the outputs, just call the function
+7. To generate the outputs, just call the function
    ```
    tmc_obj.store_outputs()
    ```
@@ -65,11 +62,11 @@ in your home environment.
    ```
    tmc_obj.store_outputs(load_dot_file=True)
    ```
-9. If you want to visualize your results in a dynamic platform, I strongly recommend the tool [too-many-cells-interactive](https://github.com/schwartzlab-methods/too-many-cells-interactive?tab=readme-ov-file). To use it, first make sure that you have Docker Compose and Docker. One simple way of getting the two is by installing [Docker Desktop](https://docs.docker.com/compose/install/). If you use [Nix](https://search.nixos.org/packages), simply add the packages `pkgs.docker` and `pkgs.docker-compose` to your configuration or `home.nix` file and run
+8. If you want to visualize your results in a dynamic platform, I strongly recommend the tool [too-many-cells-interactive](https://github.com/schwartzlab-methods/too-many-cells-interactive?tab=readme-ov-file). To use it, first make sure that you have Docker Compose and Docker. One simple way of getting the two is by installing [Docker Desktop](https://docs.docker.com/compose/install/). If you use [Nix](https://search.nixos.org/packages), simply add the packages `pkgs.docker` and `pkgs.docker-compose` to your configuration or `home.nix` file and run
 ```
 home-manager switch
 ```
-10. If you installed Docker Desktop you probably don't need to follow this step. However, under some distributions the following two commands have proven to be essential.
+9. If you installed Docker Desktop you probably don't need to follow this step. However, under some distributions the following two commands have proven to be essential.
 ```
 sudo dockerd
 ```
@@ -79,7 +76,7 @@ sudo chmod 666 /var/run/docker.sock
 ```
 to let Docker read and write to that location.
 
-11. Now clone the repository 
+10. Now clone the repository 
    ```
    git clone https://github.com/schwartzlab-methods/too-many-cells-interactive.git
    ```
