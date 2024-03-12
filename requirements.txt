@@ -4,5 +4,7 @@ numpy
 pandas
 networkx
 tqdm
-pygraphviz
 scikit-learn
+libgraphviz-dev
+graphviz
+pygraphviz
