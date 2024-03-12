@@ -224,6 +224,38 @@ class TooManyCells:
                 '_distance': None}
 
     #=====================================
+    def estimate_n_of_iterations(self) -> int:
+        """
+        We assume that at the highest level of the \
+            tree, i.e., where the leaf nodes are \
+            located, the average number of cells \
+            within each node is `k`. Hence, if the \
+            average depth of the tree is `L`, and the \
+            total number of cells is `N`, then \
+            `N/2^L = k`. Also, since the number of \
+            partitions to process tends to double \
+            from one level to the next one, the \
+            average number of partitions is the sum \
+            `2 + 2^2 + ... + 2^j
+        """
+
+        #Average number of cells per leaf node
+        k = 50
+        q1 = 2 * self.n_cells / k - 1
+        q2 = np.log2(self.n_cells)
+        iter_estimates = np.array([q1,q2], dtype=int)
+        return iter_estimates.max()
+
+    #=====================================
+    def print_message_before_clustering(self):
+
+        print("The first iterations are typically slow.")
+        print("However, they tend to become faster as ")
+        print("the size of the partition becomes smaller.")
+        print("Note that the number of iterations is")
+        print("only an estimate.")
+
+    #=====================================
     def run_spectral_clustering(self):
         """
         This function computes the partitions of the \
@@ -256,8 +288,11 @@ class TooManyCells:
         #Update the node counter
         self.node_counter += 1
 
-        max_total = np.round(np.log2(self.n_cells) * 150)
-        with tqdm(total=max_total) as pbar:
+        max_n_iter = self.estimate_n_of_iterations()
+
+        self.print_message_before_clustering()
+
+        with tqdm(total=max_n_iter) as pbar:
             while 0 < len(self.Dq):
                 rows, node_id = self.Dq.popleft()
                 Q,S = self.compute_partition(rows)
@@ -288,12 +323,13 @@ class TooManyCells:
                         #Update path for the new node
                         new_path = current_path 
                         new_path += '/' + str(new_node) 
-                        self.node_to_path[new_node] = new_path
+                        self.node_to_path[new_node]=new_path
 
                         seq = j_index + (k,)
                         self.node_to_j_index[new_node] = seq
 
                         self.node_counter += 1
+
                 else:
                     #Update the relation between a set of
                     #cells and the corresponding leaf node.
@@ -307,13 +343,17 @@ class TooManyCells:
 
                     self.set_of_leaf_nodes.add(node_id)
 
-                    #Update the JSON structure for a leaf node.
+                    #Update the JSON structure for 
+                    #a leaf node.
                     L = self.cells_to_json(rows)
                     self.J[j_index].append(L)
                     self.J[j_index].append([])
 
                 pbar.update()
-                #==============END OF WHILE==============
+
+            #==============END OF WHILE==============
+            pbar.total = pbar.n
+            pbar.refresh()
 
         self.tf = clock()
         delta = self.tf - self.t0
@@ -323,7 +363,8 @@ class TooManyCells:
 
 
     #=====================================
-    def compute_partition(self, rows):
+    def compute_partition(self, rows: np.ndarray
+    ) -> tuple[float, np.ndarray]:
         """
         Compute the partition of the given set\
                 of cells. The rows input \
