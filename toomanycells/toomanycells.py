@@ -11,7 +11,6 @@
 #Questions? Email me at: javier.ruizramirez@uhn.ca
 #########################################################
 from typing import Optional
-from common import MultiIndexList
 import networkx as nx
 from scipy import sparse as sp
 from scipy.io import mmread
@@ -24,8 +23,13 @@ import re
 from sklearn.decomposition import TruncatedSVD
 from collections import deque
 import os
+from os.path import dirname
 import subprocess
 from tqdm import tqdm
+import sys
+
+sys.path.insert(0, dirname(dirname(__file__)))
+from toomanycells.common import MultiIndexList
 
 #=====================================================
 class TooManyCells:
