@@ -89,5 +89,9 @@ to let Docker read and write to that location.
             cell_annotations,
             port_id)
    ```
-   In my case it took a little less than 3 minutes to load the app with ~90K cells (observations).
+   The following visualization corresponds to the data set with ~90K cells (observations).
    ![Visualization example](https://github.com/JRR3/toomanycells/blob/main/tests/example_1.png)
+   
+   And this is the visualization for the Tabula Sapiens data set with ~480K cells.
+   ![Visualization example](https://github.com/JRR3/toomanycells/blob/main/tests/tmci_tabula_sapiens.png)
+
