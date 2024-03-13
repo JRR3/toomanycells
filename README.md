@@ -49,12 +49,14 @@ in your home environment.
    ```
    tmc_obj.run_spectral_clustering()
    ```
-   In my desktop computer a data set with ~90K cells (observations) and ~30K genes (features) it took a little less than 6 minutes in 1809 iterations. Note that the progress bar only produces an estimate of the total number of iterations.
-6. At the end of the clustering process the `.obs` data frame of the AnnData object should have two columns named `['sp_cluster', 'sp_path']` which contain the cluster labels and the path from the root node to the leaf node, respectively.
+   In my desktop computer processing a data set with ~90K cells (observations) and ~30K genes (features) took a little less than 6 minutes in 1809 iterations. For a larger data set like the [Tabula Sapiens](https://figshare.com/articles/dataset/Tabula_Sapiens_release_1_0/14267219?file=40067134) with 483,152 cells and 58,870 genes (14.51 GB in zip format) the total time was about 50 minutes in the same computer.
+   ![Progress bar example](https://github.com/JRR3/toomanycells/blob/main/tests/tabula_sapiens_time.png)
+    
+7. At the end of the clustering process the `.obs` data frame of the AnnData object should have two columns named `['sp_cluster', 'sp_path']` which contain the cluster labels and the path from the root node to the leaf node, respectively.
    ```
    tmc_obj.A.obs[['sp_cluster', 'sp_path']]
    ```
-7. To generate the outputs, just call the function
+8. To generate the outputs, just call the function
    ```
    tmc_obj.store_outputs()
    ```
@@ -62,7 +64,7 @@ in your home environment.
    ```
    tmc_obj.store_outputs(load_dot_file=True)
    ```
-8. If you want to visualize your results in a dynamic platform, I strongly recommend the tool [too-many-cells-interactive](https://github.com/schwartzlab-methods/too-many-cells-interactive?tab=readme-ov-file). To use it, first make sure that you have Docker Compose and Docker. One simple way of getting the two is by installing [Docker Desktop](https://docs.docker.com/compose/install/). If you use [Nix](https://search.nixos.org/packages), simply add the packages `pkgs.docker` and `pkgs.docker-compose` to your configuration or `home.nix` file and run
+9. If you want to visualize your results in a dynamic platform, I strongly recommend the tool [too-many-cells-interactive](https://github.com/schwartzlab-methods/too-many-cells-interactive?tab=readme-ov-file). To use it, first make sure that you have Docker Compose and Docker. One simple way of getting the two is by installing [Docker Desktop](https://docs.docker.com/compose/install/). If you use [Nix](https://search.nixos.org/packages), simply add the packages `pkgs.docker` and `pkgs.docker-compose` to your configuration or `home.nix` file and run
 ```
 home-manager switch
 ```
