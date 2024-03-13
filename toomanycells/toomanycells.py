@@ -29,8 +29,8 @@ import subprocess
 from tqdm import tqdm
 import sys
 
-sys.path.insert(0, dirname(dirname(__file__)))
-from toomanycells.common import MultiIndexList
+sys.path.insert(0, dirname(__file__))
+from common import MultiIndexList
 
 #=====================================================
 class TooManyCells:
@@ -369,15 +369,16 @@ class TooManyCells:
 
     #=====================================
     def compute_partition(self, rows: np.ndarray
-    ) -> tuple[float, np.ndarray]:
+    ) -> tuple:
+    #) -> tuple[float, np.ndarray]:
         """
         Compute the partition of the given set\
-                of cells. The rows input \
-                contains the indices of the \
-                rows we are to partition. \
-                The algorithm computes a truncated \
-                SVD and the corresponding modularity \
-                of the newly created communities.
+            of cells. The rows input \
+            contains the indices of the \
+            rows we are to partition. \
+            The algorithm computes a truncated \
+            SVD and the corresponding modularity \
+            of the newly created communities.
         """
 
         if self.verbose_mode:
