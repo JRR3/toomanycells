@@ -137,12 +137,18 @@ class TooManyCells:
         t = self.A.obs.columns.get_loc('sp_path')
         self.path_column_index = t
 
+        self.delta_clustering = 0
+        self.final_n_iter     = 0
+
 
         #Create a copy to avoid direct modifications
         #to the original count matrix X.
         self.X = self.A.X.copy()
 
         self.n_cells, self.n_genes = self.A.shape
+
+        if self.n_cells < 2:
+            raise ValueError("Too few observations (cells).")
 
         print(self.A)
 
@@ -231,24 +237,19 @@ class TooManyCells:
     #=====================================
     def estimate_n_of_iterations(self) -> int:
         """
-        We assume that at the highest level of the \
-            tree, i.e., where the leaf nodes are \
-            located, the average number of cells \
-            within each node is `k`. Hence, if the \
-            average depth of the tree is `L`, and the \
-            total number of cells is `N`, then \
-            `N/2^L = k`. Also, since the number of \
-            partitions to process tends to double \
-            from one level to the next one, the \
-            average number of partitions is the sum \
-            `2 + 2^2 + ... + 2^j
+        We assume a model of the form \
+        number_of_iter = const * N^exponent \
+        where N is the number of cells.
         """
 
         #Average number of cells per leaf node
-        k = 50
-        q1 = 2 * self.n_cells / k - 1
-        q2 = np.log2(self.n_cells)
+        k = np.power(10, -0.6681664297844971)
+        exponent = 0.86121348
+        #exponent = 0.9
+        q1 = k * np.power(self.n_cells, exponent)
+        q2 = 2
         iter_estimates = np.array([q1,q2], dtype=int)
+        
         return iter_estimates.max()
 
     #=====================================
@@ -358,12 +359,13 @@ class TooManyCells:
 
             #==============END OF WHILE==============
             pbar.total = pbar.n
+            self.final_n_iter = pbar.n
             pbar.refresh()
 
         self.tf = clock()
-        delta = self.tf - self.t0
-        txt = ('Elapsed time for clustering: ' +
-                f'{delta:.2f} seconds.')
+        self.delta_clustering = self.tf - self.t0
+        txt = ("Elapsed time for clustering: " +
+                f"{self.delta_clustering:.2f} seconds.")
         print(txt)
 
 
