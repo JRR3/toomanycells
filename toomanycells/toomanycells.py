@@ -29,8 +29,8 @@ import subprocess
 from tqdm import tqdm
 import sys
 
-sys.path.insert(0, dirname(__file__))
-from common import MultiIndexList
+#sys.path.insert(0, dirname(__file__))
+from .common import MultiIndexList
 
 #=====================================================
 class TooManyCells:
