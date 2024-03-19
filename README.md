@@ -29,7 +29,7 @@ in your home environment.
 ## Usage
 1. First import the module as follows
    ```
-   from toomanycells import TooManyCells as tmc
+   from toomanycells.toomanycells import TooManyCells as tmc
    ```
 2. If you already have an [AnnData](https://anndata.readthedocs.io/en/latest/) object `A` loaded into memory, then you can create a TooManyCells object with
    ```
