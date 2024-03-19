@@ -13,7 +13,10 @@
 
 ## Dependencies
 
-Make sure you have installed the graph visualization library [Graphviz](https://www.graphviz.org).
+Make sure you have installed the graph visualization library [Graphviz](https://www.graphviz.org). For example, if you want to use conda, then do the following.
+```
+conda install anaconda::graphviz
+```
 
 ## Installation
 
