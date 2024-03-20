@@ -24,7 +24,10 @@ Just type
 ```
 pip install toomanycells
 ```
-in your home environment.
+in your home environment. If you want to install an updated version, then use the following flag.
+```
+pip install toomanycells -U
+```
 
 ## Usage
 1. First import the module as follows
