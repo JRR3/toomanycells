@@ -705,4 +705,30 @@ class TooManyCells:
         pause = input('Press Enter to continue ...')
         p = subprocess.call(final_command, shell=True)
 
+    #=====================================
+    def update_cell_annotations(
+            self,
+            df: pd.DataFrame,
+            column: str = "cell_annotations"):
+        """
+        Insert a column of cell annotations in the \
+        AnnData.obs data frame. The column in the \
+        data frame should be called "label". The \
+        name of the column in the AnnData.obs \
+        data frame is provided by the user through \
+        the column argument.
+        """
+
+        if "label" not in df.columns:
+            raise ValueError("Missing label column.")
+
+        #Reindex the data frame.
+        df = df.loc[self.A.obs.index]
+
+        if df.shape[0] != self.A.obs.shape[0]:
+            raise ValueError("Data frame size mismatch.")
+
+        self.A.obs[column] =  df["label"]
+
+
     #====END=OF=CLASS=====================

@@ -45,5 +45,5 @@ def load_metadata_for_demo()-> pd.DataFrame:
     fname = os.path.dirname(__file__)
     fname = os.path.join(fname, "data")
     fname = os.path.join(fname, "metadata.csv")
-    df = pd.read_csv(fname)
+    df = pd.read_csv(fname, index_col = 0)
     return df
