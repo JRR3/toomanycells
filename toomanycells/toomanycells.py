@@ -603,7 +603,8 @@ class TooManyCells:
             equivalent to the 'cluster_tree.json'\
             file produced by too-many-cells.
         """
-        fname = 'cluster_tree_hm.json'
+        #fname = "cluster_tree_hm.json"
+        fname = "cluster_tree.json"
         fname = os.path.join(self.output, fname)
         s = str(self.J)
         replace_dict = {' ':'', 'None':'null', "'":'"'}
@@ -662,21 +663,21 @@ class TooManyCells:
 
         """
 
-        fname = 'cluster_tree_hm.json'
-        fname = os.path.join(self.output, fname)
-        tree_path = fname
+        #fname = "cluster_tree_hm.json"
+        #fname = os.path.join(self.output, fname)
+        tree_path = self.output
         port_str = str(port)
 
 
         bash_exec = './start-and-load.sh'
 
         if len(use_column_for_labels) == 0:
-            label_path_str = ''
-            label_path     = ''
+            label_path_str = ""
+            label_path     = ""
         else:
             self.generate_cell_annotation_file(
                     use_column_for_labels)
-            label_path_str = '--label-path'
+            label_path_str = "--label-path"
             label_path     = self.cell_annotations_path
 
         command = [
