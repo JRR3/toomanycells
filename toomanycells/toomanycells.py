@@ -31,6 +31,7 @@ import sys
 
 #sys.path.insert(0, dirname(__file__))
 from .common import MultiIndexList
+from .common import load_metadata_for_demo
 
 #=====================================================
 class TooManyCells:
