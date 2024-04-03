@@ -1,4 +1,6 @@
 from typing import Union
+import pandas as pd
+import os
 #=====================================================
 class MultiIndexList(list):
     """
@@ -32,3 +34,14 @@ class MultiIndexList(list):
             #Otherwise, just use the __getitem__ 
             #method of the parent class.
             return super().__getitem__(indices)
+
+def load_metadata_for_demo()-> pd.DataFrame:
+    """
+    This function loads the cell indices and \
+    labels for the demo file.
+    """
+    fname = os.path.dirname(__file__)
+    fname = os.path.join(fname, "data")
+    fname = os.path.join(fname, "metadata.csv")
+    df = pd.read_csv(fname)
+    return df
