@@ -4,7 +4,7 @@
 [![image](https://img.shields.io/pypi/v/toomanycells.svg)](https://pypi.python.org/pypi/toomanycells)
 
 
-**A python package for spectral clustering based on the powerful s**
+**A python package for spectral clustering**
 
 
 -   Free software: BSD License

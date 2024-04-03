@@ -701,7 +701,7 @@ class TooManyCells:
         txt = ("Once the app is running, just type in "
                 f"your browser \n        {url}")
         print(txt)
-        print("The app will start loading.")
+        print("The app will start loading after pressing Enter.")
         pause = input('Press Enter to continue ...')
         p = subprocess.call(final_command, shell=True)
 

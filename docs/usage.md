@@ -3,5 +3,5 @@
 To use toomanycells in a project:
 
 ```
-import toomanycells
+from toomanycells import TooManyCells as tmc
 ```
