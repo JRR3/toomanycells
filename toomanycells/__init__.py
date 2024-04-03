@@ -5,3 +5,4 @@ __email__ = "javier.ruizramirez@uhn.ca"
 __version__ = "1.0.8"
 
 from .toomanycells import TooManyCells
+from .common import load_metadata_for_demo

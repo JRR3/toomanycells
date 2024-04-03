@@ -705,16 +705,4 @@ class TooManyCells:
         pause = input('Press Enter to continue ...')
         p = subprocess.call(final_command, shell=True)
 
-    #=====================================
-    def load_metadata_for_demo(self)-> pd.DataFrame:
-        """
-        This function loads the cell indices and \
-        labels for the demo file.
-        """
-        fname = os.path.dirname(__file__)
-        fname = os.path.join(fname, "data")
-        fname = os.path.join(fname, "metadata.csv")
-        df = pd.read_csv(fname)
-        return df
-
     #====END=OF=CLASS=====================
