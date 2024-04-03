@@ -16,8 +16,8 @@ import networkx as nx
 from scipy import sparse as sp
 from scipy.io import mmread
 from time import perf_counter as clock
-import scanpy as sc
-from scanpy import AnnData
+import anndata as ad
+from anndata import AnnData
 import numpy as np
 import pandas as pd
 import re
@@ -90,7 +90,7 @@ class TooManyCells:
         if isinstance(input, str):
             if input.endswith('.h5ad'):
                 self.t0 = clock()
-                self.A = sc.read_h5ad(input)
+                self.A = ad.read_h5ad(input)
                 self.tf = clock()
                 delta = self.tf - self.t0
                 txt = ('Elapsed time for loading: ' +
@@ -105,7 +105,7 @@ class TooManyCells:
                         if f.endswith('.h5ad'):
                             fname = os.path.join(input, f)
                             self.t0 = clock()
-                            self.A = sc.read_h5ad(fname)
+                            self.A = ad.read_h5ad(fname)
                             self.tf = clock()
                             delta = self.tf - self.t0
                             txt = ('Elapsed time for ' +
@@ -119,6 +119,8 @@ class TooManyCells:
         else:
             raise ValueError('Unexpected input type.')
 
+        #If no output directory is provided,
+        #we use the current working directory.
         if output == "":
             output = os.getcwd()
 
@@ -142,8 +144,11 @@ class TooManyCells:
 
 
         #Create a copy to avoid direct modifications
-        #to the original count matrix X.
-        self.X = self.A.X.copy()
+        #of the original count matrix X.
+        #Note that we are making sure that the 
+        #sparse matrix has the CSR format. This
+        #is relevant when we normalize.
+        self.X = sp.csr_matrix(self.A.X, copy=True)
 
         self.n_cells, self.n_genes = self.A.shape
 
@@ -701,13 +706,3 @@ class TooManyCells:
         p = subprocess.call(final_command, shell=True)
 
     #====END=OF=CLASS=====================
-
-#Typical usage:
-#import toomanycells as tmc
-#obj = tmc.TooManyCells(path_to_source, path_to_output)
-#obj.run_spectral_clustering()
-#obj.store_outputs()
-#obj.visualize_with_tmc_interactive(
-#path_to_tmc_interactive,
-#column_containing_cell_annotations,
-#)

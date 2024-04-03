@@ -43,6 +43,9 @@ extra = [
 include = ["toomanycells*"]
 exclude = ["docs*"]
 
+[tool.setuptools.package-data]
+"toomanycells.data" = [*.csv]
+
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
 
