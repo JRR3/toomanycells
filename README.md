@@ -29,6 +29,11 @@ in your home environment. If you want to install an updated version, then use th
 pip install toomanycells -U
 ```
 
+## Quick run
+If you want to see a concrete example of how
+to use toomanycells, check out the jupyter 
+notebook [demo](./toomanycells_demo.ipynb)
+
 ## Usage
 1. First import the module as follows
    ```
