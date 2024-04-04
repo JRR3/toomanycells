@@ -88,22 +88,22 @@ class TooManyCells:
         """
 
         if isinstance(input, str):
-            if input.endswith('.h5ad'):
+            self.source = os.path.abspath(input)
+            if self.source.endswith('.h5ad'):
                 self.t0 = clock()
-                self.A = ad.read_h5ad(input)
+                self.A = ad.read_h5ad(self.source)
                 self.tf = clock()
                 delta = self.tf - self.t0
                 txt = ('Elapsed time for loading: ' +
                         f'{delta:.2f} seconds.')
                 print(txt)
             else:
-                self.source = input
                 if input_is_matrix_market:
                     self.convert_mm_from_source_to_anndata()
                 else:
-                    for f in os.listdir(input):
+                    for f in os.listdir(self.source):
                         if f.endswith('.h5ad'):
-                            fname = os.path.join(input, f)
+                            fname = os.path.join(self.source, f)
                             self.t0 = clock()
                             self.A = ad.read_h5ad(fname)
                             self.tf = clock()
@@ -126,6 +126,8 @@ class TooManyCells:
 
         if not os.path.exists(output):
             os.makedirs(output)
+
+        self.output = os.path.abspath(output)
 
         #This column of the obs data frame indicates
         #the correspondence between a cell and the 
@@ -184,8 +186,6 @@ class TooManyCells:
         #the JSON structure representation
         #of the tree.
         self.J = MultiIndexList()
-
-        self.output = output
 
         self.node_counter = 0
 
