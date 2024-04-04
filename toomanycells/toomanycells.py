@@ -265,6 +265,14 @@ class TooManyCells:
         print("the size of the partition becomes smaller.")
         print("Note that the number of iterations is")
         print("only an estimate.")
+    #=====================================
+    def reverse_path(self, p: str)->str:
+        """
+        This function reverses the path from the root\
+        node to the leaf node.
+        """
+        reversed_p = "/".join(p.split("/")[::-1])
+        return reversed_p
 
     #=====================================
     def run_spectral_clustering(self):
@@ -348,7 +356,8 @@ class TooManyCells:
                     c = self.cluster_column_index
                     self.A.obs.iloc[rows, c] = node_id
 
-                    reversed_path = current_path[::-1]
+                    reversed_path = self.reverse_path(
+                        current_path)
                     p = self.path_column_index
                     self.A.obs.iloc[rows, p] = reversed_path
 
