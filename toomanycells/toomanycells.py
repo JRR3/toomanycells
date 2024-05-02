@@ -2,7 +2,7 @@
 #Princess Margaret Cancer Research Tower
 #Schwartz Lab
 #Javier Ruiz Ramirez
-#March 2024
+#May 2024
 #########################################################
 #This is a Python implementation of the command line 
 #tool too-many-cells.
@@ -14,6 +14,7 @@ from typing import Optional
 from typing import Union
 import networkx as nx
 from scipy import sparse as sp
+from scipy.sparse.linalg import eigsh as Eigen_Hermitian
 from scipy.io import mmread
 from time import perf_counter as clock
 import anndata as ad
@@ -150,7 +151,13 @@ class TooManyCells:
         #Note that we are making sure that the 
         #sparse matrix has the CSR format. This
         #is relevant when we normalize.
-        self.X = sp.csr_matrix(self.A.X, copy=True)
+        if sp.issparse(self.A.X):
+            self.is_sparse = True
+            self.X = sp.csr_matrix(self.A.X, copy=True)
+        else:
+            #The matrix is dense.
+            self.is_sparse = False
+            self.X = self.A.X.copy()
 
         self.n_cells, self.n_genes = self.A.shape
 
@@ -198,10 +205,12 @@ class TooManyCells:
         self.verbose_mode    = False
 
     #=====================================
-    def normalize_rows(self):
+    def normalize_sparse_rows(self):
         """
         Divide each row of the count matrix by its \
-                Euclidean norm.
+            Euclidean norm. Note that this function \
+            assumes that the matrix is in the \
+            compressed sparse row format.
         """
 
         print('Normalizing rows.')
@@ -216,6 +225,19 @@ class TooManyCells:
             row_norm  = np.linalg.norm(nz)
             row = nz / row_norm
             mat.data[mat.indptr[i]:mat.indptr[i+1]] = row
+
+    #=====================================
+    def normalize_dense_rows(self):
+        """
+        Divide each row of the count matrix by its \
+            Euclidean norm. Note that this function \
+            assumes that the matrix is dense.
+        """
+
+        print('Normalizing rows.')
+
+        for row in self.X:
+            row /= np.linalg.norm(row)
 
     #=====================================
     def modularity_to_json(self,Q):
@@ -285,7 +307,10 @@ class TooManyCells:
 
         self.t0 = clock()
 
-        self.normalize_rows()
+        if self.is_sparse:
+            self.normalize_sparse_rows()
+        else:
+            self.normalize_dense_rows()
 
         node_id = self.node_counter
 
@@ -405,16 +430,50 @@ class TooManyCells:
         ones = np.ones(n_rows)
         w = B.T.dot(ones)
         L = np.sum(w**2) - n_rows
+        #These are the row sums of the similarity matrix
         w = B.dot(w)
-        d = 1/np.sqrt(w)
-        D = sp.diags(d)
-        C = D.dot(B)
-        W = self.trunc_SVD.fit_transform(C)
+        #Check if we have negative entries before computing
+        #the square root.
+        if (w <= 0).any():
+            #This means we cannot use the fast approach
+            #We'll have to build a dense representation
+            # of the similarity matrix.
+            similarity_mtx = B @ B.T
+            row_sums_mtx = sp.diags(w)
+            laplacian_mtx = row_sums_mtx - similarity_mtx
+            E_obj = Eigen_Hermitian(laplacian_mtx,
+                                    k=2,
+                                    M=row_sums_mtx,
+                                    sigma=0,
+                                    which="LM")
+            eigen_val_abs = np.abs(E_obj[0])
+            #Identify the eigenvalue with the
+            #largest magnitude.
+            idx = np.argmax(eigen_val_abs)
+            #Choose the eigenvector corresponding
+            # to the eigenvalue with the 
+            # largest magnitude.
+            eigen_vectors = E_obj[1]
+            W = eigen_vectors[:,idx]
+        else:
+            #This is the fast approach.
+            #It is fast in the sense that the 
+            #operations are faster if the matrix
+            #is sparse.
+            d = 1/np.sqrt(w)
+            D = sp.diags(d)
+            C = D.dot(B)
+            W = self.trunc_SVD.fit_transform(C)
+            #Since the principal components are
+            #sorted by the magnitude of the singular
+            #values, we take the second column, i.e.,
+            #the one located on index=1.
+            W = W[:,1]
 
         partition = []
         Q = 0
 
-        mask_c1 = 0 < W[:,1]
+        mask_c1 = 0 < W
         mask_c2 = ~mask_c1
 
         #If one partition has all the elements
