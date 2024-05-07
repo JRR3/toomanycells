@@ -71,6 +71,7 @@ class TooManyCells:
             input: Union[AnnData, str],
             output: Optional[str] = "",
             input_is_matrix_market: Optional[bool] = False,
+            use_full_matrix: Optional[bool] = False,
             ):
         """
         The constructor takes the following inputs.
@@ -145,6 +146,8 @@ class TooManyCells:
         self.delta_clustering = 0
         self.final_n_iter     = 0
 
+        self.use_full_matrix = use_full_matrix
+
 
         #Create a copy to avoid direct modifications
         #of the original count matrix X.
@@ -152,8 +155,17 @@ class TooManyCells:
         #sparse matrix has the CSR format. This
         #is relevant when we normalize.
         if sp.issparse(self.A.X):
-            self.is_sparse = True
-            self.X = sp.csr_matrix(self.A.X, copy=True)
+            #Compute the density of the matrix
+            rho = self.A.X.nnz / np.prod(self.A.X.shape)
+            #If more than 50% of the matrix is occupied,
+            #we generate a dense version of the matrix.
+            sparse_threshold = 0.50
+            if use_full_matrix or sparse_threshold < rho:
+                self.is_sparse = False
+                self.X = self.A.X.toarray()
+            else:
+                self.is_sparse = True
+                self.X = sp.csr_matrix(self.A.X, copy=True)
         else:
             #The matrix is dense.
             self.is_sparse = False
@@ -165,11 +177,6 @@ class TooManyCells:
             raise ValueError("Too few observations (cells).")
 
         print(self.A)
-
-        self.trunc_SVD = TruncatedSVD(
-                n_components=2,
-                n_iter=5,
-                algorithm='randomized')
 
         #We use a deque to enforce a breadth-first traversal.
         self.Dq = deque()
@@ -297,7 +304,10 @@ class TooManyCells:
         return reversed_p
 
     #=====================================
-    def run_spectral_clustering(self):
+    def run_spectral_clustering(
+            self,
+            use_eigen_decomposition: Optional[bool] = False,
+            svd_algorithm: Optional[str] = "randomized"):
         """
         This function computes the partitions of the \
                 initial cell population and continues \
@@ -305,6 +315,16 @@ class TooManyCells:
                 created partitions is nonpositive.
         """
 
+        if svd_algorithm not in ["randomized","arpack"]:
+            raise ValueError("Unexpected SVD algorithm.")
+
+        self.use_eigen_decomposition = use_eigen_decomposition
+
+        self.trunc_SVD = TruncatedSVD(
+                n_components=2,
+                n_iter=5,
+                algorithm=svd_algorithm)
+        
         self.t0 = clock()
 
         if self.is_sparse:
@@ -434,7 +454,7 @@ class TooManyCells:
         w = B.dot(w)
         #Check if we have negative entries before computing
         #the square root.
-        if (w <= 0).any():
+        if (w <= 0).any() or self.use_eigen_decomposition:
             #This means we cannot use the fast approach
             #We'll have to build a dense representation
             # of the similarity matrix.

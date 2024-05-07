@@ -17,6 +17,10 @@ Make sure you have installed the graph visualization library [Graphviz](https://
 ```
 conda install anaconda::graphviz
 ```
+Or, if you are using Linux, you can do
+```
+sudo apt install libgraphviz-dev
+```
 
 ## Installation
 
@@ -28,6 +32,8 @@ in your home environment. If you want to install an updated version, then use th
 ```
 pip install toomanycells -U
 ```
+Make sure you have the latest version. If not,
+run the previous command again.
 
 ## Quick run
 If you want to see a concrete example of how
