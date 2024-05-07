@@ -458,9 +458,9 @@ class TooManyCells:
             #This means we cannot use the fast approach
             #We'll have to build a dense representation
             # of the similarity matrix.
-            similarity_mtx = B @ B.T
-            row_sums_mtx = sp.diags(w)
-            laplacian_mtx = row_sums_mtx - similarity_mtx
+            laplacian_mtx  = -B @ B.T
+            row_sums_mtx   = sp.diags(w).toarray()
+            laplacian_mtx += row_sums_mtx
             E_obj = Eigen_Hermitian(laplacian_mtx,
                                     k=2,
                                     M=row_sums_mtx,
