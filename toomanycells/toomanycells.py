@@ -125,6 +125,8 @@ class TooManyCells:
         #we use the current working directory.
         if output == "":
             output = os.getcwd()
+            output = os.path.join(output, "tmc_outputs")
+            print(f"Outputs will be saved in: {output}")
 
         if not os.path.exists(output):
             os.makedirs(output)
@@ -146,9 +148,6 @@ class TooManyCells:
         self.delta_clustering = 0
         self.final_n_iter     = 0
 
-        self.use_full_matrix = use_full_matrix
-
-
         #Create a copy to avoid direct modifications
         #of the original count matrix X.
         #Note that we are making sure that the 
@@ -163,17 +162,29 @@ class TooManyCells:
             if use_full_matrix or sparse_threshold < rho:
                 self.is_sparse = False
                 self.X = self.A.X.toarray()
+                txt = ("Using a dense representation" 
+                       " of the count matrix.")
+                print(txt)
+                txt = ("Values will be converted to" 
+                       " float.")
+                print(txt)
+                self.X = self.X.astype(float)
             else:
                 self.is_sparse = True
                 self.X = sp.csr_matrix(self.A.X, copy=True)
         else:
             #The matrix is dense.
+            print("The matrix is dense.")
             self.is_sparse = False
             self.X = self.A.X.copy()
+            txt = ("Values will be converted to" 
+                   " float.")
+            print(txt)
+            self.X = self.X.astype(float)
 
         self.n_cells, self.n_genes = self.A.shape
 
-        if self.n_cells < 2:
+        if self.n_cells < 3:
             raise ValueError("Too few observations (cells).")
 
         print(self.A)
@@ -318,7 +329,8 @@ class TooManyCells:
         if svd_algorithm not in ["randomized","arpack"]:
             raise ValueError("Unexpected SVD algorithm.")
 
-        self.use_eigen_decomposition = use_eigen_decomposition
+        use_eigen_decomp = use_eigen_decomposition
+        self.use_eigen_decomposition = use_eigen_decomp
 
         self.trunc_SVD = TruncatedSVD(
                 n_components=2,
@@ -395,6 +407,11 @@ class TooManyCells:
                         self.node_counter += 1
 
                 else:
+                    if j_index is None:
+                        txt = ("All cells belong" 
+                               " to the same partition.")
+                        print(txt)
+                        continue
                     #Update the relation between a set of
                     #cells and the corresponding leaf node.
                     #Also include the path to reach that node.
@@ -445,8 +462,18 @@ class TooManyCells:
         if self.verbose_mode:
             print(f'I was given: {rows=}')
 
-        B = self.X[rows,:]
+        partition = []
+        Q = 0
+
         n_rows = len(rows) 
+        #print(f"Number of cells: {n_rows}")
+
+        #If the number of rows is less than 3,
+        #we keep the cluster as it is.
+        if n_rows < 3:
+            return (Q, partition)
+
+        B = self.X[rows,:]
         ones = np.ones(n_rows)
         w = B.T.dot(ones)
         L = np.sum(w**2) - n_rows
@@ -459,11 +486,11 @@ class TooManyCells:
             #We'll have to build a dense representation
             # of the similarity matrix.
             laplacian_mtx  = -B @ B.T
-            row_sums_mtx   = sp.diags(w).toarray()
-            laplacian_mtx += row_sums_mtx
+            row_sums   = sp.diags(w)
+            laplacian_mtx += row_sums
             E_obj = Eigen_Hermitian(laplacian_mtx,
                                     k=2,
-                                    M=row_sums_mtx,
+                                    M=row_sums,
                                     sigma=0,
                                     which="LM")
             eigen_val_abs = np.abs(E_obj[0])
@@ -480,18 +507,15 @@ class TooManyCells:
             #It is fast in the sense that the 
             #operations are faster if the matrix
             #is sparse.
+
             d = 1/np.sqrt(w)
             D = sp.diags(d)
             C = D.dot(B)
             W = self.trunc_SVD.fit_transform(C)
-            #Since the principal components are
-            #sorted by the magnitude of the singular
-            #values, we take the second column, i.e.,
-            #the one located on index=1.
-            W = W[:,1]
+            singular_values = self.trunc_SVD.singular_values_
+            idx = np.argmax(singular_values)
+            W = W[:,idx]
 
-        partition = []
-        Q = 0
 
         mask_c1 = 0 < W
         mask_c2 = ~mask_c1
@@ -820,3 +844,4 @@ class TooManyCells:
 
 
     #====END=OF=CLASS=====================
+
