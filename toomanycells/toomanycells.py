@@ -488,20 +488,33 @@ class TooManyCells:
             laplacian_mtx  = -B @ B.T
             row_sums   = sp.diags(w)
             laplacian_mtx += row_sums
-            E_obj = Eigen_Hermitian(laplacian_mtx,
-                                    k=2,
-                                    M=row_sums,
-                                    sigma=0,
-                                    which="LM")
-            eigen_val_abs = np.abs(E_obj[0])
-            #Identify the eigenvalue with the
-            #largest magnitude.
-            idx = np.argmax(eigen_val_abs)
-            #Choose the eigenvector corresponding
-            # to the eigenvalue with the 
-            # largest magnitude.
-            eigen_vectors = E_obj[1]
-            W = eigen_vectors[:,idx]
+            try:
+                E_obj = Eigen_Hermitian(laplacian_mtx,
+                                        k=2,
+                                        M=row_sums,
+                                        sigma=0,
+                                        which="LM")
+                eigen_val_abs = np.abs(E_obj[0])
+                #Identify the eigenvalue with the
+                #largest magnitude.
+                idx = np.argmax(eigen_val_abs)
+                #Choose the eigenvector corresponding
+                # to the eigenvalue with the 
+                # largest magnitude.
+                eigen_vectors = E_obj[1]
+                W = eigen_vectors[:,idx]
+            except:
+                inv_row_sums   = 1/w
+                inv_row_sums   = sp.diags(inv_row_sums)
+                laplacian_mtx  = inv_row_sums @ laplacian_mtx
+                eig_obj = np.linalg.eig(laplacian_mtx)
+                eig_vals = eig_obj.eigenvalues
+                eig_vecs = eig_obj.eigenvectors
+                idx = np.argsort(np.abs(np.real(eig_vals)))
+                idx = idx[1]
+                W = np.real(eig_vecs[:,idx])
+
+
         else:
             #This is the fast approach.
             #It is fast in the sense that the 
