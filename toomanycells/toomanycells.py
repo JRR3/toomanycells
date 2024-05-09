@@ -513,6 +513,7 @@ class TooManyCells:
                 idx = np.argsort(np.abs(np.real(eig_vals)))
                 idx = idx[1]
                 W = np.real(eig_vecs[:,idx])
+                W = np.squeeze(np.asarray(W))
 
 
         else:
