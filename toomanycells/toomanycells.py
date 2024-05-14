@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 import re
 from sklearn.decomposition import TruncatedSVD
+from sklearn.metrics import pairwise_distances
 from collections import deque
 import os
 from os.path import dirname
@@ -36,25 +37,25 @@ from .common import MultiIndexList
 #=====================================================
 class TooManyCells:
     """
-    This class focuses on one aspect of the original\
+    This class focuses on one aspect of the original \
         Too-Many-Cells tool, the clustering.\ 
         Features such as normalization, \
         dimensionality reduction and many others can be \
         applied using functions from libraries like \ 
-        scanpy, or they can be implemented locally. This \
+        Scanpy, or they can be implemented locally. This \
         implementation also allows the possibility of \
         new features with respect to the original \
         Too-Many-Cells. For example, imagine you want to \
         continue partitioning fibroblasts until you have \
-        just one cell, even if the modularity becomes \
-        negative, but for CD8+ T-cells you do not want to \
-        have partitions with less than 100 cells. \
-        This can be easily implemented with a few \
-        conditions using the cell annotations in the .obs 
-        data frame of the AnnData object.\
+        at most a given number of cells, even if the \
+        modularity becomes negative, but for CD8+ T-cells \
+        you do not want to have partitions with less \
+        than 100 cells. This can be easily implemented \
+        with a few conditions using the cell annotations \
+        in the .obs data frame of the AnnData object.\
 
-    With regards to visualization, we recommend\
-        using the too-many-cells-interactive tool.\
+    With regards to visualization, we recommend \
+        using the too-many-cells-interactive tool. \
         You can find it at:\ 
         https://github.com/schwartzlab-methods/\
         too-many-cells-interactive.git\
@@ -105,7 +106,8 @@ class TooManyCells:
                 else:
                     for f in os.listdir(self.source):
                         if f.endswith('.h5ad'):
-                            fname = os.path.join(self.source, f)
+                            fname = os.path.join(
+                                self.source, f)
                             self.t0 = clock()
                             self.A = ad.read_h5ad(fname)
                             self.tf = clock()
@@ -138,11 +140,11 @@ class TooManyCells:
         #leaf node of the spectral clustering tree.
         n_cols = len(self.A.obs.columns)
         self.A.obs['sp_cluster'] = -1
-        self.A.obs['sp_path']    = ''
+        self.A.obs['sp_path']    = ""
 
-        t = self.A.obs.columns.get_loc('sp_cluster')
+        t = self.A.obs.columns.get_loc("sp_cluster")
         self.cluster_column_index = t
-        t = self.A.obs.columns.get_loc('sp_path')
+        t = self.A.obs.columns.get_loc("sp_path")
         self.path_column_index = t
 
         self.delta_clustering = 0
@@ -171,6 +173,7 @@ class TooManyCells:
                 self.X = self.X.astype(float)
             else:
                 self.is_sparse = True
+                #Make sure we use a CSR format.
                 self.X = sp.csr_matrix(self.A.X, copy=True)
         else:
             #The matrix is dense.
@@ -317,6 +320,10 @@ class TooManyCells:
     #=====================================
     def run_spectral_clustering(
             self,
+            similarity_function: Optional[str] = "cosine",
+            similarity_norm: Optional[float] = 2,
+            similarity_power: Optional[float] = 1,
+            similarity_gamma: Optional[float] = 1,
             use_eigen_decomposition: Optional[bool] = False,
             svd_algorithm: Optional[str] = "randomized"):
         """
@@ -326,23 +333,72 @@ class TooManyCells:
                 created partitions is nonpositive.
         """
 
-        if svd_algorithm not in ["randomized","arpack"]:
+        svd_algorithms = ["randomized","arpack"]
+        if svd_algorithm not in svd_algorithms:
             raise ValueError("Unexpected SVD algorithm.")
 
-        use_eigen_decomp = use_eigen_decomposition
-        self.use_eigen_decomposition = use_eigen_decomp
+        if similarity_norm < 1:
+            raise ValueError("Unexpected similarity norm.")
 
-        self.trunc_SVD = TruncatedSVD(
-                n_components=2,
-                n_iter=5,
-                algorithm=svd_algorithm)
+        if similarity_gamma <= 0:
+            raise ValueError("Unexpected similarity gamma.")
+
+        if similarity_power <= 0:
+            raise ValueError("Unexpected similarity power.")
+
+        similarity_functions = []
+        similarity_functions.append("cosine")
+        similarity_functions.append("neg_exp")
+        similarity_functions.append("div_by_sum")
+        if similarity_function not in similarity_functions:
+            raise ValueError("Unexpected similarity fun.")
+
+        if similarity_function == "neg_exp":
+            #exp(-||x-y||^power * gamma)
+            def sim_fun(x,y):
+                delta = np.linalg.norm(
+                    x-y, ord=similarity_norm)
+                delta = np.power(delta, similarity_power)
+                return np.exp(-delta * similarity_gamma)
+
+        elif similarity_function == "div_by_sum":
+            #1 - ( ||x-y|| / (||x|| + ||y||) )^power
+            def sim_fun(x,y):
+                delta = np.linalg.norm(
+                    x-y, ord=similarity_norm)
+                x_norm = np.linalg.norm(
+                    x, ord=similarity_norm)
+                y_norm = np.linalg.norm(
+                    y, ord=similarity_norm)
+                delta /= (x_norm + y_norm)
+                delta = np.power(delta, similarity_power)
+                value =  1 - delta
+                return value
+            
+
+        temp = use_eigen_decomposition
+        self.use_eigen_decomposition = temp
+
+        # self.similarity_function = similarity_function
         
         self.t0 = clock()
 
-        if self.is_sparse:
-            self.normalize_sparse_rows()
+        if similarity_function == "cosine":
+
+            self.trunc_SVD = TruncatedSVD(
+                    n_components=2,
+                    n_iter=5,
+                    algorithm=svd_algorithm)
+
+            if self.is_sparse:
+                self.normalize_sparse_rows()
+            else:
+                self.normalize_dense_rows()
         else:
-            self.normalize_dense_rows()
+            #self.build_similarity_matrix()
+            self.X = pairwise_distances(self.X,
+                                        metric=sim_fun)
+
 
         node_id = self.node_counter
 
@@ -371,7 +427,10 @@ class TooManyCells:
         with tqdm(total=max_n_iter) as pbar:
             while 0 < len(self.Dq):
                 rows, node_id = self.Dq.popleft()
-                Q,S = self.compute_partition(rows)
+                if similarity_function == "cosine":
+                    Q,S = self.compute_partition_for_cos(rows)
+                else:
+                    Q,S = self.compute_partition_for_gen(rows)
                 current_path = self.node_to_path[node_id]
                 j_index = self.node_to_j_index[node_id]
                 if self.eps < Q:
@@ -444,9 +503,8 @@ class TooManyCells:
                 f"{self.delta_clustering:.2f} seconds.")
         print(txt)
 
-
     #=====================================
-    def compute_partition(self, rows: np.ndarray
+    def compute_partition_for_cos(self, rows: np.ndarray
     ) -> tuple:
     #) -> tuple[float, np.ndarray]:
         """
@@ -475,23 +533,27 @@ class TooManyCells:
 
         B = self.X[rows,:]
         ones = np.ones(n_rows)
-        w = B.T.dot(ones)
-        L = np.sum(w**2) - n_rows
+        partial_row_sums = B.T.dot(ones)
+        #1^T @ B @ B^T @ 1 = (B^T @ 1)^T @ (B^T @ 1)
+        L = partial_row_sums @ partial_row_sums - n_rows
         #These are the row sums of the similarity matrix
-        w = B.dot(w)
+        row_sums = B @ partial_row_sums
         #Check if we have negative entries before computing
         #the square root.
-        if (w <= 0).any() or self.use_eigen_decomposition:
+        non_pos_row_sums = (row_sums <= 0).any() 
+        if  non_pos_row_sums or self.use_eigen_decomposition:
             #This means we cannot use the fast approach
             #We'll have to build a dense representation
             # of the similarity matrix.
             laplacian_mtx  = -B @ B.T
-            row_sums   = sp.diags(w)
-            laplacian_mtx += row_sums
+            row_sums_mtx   = sp.diags(row_sums)
+            laplacian_mtx += row_sums_mtx
             try:
+                #if the row sums are negative, this 
+                #step could fail.
                 E_obj = Eigen_Hermitian(laplacian_mtx,
                                         k=2,
-                                        M=row_sums,
+                                        M=row_sums_mtx,
                                         sigma=0,
                                         which="LM")
                 eigen_val_abs = np.abs(E_obj[0])
@@ -504,7 +566,9 @@ class TooManyCells:
                 eigen_vectors = E_obj[1]
                 W = eigen_vectors[:,idx]
             except:
-                inv_row_sums   = 1/w
+                #This is a very expensive operation
+                #since it computes all the eigenvectors.
+                inv_row_sums   = 1/row_sums
                 inv_row_sums   = sp.diags(inv_row_sums)
                 laplacian_mtx  = inv_row_sums @ laplacian_mtx
                 eig_obj = np.linalg.eig(laplacian_mtx)
@@ -522,12 +586,14 @@ class TooManyCells:
             #operations are faster if the matrix
             #is sparse.
 
-            d = 1/np.sqrt(w)
+            d = 1/np.sqrt(row_sums)
             D = sp.diags(d)
-            C = D.dot(B)
+            C = D @ B
             W = self.trunc_SVD.fit_transform(C)
             singular_values = self.trunc_SVD.singular_values_
             idx = np.argmax(singular_values)
+            #Get the singular vector corresponding to the
+            #largest singular value.
             W = W[:,idx]
 
 
@@ -545,9 +611,101 @@ class TooManyCells:
             n_rows_msk = mask.sum()
             partition.append(rows[mask])
             ones_msk = ones * mask
-            w_msk = B.T.dot(ones_msk)
-            O_c = np.sum(w_msk**2) - n_rows_msk
-            L_c = ones_msk.dot(w)  - n_rows_msk
+            row_sums_msk = B.T.dot(ones_msk)
+            O_c = row_sums_msk @ row_sums_msk - n_rows_msk
+            L_c = ones_msk @ row_sums  - n_rows_msk
+            Q += O_c / L - (L_c / L)**2
+
+        if self.verbose_mode:
+            print(f'{Q=}')
+            print(f'I found: {partition=}')
+            print('===========================')
+
+        return (Q, partition)
+
+    #=====================================
+    def compute_partition_for_gen(self, rows: np.ndarray
+    ) -> tuple:
+    #) -> tuple[float, np.ndarray]:
+        """
+        Compute the partition of the given set\
+            of cells. The rows input \
+            contains the indices of the \
+            rows we are to partition. \
+            The algorithm computes a truncated \
+            SVD and the corresponding modularity \
+            of the newly created communities.
+        """
+
+        if self.verbose_mode:
+            print(f'I was given: {rows=}')
+
+        partition = []
+        Q = 0
+
+        n_rows = len(rows) 
+        #print(f"Number of cells: {n_rows}")
+
+        #If the number of rows is less than 3,
+        #we keep the cluster as it is.
+        if n_rows < 3:
+            return (Q, partition)
+
+        S = self.X[rows,:]
+        ones = np.ones(n_rows)
+        row_sums = S.dot(ones)
+        row_sums_mtx   = sp.diags(row_sums)
+        laplacian_mtx  = row_sums_mtx - S
+        L = np.sum(row_sums) - n_rows
+
+        try:
+            E_obj = Eigen_Hermitian(laplacian_mtx,
+                                    k=2,
+                                    M=row_sums_mtx,
+                                    sigma=0,
+                                    which="LM")
+            eigen_val_abs = np.abs(E_obj[0])
+            #Identify the eigenvalue with the
+            #largest magnitude.
+            idx = np.argmax(eigen_val_abs)
+            #Choose the eigenvector corresponding
+            # to the eigenvalue with the 
+            # largest magnitude.
+            eigen_vectors = E_obj[1]
+            W = eigen_vectors[:,idx]
+
+        except:
+            #This is a very expensive operation
+            #since it computes all the eigenvectors.
+            inv_row_sums   = 1/row_sums
+            inv_row_sums   = sp.diags(inv_row_sums)
+            laplacian_mtx  = inv_row_sums @ laplacian_mtx
+            eig_obj = np.linalg.eig(laplacian_mtx)
+            eig_vals = eig_obj.eigenvalues
+            eig_vecs = eig_obj.eigenvectors
+            idx = np.argsort(np.abs(np.real(eig_vals)))
+            idx = idx[1]
+            W = np.real(eig_vecs[:,idx])
+            W = np.squeeze(np.asarray(W))
+
+
+        mask_c1 = 0 < W
+        mask_c2 = ~mask_c1
+
+        #If one partition has all the elements
+        #then return with Q = 0.
+        if mask_c1.all() or mask_c2.all():
+            return (Q, partition)
+
+        masks = [mask_c1, mask_c2]
+
+        for mask in masks:
+            n_rows_msk = mask.sum()
+            partition.append(rows[mask])
+            ones_msk = ones * mask
+            row_sums_msk = S @ ones_msk
+            O_c = ones_msk @ row_sums_msk - n_rows_msk
+            L_c = ones_msk @ row_sums  - n_rows_msk
             Q += O_c / L - (L_c / L)**2
 
         if self.verbose_mode:
