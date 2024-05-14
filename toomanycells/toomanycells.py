@@ -24,6 +24,7 @@ import pandas as pd
 import re
 from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics import pairwise_distances
+from sklearn.feature_extraction.text import TfidfTransformer
 from collections import deque
 import os
 from os.path import dirname
@@ -325,6 +326,9 @@ class TooManyCells:
             similarity_power: Optional[float] = 1,
             similarity_gamma: Optional[float] = 1,
             use_eig_decomp: Optional[bool] = False,
+            use_tf_idf: Optional[bool] = False,
+            tf_idf_norm: Optional[str] = None,
+            tf_idf_smooth: Optional[str] = True,
             svd_algorithm: Optional[str] = "randomized"):
         """
         This function computes the partitions of the \
@@ -390,6 +394,23 @@ class TooManyCells:
 
         self.t0 = clock()
 
+        if use_tf_idf:
+
+            if tf_idf_norm is None:
+                pass 
+            else:
+                tf_idf_norms = ["l2","l1"]
+                if tf_idf_norm not in tf_idf_norms:
+                    raise ValueError("Unexpected tf norm.")
+
+            tf_idf_obj = TfidfTransformer(
+                norm=tf_idf_norm,
+                smooth_idf=tf_idf_smooth)
+
+            self.X = tf_idf_obj.fit_transform(self.X)
+
+
+        #Similarity section.
         if similarity_function == "cosine_sparse":
 
             self.trunc_SVD = TruncatedSVD(
@@ -397,12 +418,17 @@ class TooManyCells:
                     n_iter=5,
                     algorithm=svd_algorithm)
 
-            if self.is_sparse:
-                self.normalize_sparse_rows()
+            if use_tf_idf and tf_idf_norm == "l2":
+                #The row vectors have unit norm.
+                pass
             else:
-                self.normalize_dense_rows()
+                if self.is_sparse:
+                    self.normalize_sparse_rows()
+                else:
+                    self.normalize_dense_rows()
         else:
-            #self.build_similarity_matrix()
+            #Use a similarity function different from
+            #the cosine_sparse similarity function.
             self.X = pairwise_distances(self.X,
                                         metric=sim_fun)
 
@@ -623,6 +649,8 @@ class TooManyCells:
             #Get the singular vector corresponding to the
             #second largest singular value.
             W = W[:,idx[0]]
+        else:
+            raise ValueError("Unexpected case for sparse.")
 
 
         mask_c1 = 0 < W
