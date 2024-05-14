@@ -320,7 +320,7 @@ class TooManyCells:
     #=====================================
     def run_spectral_clustering(
             self,
-            similarity_function: Optional[str] = "cosine",
+            similarity_function:Optional[str]="cosine_sparse",
             similarity_norm: Optional[float] = 2,
             similarity_power: Optional[float] = 1,
             similarity_gamma: Optional[float] = 1,
@@ -347,13 +347,23 @@ class TooManyCells:
             raise ValueError("Unexpected similarity power.")
 
         similarity_functions = []
+        similarity_functions.append("cosine_sparse")
         similarity_functions.append("cosine")
         similarity_functions.append("neg_exp")
         similarity_functions.append("div_by_sum")
         if similarity_function not in similarity_functions:
             raise ValueError("Unexpected similarity fun.")
 
-        if similarity_function == "neg_exp":
+        if similarity_function == "cosine":
+            #( x @ y ) / ( ||x|| * ||y|| )
+            def sim_fun(x,y):
+                cos_sim = x @ y
+                x_norm = np.linalg.norm(x, ord=2)
+                y_norm = np.linalg.norm(y, ord=2)
+                cos_sim /= (x_norm * y_norm)
+                return cos_sim
+
+        elif similarity_function == "neg_exp":
             #exp(-||x-y||^power * gamma)
             def sim_fun(x,y):
                 delta = np.linalg.norm(
@@ -379,11 +389,9 @@ class TooManyCells:
         temp = use_eigen_decomposition
         self.use_eigen_decomposition = temp
 
-        # self.similarity_function = similarity_function
-        
         self.t0 = clock()
 
-        if similarity_function == "cosine":
+        if similarity_function == "cosine_sparse":
 
             self.trunc_SVD = TruncatedSVD(
                     n_components=2,
@@ -427,8 +435,8 @@ class TooManyCells:
         with tqdm(total=max_n_iter) as pbar:
             while 0 < len(self.Dq):
                 rows, node_id = self.Dq.popleft()
-                if similarity_function == "cosine":
-                    Q,S = self.compute_partition_for_cos(rows)
+                if similarity_function == "cosine_sparse":
+                    Q,S = self.compute_partition_for_sp(rows)
                 else:
                     Q,S = self.compute_partition_for_gen(rows)
                 current_path = self.node_to_path[node_id]
@@ -504,7 +512,7 @@ class TooManyCells:
         print(txt)
 
     #=====================================
-    def compute_partition_for_cos(self, rows: np.ndarray
+    def compute_partition_for_sp(self, rows: np.ndarray
     ) -> tuple:
     #) -> tuple[float, np.ndarray]:
         """
@@ -584,17 +592,17 @@ class TooManyCells:
             #This is the fast approach.
             #It is fast in the sense that the 
             #operations are faster if the matrix
-            #is sparse.
+            #is sparse, i.e., O(n) nonzero entries.
 
             d = 1/np.sqrt(row_sums)
             D = sp.diags(d)
             C = D @ B
             W = self.trunc_SVD.fit_transform(C)
             singular_values = self.trunc_SVD.singular_values_
-            idx = np.argmax(singular_values)
+            idx = np.argsort(singular_values)
             #Get the singular vector corresponding to the
-            #largest singular value.
-            W = W[:,idx]
+            #second largest singular value.
+            W = W[:,idx[0]]
 
 
         mask_c1 = 0 < W
@@ -651,7 +659,7 @@ class TooManyCells:
         if n_rows < 3:
             return (Q, partition)
 
-        S = self.X[rows,:]
+        S = self.X[np.ix_(rows, rows)]
         ones = np.ones(n_rows)
         row_sums = S.dot(ones)
         row_sums_mtx   = sp.diags(row_sums)
