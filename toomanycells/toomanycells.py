@@ -324,7 +324,7 @@ class TooManyCells:
             similarity_norm: Optional[float] = 2,
             similarity_power: Optional[float] = 1,
             similarity_gamma: Optional[float] = 1,
-            use_eigen_decomposition: Optional[bool] = False,
+            use_eig_decomp: Optional[bool] = False,
             svd_algorithm: Optional[str] = "randomized"):
         """
         This function computes the partitions of the \
@@ -386,8 +386,7 @@ class TooManyCells:
                 return value
             
 
-        temp = use_eigen_decomposition
-        self.use_eigen_decomposition = temp
+        self.use_eig_decomp = use_eig_decomp
 
         self.t0 = clock()
 
@@ -548,14 +547,35 @@ class TooManyCells:
         row_sums = B @ partial_row_sums
         #Check if we have negative entries before computing
         #the square root.
-        non_pos_row_sums = (row_sums <= 0).any() 
-        if  non_pos_row_sums or self.use_eigen_decomposition:
+        # if  neg_row_sums or self.use_eig_decomp:
+        has_neg_row_sums = (row_sums < 0).any() 
+        all_pos_row_sums = (0 < row_sums).all() 
+        if  has_neg_row_sums:
             #This means we cannot use the fast approach
             #We'll have to build a dense representation
             # of the similarity matrix.
-            laplacian_mtx  = -B @ B.T
+            laplacian_mtx  = B @ B.T
             row_sums_mtx   = sp.diags(row_sums)
-            laplacian_mtx += row_sums_mtx
+            laplacian_mtx  = row_sums_mtx - laplacian_mtx
+
+            #This is a very expensive operation
+            #since it computes all the eigenvectors.
+            inv_row_sums   = 1/row_sums
+            inv_row_sums   = sp.diags(inv_row_sums)
+            laplacian_mtx  = inv_row_sums @ laplacian_mtx
+            eig_obj = np.linalg.eig(laplacian_mtx)
+            eig_vals = eig_obj.eigenvalues
+            eig_vecs = eig_obj.eigenvectors
+            idx = np.argsort(np.abs(np.real(eig_vals)))
+            #Get the index of the second smallest eigenvalue.
+            idx = idx[1]
+            W = np.real(eig_vecs[:,idx])
+            W = np.squeeze(np.asarray(W))
+
+        elif self.use_eig_decomp or not all_pos_row_sums:
+            laplacian_mtx  = B @ B.T
+            row_sums_mtx   = sp.diags(row_sums)
+            laplacian_mtx  = row_sums_mtx - laplacian_mtx
             try:
                 #if the row sums are negative, this 
                 #step could fail.
@@ -588,7 +608,7 @@ class TooManyCells:
                 W = np.squeeze(np.asarray(W))
 
 
-        else:
+        elif all_pos_row_sums:
             #This is the fast approach.
             #It is fast in the sense that the 
             #operations are faster if the matrix
@@ -666,23 +686,9 @@ class TooManyCells:
         laplacian_mtx  = row_sums_mtx - S
         L = np.sum(row_sums) - n_rows
 
-        try:
-            E_obj = Eigen_Hermitian(laplacian_mtx,
-                                    k=2,
-                                    M=row_sums_mtx,
-                                    sigma=0,
-                                    which="LM")
-            eigen_val_abs = np.abs(E_obj[0])
-            #Identify the eigenvalue with the
-            #largest magnitude.
-            idx = np.argmax(eigen_val_abs)
-            #Choose the eigenvector corresponding
-            # to the eigenvalue with the 
-            # largest magnitude.
-            eigen_vectors = E_obj[1]
-            W = eigen_vectors[:,idx]
+        has_neg_row_sums = (row_sums < 0).any() 
 
-        except:
+        if has_neg_row_sums:
             #This is a very expensive operation
             #since it computes all the eigenvectors.
             inv_row_sums   = 1/row_sums
@@ -695,6 +701,40 @@ class TooManyCells:
             idx = idx[1]
             W = np.real(eig_vecs[:,idx])
             W = np.squeeze(np.asarray(W))
+
+        else:
+            #Nonnegative row sums.
+            try:
+                E_obj = Eigen_Hermitian(laplacian_mtx,
+                                        k=2,
+                                        M=row_sums_mtx,
+                                        sigma=0,
+                                        which="LM")
+                eigen_val_abs = np.abs(E_obj[0])
+                #Identify the eigenvalue with the
+                #largest magnitude.
+                idx = np.argmax(eigen_val_abs)
+                #Choose the eigenvector corresponding
+                # to the eigenvalue with the 
+                # largest magnitude.
+                eigen_vectors = E_obj[1]
+                W = eigen_vectors[:,idx]
+
+            except:
+                #This is a very expensive operation
+                #since it computes all the eigenvectors.
+                inv_row_sums   = 1/row_sums
+                inv_row_sums   = sp.diags(inv_row_sums)
+                laplacian_mtx  = inv_row_sums @ laplacian_mtx
+                eig_obj = np.linalg.eig(laplacian_mtx)
+                eig_vals = eig_obj.eigenvalues
+                eig_vecs = eig_obj.eigenvectors
+                idx = np.argsort(np.abs(np.real(eig_vals)))
+                #Get the index of the second smallest 
+                #eigenvalue.
+                idx = idx[1]
+                W = np.real(eig_vecs[:,idx])
+                W = np.squeeze(np.asarray(W))
 
 
         mask_c1 = 0 < W
