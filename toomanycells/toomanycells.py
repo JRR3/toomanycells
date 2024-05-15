@@ -441,8 +441,26 @@ class TooManyCells:
         else:
             #Use a similarity function different from
             #the cosine_sparse similarity function.
+            t0_similarity = clock()
+            print("Building similarity matrix ...")
+            n_rows = self.X.shape[0]
+            if n_rows < 500:
+                n_workers = 1
+            elif n_rows < 1000:
+                n_workers = 16
+            else:
+                n_workers = 32
+            print(f"Using {n_workers=}")
             self.X = pairwise_distances(self.X,
-                                        metric=sim_fun)
+                                        metric=sim_fun,
+                                        n_jobs=n_workers)
+            print("Similarity matrix has been built.")
+            tf_similarity = clock()
+            delta_similarity = tf_similarity - t0_similarity
+            delta_similarity /= 60
+            txt = ("Elapsed time for similarity build: " +
+                    f"{delta_similarity:.2f} minutes.")
+            print(txt)
 
 
         node_id = self.node_counter
@@ -544,8 +562,9 @@ class TooManyCells:
 
         self.tf = clock()
         self.delta_clustering = self.tf - self.t0
+        self.delta_clustering /= 60
         txt = ("Elapsed time for clustering: " +
-                f"{self.delta_clustering:.2f} seconds.")
+                f"{self.delta_clustering:.2f} minutes.")
         print(txt)
 
     #=====================================
