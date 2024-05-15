@@ -170,7 +170,7 @@ The subsequent similarity functions always produce
 nonnegative outputs.
 ### Laplacian
 The similarity function is
-$$S(i,j)=\exp(-\gamma\cdot ||x-y||_1)$$.
+$$S(i,j)=\exp(-\gamma\cdot ||x-y||_1)$$
 This is an example:
 ```
 tmc_obj.run_spectral_clustering(
@@ -182,7 +182,7 @@ inadequate choice can result in poor results or
 no convergence.
 ### Gaussian
 The similarity function is
-$ S(i,j) = \exp(-||x-y||_2^2 \cdot \gamma). $ 
+$$S(i,j)=\exp(-\gamma\cdot ||x-y||_2^2)$$
 This is an example:
 ```
 tmc_obj.run_spectral_clustering(
@@ -195,8 +195,8 @@ big differences between $x$ and $y$ into very small
 quantities.
 
 ### Divide by the sum
-The similarity function is \
-$ S(i,j) = 1-\frac{||x-y||_p}{||x||_p + ||y||_p }, $ \
+The similarity function is 
+$$S(i,j)=1-\frac{||x-y||_p}{||x||_p+||y||_p},$$
 where $p =1$ or $p=2$. The rows 
 of the matrix are normalized (unit norm)
 before computing the similarity.
