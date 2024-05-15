@@ -126,8 +126,7 @@ between each observation. Concretely, if the
 matrix of observations is $B$ ($m\times n$), the $i$-th row
 of $B$ is $x = B(i,:)$ and the $j$-th row of $B$ 
 is $y=B(j,:)$, then 
-$S(i,j)$ $=$ 
-($x$ $\cdot$ $y$)/($||x||_2$ $\cdot$ $||y||_2$ )
+$$S(i,j)=\frac{x\cdot y}{||x||_2\cdot ||y||_2}$$
 However, this is not the only similarity 
 function. We will list all the available
 similarity functions and how to call them.
@@ -171,7 +170,7 @@ The subsequent similarity functions always produce
 nonnegative outputs.
 ### Laplacian
 The similarity function is
-$$S(i,j)=\exp(-||x-y||_1 \cdot \gamma)$$.
+$$S(i,j)=\exp(-\gamma\cdot ||x-y||_1)$$.
 This is an example:
 ```
 tmc_obj.run_spectral_clustering(
