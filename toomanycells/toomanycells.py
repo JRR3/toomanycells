@@ -396,9 +396,12 @@ class TooManyCells:
 
         if use_tf_idf:
 
+            print("Using inverse document frequency.")
+
             if tf_idf_norm is None:
                 pass 
             else:
+                print("Using term frequency normalization.")
                 tf_idf_norms = ["l2","l1"]
                 if tf_idf_norm not in tf_idf_norms:
                     raise ValueError("Unexpected tf norm.")
@@ -408,9 +411,18 @@ class TooManyCells:
                 smooth_idf=tf_idf_smooth)
 
             self.X = tf_idf_obj.fit_transform(self.X)
-
+            if self.is_sparse:
+                pass
+            else:
+                #If the matrix was originally dense
+                #and the tf_idf function changed it
+                #to sparse, then convert to dense.
+                if sp.issparse(self.X):
+                    self.X = self.X.toarray()
 
         #Similarity section.
+        print(f"Working with {similarity_function=}")
+
         if similarity_function == "cosine_sparse":
 
             self.trunc_SVD = TruncatedSVD(
