@@ -196,8 +196,8 @@ big differences between $x$ and $y$ into very small
 quantities.
 
 ### Divide by the sum
-The similarity function is
-$ S(i,j) = 1-\frac{||x-y||_p}{||x||_p + ||y||_p }, $
+The similarity function is \
+$ S(i,j) = 1-\frac{||x-y||_p}{||x||_p + ||y||_p }, $ \
 where $p =1$ or $p=2$. The rows 
 of the matrix are normalized (unit norm)
 before computing the similarity.
