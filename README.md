@@ -117,3 +117,129 @@ To answer that question we have created the following benchmark. We tested the p
 ![Visualization example](https://github.com/JRR3/toomanycells/blob/main/tests/log_linear_time.png)
 ![Visualization example](https://github.com/JRR3/toomanycells/blob/main/tests/log_linear_iter.png)
 As you can see, the program behaves linearly with respect to the size of the input. In other words, the observations fit the model $T = k\cdot N^p$, where $T$ is the time to process the data set, $N$ is the number of cells, $k$ is a constant, and $p$ is the exponent. In our case $p\approx 1$. Nice!
+
+## Similarity functions
+So far we have assumed that the similarity matrix 
+$S$ is
+computed by calculating the cosine of the angle 
+between each observation. Concretely, if the 
+matrix of observations is $B$ ($m\times n$), the $i$-th row
+of $B$ is $x = B(i,:)$ and the $j$-th row of $B$ 
+is $y=B(j,:)$,
+then
+$$
+S(i,j) = 
+\frac{x \cdot y}{||x|| \cdot ||y|| }
+$$
+However, this is not the only similarity 
+function. We will list all the available
+similarity functions and how to call them.
+### cosine_sparse
+If your matrix is sparse, i.e., the number of nonzero
+entries is proportional to the number of samples ($m$),
+and you want to use the cosine similarity, then use the
+following instruction.
+```
+tmc_obj.run_spectral_clustering(
+   similarity_function="cosine_sparse")
+```
+By default we use the Halko-Martinsson-Tropp algorithm 
+to compute the truncated singular value decomposition.
+However, the ARPACK library (written in Fortran)
+is also available.
+```
+tmc_obj.run_spectral_clustering(
+   similarity_function="cosine_sparse",
+   svd_algorithm="arpack")
+```
+If $B$ has negative entries, it is possible
+to get negative entries for $S$. This could
+in turn produce negative row sums for $S$. 
+If that is the case,
+the convergence to a solution could be extremely slow.
+Moreover, a negative 
+similarity is non-physical and therefore we 
+do not recommend the cosine similarity function 
+in this situation.
+### cosine
+If your matrix is dense, 
+and you want to use the cosine similarity, then use the
+following instruction.
+```
+tmc_obj.run_spectral_clustering(
+   similarity_function="cosine")
+```
+The same comment about negative entries applies here.
+The subsequent similarity functions always produce
+nonnegative outputs.
+### laplacian
+The similarity function is
+$$
+S(i,j) = 
+\exp(-||x-y||_1 \cdot \gamma)
+$$
+This is an example:
+```
+tmc_obj.run_spectral_clustering(
+   similarity_function="laplacian",
+   similarity_gamma=0.01)
+```
+This function is very sensitive to $\gamma$. Hence, an
+inadequate choice can result in poor results or 
+no convergence.
+### gaussian
+The similarity function is
+$$
+S(i,j) = 
+\exp(-||x-y||_2^2 \cdot \gamma)
+$$
+This is an example:
+```
+tmc_obj.run_spectral_clustering(
+   similarity_function="gaussian",
+   similarity_gamma=0.001)
+```
+As before, this function is very sensitive to $\gamma$. 
+Note that the norm is squared. Thus, it transforms
+big differences between $x$ and $y$ into very small
+quantities.
+
+### div_by_sum
+The similarity function is
+$$
+S(i,j) = 
+1-\frac{||x-y||_p}{||x||_p + ||y||_p },
+$$
+where $p =1$ or $p=2$. The rows 
+of the matrix are normalized (unit norm)
+before computing the similarity.
+This is an example:
+```
+tmc_obj.run_spectral_clustering(
+   similarity_function="div_by_sum")
+```
+
+## Additional features
+If you want to use the inverse document
+frequency (IDF) normalization, then use
+```
+tmc_obj.run_spectral_clustering(
+   similarity_function="some_sim_function",
+   use_tf_idf=True)
+```
+If you also want to normalize the frequencies to
+unit norm, then use
+```
+tmc_obj.run_spectral_clustering(
+   similarity_function="some_sim_function",
+   use_tf_idf=True,
+   tf_idf_norm="l2")
+```
+to use the $2$-norm, or
+```
+tmc_obj.run_spectral_clustering(
+   similarity_function="some_sim_function",
+   use_tf_idf=True,
+   tf_idf_norm="l1")
+```
+to use the $1$-norm.
