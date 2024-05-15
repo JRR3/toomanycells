@@ -171,7 +171,7 @@ The subsequent similarity functions always produce
 nonnegative outputs.
 ### Laplacian
 The similarity function is
-$ S(i,j)$ $=$ $\exp(-||x-y||_1 \cdot \gamma)$. 
+$$S(i,j)=\exp(-||x-y||_1 \cdot \gamma)$$.
 This is an example:
 ```
 tmc_obj.run_spectral_clustering(
