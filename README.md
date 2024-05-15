@@ -127,7 +127,7 @@ matrix of observations is $B$ ($m\times n$), the $i$-th row
 of $B$ is $x = B(i,:)$ and the $j$-th row of $B$ 
 is $y=B(j,:)$,
 then 
-$$ S(i,j) = \frac{x \cdot y}{||x|| \cdot ||y|| }. $$
+$ S(i,j) = \frac{x \cdot y}{||x|| \cdot ||y|| }. $
 However, this is not the only similarity 
 function. We will list all the available
 similarity functions and how to call them.
@@ -171,7 +171,7 @@ The subsequent similarity functions always produce
 nonnegative outputs.
 ### Laplacian
 The similarity function is
-$$ S(i,j) = \exp(-||x-y||_1 \cdot \gamma) $$ 
+$ S(i,j) = \exp(-||x-y||_1 \cdot \gamma). $ 
 This is an example:
 ```
 tmc_obj.run_spectral_clustering(
@@ -183,7 +183,7 @@ inadequate choice can result in poor results or
 no convergence.
 ### Gaussian
 The similarity function is
-$$ S(i,j) = \exp(-||x-y||_2^2 \cdot \gamma) $$ 
+$ S(i,j) = \exp(-||x-y||_2^2 \cdot \gamma). $ 
 This is an example:
 ```
 tmc_obj.run_spectral_clustering(
@@ -197,7 +197,7 @@ quantities.
 
 ### Divide by the sum
 The similarity function is
-$$ S(i,j) = 1-\frac{||x-y||_p}{||x||_p + ||y||_p }, $$
+$ S(i,j) = 1-\frac{||x-y||_p}{||x||_p + ||y||_p }, $
 where $p =1$ or $p=2$. The rows 
 of the matrix are normalized (unit norm)
 before computing the similarity.
@@ -231,3 +231,12 @@ tmc_obj.run_spectral_clustering(
    tf_idf_norm="l1")
 ```
 to use the $1$-norm.
+
+## Acknowledgements
+I would like to thank 
+the Schwartz lab (GW) for 
+giving me this opportunity 
+and also Christie Lau for
+providing multiple test 
+cases to improve this 
+implementation. 
