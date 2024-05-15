@@ -24,6 +24,8 @@ import pandas as pd
 import re
 from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics import pairwise_distances
+from sklearn.metrics.pairwise import pairwise_kernels
+from sklearn.preprocessing import normalize
 from sklearn.feature_extraction.text import TfidfTransformer
 from collections import deque
 import os
@@ -229,8 +231,8 @@ class TooManyCells:
     #=====================================
     def normalize_sparse_rows(self):
         """
-        Divide each row of the count matrix by its \
-            Euclidean norm. Note that this function \
+        Divide each row of the count matrix by the \
+            given norm. Note that this function \
             assumes that the matrix is in the \
             compressed sparse row format.
         """
@@ -244,22 +246,24 @@ class TooManyCells:
         for i in range(self.n_cells):
             row = mat.getrow(i)
             nz = row.data
-            row_norm  = np.linalg.norm(nz)
+            row_norm  = np.linalg.norm(
+                nz, ord=self.similarity_norm)
             row = nz / row_norm
             mat.data[mat.indptr[i]:mat.indptr[i+1]] = row
 
     #=====================================
     def normalize_dense_rows(self):
         """
-        Divide each row of the count matrix by its \
-            Euclidean norm. Note that this function \
+        Divide each row of the count matrix by the \
+            given norm. Note that this function \
             assumes that the matrix is dense.
         """
 
         print('Normalizing rows.')
 
         for row in self.X:
-            row /= np.linalg.norm(row)
+            row /= np.linalg.norm(row,
+                                  ord=self.similarity_norm)
 
     #=====================================
     def modularity_to_json(self,Q):
@@ -321,10 +325,11 @@ class TooManyCells:
     #=====================================
     def run_spectral_clustering(
             self,
+            normalize_rows:Optional[bool] = False,
             similarity_function:Optional[str]="cosine_sparse",
             similarity_norm: Optional[float] = 2,
             similarity_power: Optional[float] = 1,
-            similarity_gamma: Optional[float] = 1,
+            similarity_gamma: Optional[float] = None,
             use_eig_decomp: Optional[bool] = False,
             use_tf_idf: Optional[bool] = False,
             tf_idf_norm: Optional[str] = None,
@@ -343,8 +348,12 @@ class TooManyCells:
 
         if similarity_norm < 1:
             raise ValueError("Unexpected similarity norm.")
+        self.similarity_norm = similarity_norm
 
-        if similarity_gamma <= 0:
+        if similarity_gamma is None:
+            # gamma = 1 / (number of features)
+            similarity_gamma = 1 / self.X.shape[1]
+        elif similarity_gamma <= 0:
             raise ValueError("Unexpected similarity gamma.")
 
         if similarity_power <= 0:
@@ -354,49 +363,18 @@ class TooManyCells:
         similarity_functions.append("cosine_sparse")
         similarity_functions.append("cosine")
         similarity_functions.append("neg_exp")
+        similarity_functions.append("laplacian")
+        similarity_functions.append("gaussian")
         similarity_functions.append("div_by_sum")
         if similarity_function not in similarity_functions:
             raise ValueError("Unexpected similarity fun.")
 
-        if similarity_function == "cosine":
-            #( x @ y ) / ( ||x|| * ||y|| )
-            def sim_fun(x,y):
-                cos_sim = x @ y
-                x_norm = np.linalg.norm(x, ord=2)
-                y_norm = np.linalg.norm(y, ord=2)
-                cos_sim /= (x_norm * y_norm)
-                return cos_sim
 
-        elif similarity_function == "neg_exp":
-            #exp(-||x-y||^power * gamma)
-            def sim_fun(x,y):
-                delta = np.linalg.norm(
-                    x-y, ord=similarity_norm)
-                delta = np.power(delta, similarity_power)
-                return np.exp(-delta * similarity_gamma)
-
-        elif similarity_function == "div_by_sum":
-            #1 - ( ||x-y|| / (||x|| + ||y||) )^power
-            def sim_fun(x,y):
-                delta = np.linalg.norm(
-                    x-y, ord=similarity_norm)
-                x_norm = np.linalg.norm(
-                    x, ord=similarity_norm)
-                y_norm = np.linalg.norm(
-                    y, ord=similarity_norm)
-                delta /= (x_norm + y_norm)
-                delta = np.power(delta, similarity_power)
-                value =  1 - delta
-                return value
-            
-
-        self.use_eig_decomp = use_eig_decomp
-
-        self.t0 = clock()
-
+        #TF-IDF section
         if use_tf_idf:
 
-            print("Using inverse document frequency.")
+            t0 = clock()
+            print("Using inverse document frequency (IDF).")
 
             if tf_idf_norm is None:
                 pass 
@@ -420,6 +398,29 @@ class TooManyCells:
                 if sp.issparse(self.X):
                     self.X = self.X.toarray()
 
+            tf = clock()
+            delta = tf - t0
+            txt = ("Elapsed time for IDF build: " +
+                    f"{delta:.2f} seconds.")
+            print(txt)
+
+        #Normalization section
+        use_cos_sp = similarity_function == "cosine_sparse"
+        use_dbs = similarity_function == "div_by_sum"
+        if normalize_rows or use_cos_sp or use_dbs:
+            t0 = clock()
+
+            if self.is_sparse:
+                self.normalize_sparse_rows()
+            else:
+                self.normalize_dense_rows()
+
+            tf = clock()
+            delta = tf - t0
+            txt = ("Elapsed time for normalization: " +
+                    f"{delta:.2f} seconds.")
+            print(txt)
+
         #Similarity section.
         print(f"Working with {similarity_function=}")
 
@@ -430,18 +431,11 @@ class TooManyCells:
                     n_iter=5,
                     algorithm=svd_algorithm)
 
-            if use_tf_idf and tf_idf_norm == "l2":
-                #The row vectors have unit norm.
-                pass
-            else:
-                if self.is_sparse:
-                    self.normalize_sparse_rows()
-                else:
-                    self.normalize_dense_rows()
         else:
             #Use a similarity function different from
             #the cosine_sparse similarity function.
-            t0_similarity = clock()
+
+            t0 = clock()
             print("Building similarity matrix ...")
             n_rows = self.X.shape[0]
             if n_rows < 500:
@@ -451,17 +445,105 @@ class TooManyCells:
             else:
                 n_workers = 32
             print(f"Using {n_workers=}")
-            self.X = pairwise_distances(self.X,
-                                        metric=sim_fun,
+
+        if similarity_function == "cosine_sparse":
+            pass
+        elif similarity_function == "cosine":
+            #( x @ y ) / ( ||x|| * ||y|| )
+            def sim_fun(x,y):
+                cos_sim = x @ y
+                x_norm = np.linalg.norm(x, ord=2)
+                y_norm = np.linalg.norm(y, ord=2)
+                cos_sim /= (x_norm * y_norm)
+                return cos_sim
+
+            self.X = pairwise_kernels(self.X,
+                                        metric="cosine",
                                         n_jobs=n_workers)
+
+        elif similarity_function == "neg_exp":
+            #exp(-||x-y||^power * gamma)
+            def sim_fun(x,y):
+                delta = np.linalg.norm(
+                    x-y, ord=similarity_norm)
+                delta = np.power(delta, similarity_power)
+                return np.exp(-delta * similarity_gamma)
+
+            self.X = pairwise_kernels(
+                self.X,
+                metric=sim_fun,
+                n_jobs=n_workers)
+
+        elif similarity_function == "laplacian":
+            #exp(-||x-y||^power * gamma)
+            def sim_fun(x,y):
+                delta = np.linalg.norm(
+                    x-y, ord=1)
+                delta = np.power(delta, 1)
+                return np.exp(-delta * similarity_gamma)
+
+            self.X = pairwise_kernels(
+                self.X,
+                metric="laplacian",
+                n_jobs=n_workers,
+                gamma = similarity_gamma)
+
+        elif similarity_function == "gaussian":
+            #exp(-||x-y||^power * gamma)
+            def sim_fun(x,y):
+                delta = np.linalg.norm(
+                    x-y, ord=2)
+                delta = np.power(delta, 2)
+                return np.exp(-delta * similarity_gamma)
+
+            self.X = pairwise_kernels(
+                self.X,
+                metric="rbf",
+                n_jobs=n_workers,
+                gamma = similarity_gamma)
+
+        elif similarity_function == "div_by_sum":
+            #1 - ( ||x-y|| / (||x|| + ||y||) )^power
+            #The rows should have been previously normalized.
+            def sim_fun(x,y):
+                delta = np.linalg.norm(
+                    x-y, ord=similarity_norm)
+                x_norm = np.linalg.norm(
+                    x, ord=similarity_norm)
+                y_norm = np.linalg.norm(
+                    y, ord=similarity_norm)
+                delta /= (x_norm + y_norm)
+                delta = np.power(delta, 1)
+                value =  1 - delta
+                return value
+
+            if self.similarity_norm == 1:
+                lp_norm = "l1"
+            elif self.similarity_norm == 2:
+                lp_norm = "l2"
+            else:
+                txt = "Similarity norm should be 1 or 2."
+                raise ValueError(txt)
+
+            self.X = pairwise_distances(self.X,
+                                        metric=lp_norm,
+                                        n_jobs=n_workers)
+            self.X *= -0.5
+            self.X += 1
+
+        if similarity_function != "cosine_sparse":
+            
             print("Similarity matrix has been built.")
-            tf_similarity = clock()
-            delta_similarity = tf_similarity - t0_similarity
-            delta_similarity /= 60
+            tf = clock()
+            delta = tf - t0
+            delta /= 60
             txt = ("Elapsed time for similarity build: " +
-                    f"{delta_similarity:.2f} minutes.")
+                    f"{delta:.2f} minutes.")
             print(txt)
 
+        self.use_eig_decomp = use_eig_decomp
+
+        self.t0 = clock()
 
         node_id = self.node_counter
 
