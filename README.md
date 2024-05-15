@@ -231,11 +231,11 @@ tmc_obj.run_spectral_clustering(
 ```
 to use the $1$-norm.
 
-## Acknowledgements
+## Acknowledgments
 I would like to thank 
 the Schwartz lab (GW) for 
-giving me this opportunity 
-and also Christie Lau for
+letting me explore different
+directions and also Christie Lau for
 providing multiple test 
 cases to improve this 
 implementation. 
