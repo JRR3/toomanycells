@@ -126,15 +126,12 @@ between each observation. Concretely, if the
 matrix of observations is $B$ ($m\times n$), the $i$-th row
 of $B$ is $x = B(i,:)$ and the $j$-th row of $B$ 
 is $y=B(j,:)$,
-then
-$$
-S(i,j) = 
-\frac{x \cdot y}{||x|| \cdot ||y|| }
-$$
+then 
+$$ S(i,j) = \frac{x \cdot y}{||x|| \cdot ||y|| }. $$
 However, this is not the only similarity 
 function. We will list all the available
 similarity functions and how to call them.
-### cosine_sparse
+### Cosine (sparse)
 If your matrix is sparse, i.e., the number of nonzero
 entries is proportional to the number of samples ($m$),
 and you want to use the cosine similarity, then use the
@@ -161,7 +158,7 @@ Moreover, a negative
 similarity is non-physical and therefore we 
 do not recommend the cosine similarity function 
 in this situation.
-### cosine
+### Cosine
 If your matrix is dense, 
 and you want to use the cosine similarity, then use the
 following instruction.
@@ -172,12 +169,9 @@ tmc_obj.run_spectral_clustering(
 The same comment about negative entries applies here.
 The subsequent similarity functions always produce
 nonnegative outputs.
-### laplacian
+### Laplacian
 The similarity function is
-$$
-S(i,j) = 
-\exp(-||x-y||_1 \cdot \gamma)
-$$
+$$ S(i,j) = \exp(-||x-y||_1 \cdot \gamma) $$ 
 This is an example:
 ```
 tmc_obj.run_spectral_clustering(
@@ -187,12 +181,9 @@ tmc_obj.run_spectral_clustering(
 This function is very sensitive to $\gamma$. Hence, an
 inadequate choice can result in poor results or 
 no convergence.
-### gaussian
+### Gaussian
 The similarity function is
-$$
-S(i,j) = 
-\exp(-||x-y||_2^2 \cdot \gamma)
-$$
+$$ S(i,j) = \exp(-||x-y||_2^2 \cdot \gamma) $$ 
 This is an example:
 ```
 tmc_obj.run_spectral_clustering(
@@ -204,12 +195,9 @@ Note that the norm is squared. Thus, it transforms
 big differences between $x$ and $y$ into very small
 quantities.
 
-### div_by_sum
+### Divide by the sum
 The similarity function is
-$$
-S(i,j) = 
-1-\frac{||x-y||_p}{||x||_p + ||y||_p },
-$$
+$$ S(i,j) = 1-\frac{||x-y||_p}{||x||_p + ||y||_p }, $$
 where $p =1$ or $p=2$. The rows 
 of the matrix are normalized (unit norm)
 before computing the similarity.
