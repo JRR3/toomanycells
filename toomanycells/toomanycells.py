@@ -440,13 +440,20 @@ class TooManyCells:
             t0 = clock()
             print("Building similarity matrix ...")
             n_rows = self.X.shape[0]
+            max_workers = os.cpu_count()
+            n_workers = 1
             if n_rows < 500:
-                n_workers = 1
-            elif n_rows < 1000:
-                n_workers = 16
+                pass
+            elif n_rows < 5000:
+                if 8 < max_workers:
+                    n_workers = 8
+            elif n_rows < 50000:
+                if 16 < max_workers:
+                    n_workers = 16
             else:
-                n_workers = 32
-            print(f"Using {n_workers=}")
+                if 25 < max_workers:
+                    n_workers = 25
+            print(f"Using {n_workers=}.")
 
         if similarity_function == "cosine_sparse":
             pass
@@ -691,7 +698,7 @@ class TooManyCells:
         # if  neg_row_sums or self.use_eig_decomp:
         zero_row_sums_mask = np.abs(row_sums) < self.eps
         has_zero_row_sums = zero_row_sums_mask.any()
-        has_neg_row_sums = (row_sums < -np.eps).any() 
+        has_neg_row_sums = (row_sums < -self.eps).any() 
 
         if has_zero_row_sums:
             print("We have zero row sums.")
@@ -854,7 +861,7 @@ class TooManyCells:
 
         zero_row_sums_mask = np.abs(row_sums) < self.eps
         has_zero_row_sums = zero_row_sums_mask.any()
-        has_neg_row_sums = (row_sums < -np.eps).any() 
+        has_neg_row_sums = (row_sums < -self.eps).any() 
 
         if has_zero_row_sums:
             print("We have zero row sums.")
