@@ -127,7 +127,7 @@ matrix of observations is $B$
 ($m\times n$), the $i$-th row
 of $B$ is $x = B(i,:)$ and the $j$-th row of $B$ 
 is $y=B(j,:)$, then 
-$ S(i,j) = (x * y)/(||x||*||y||) $.  
+$ S(i,j) = (x * y)/(x*y) $.  
 However, this is not the only similarity 
 function. We will list all the available
 similarity functions and how to call them.
