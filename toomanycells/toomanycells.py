@@ -171,22 +171,24 @@ class TooManyCells:
                        " of the count matrix.")
                 print(txt)
                 txt = ("Values will be converted to" 
-                       " float.")
+                       " float32.")
                 print(txt)
-                self.X = self.X.astype(float)
+                self.X = self.X.astype(np.float32)
             else:
                 self.is_sparse = True
                 #Make sure we use a CSR format.
-                self.X = sp.csr_matrix(self.A.X, copy=True)
+                self.X = sp.csr_matrix(self.A.X,
+                                       dtype=np.float32,
+                                       copy=True)
         else:
             #The matrix is dense.
             print("The matrix is dense.")
             self.is_sparse = False
             self.X = self.A.X.copy()
             txt = ("Values will be converted to" 
-                   " float.")
+                   " float32.")
             print(txt)
-            self.X = self.X.astype(float)
+            self.X = self.X.astype(np.float32)
 
         self.n_cells, self.n_genes = self.A.shape
 
@@ -687,12 +689,31 @@ class TooManyCells:
         #Check if we have negative entries before computing
         #the square root.
         # if  neg_row_sums or self.use_eig_decomp:
-        has_neg_row_sums = (row_sums < 0).any() 
-        all_pos_row_sums = (0 < row_sums).all() 
+        zero_row_sums_mask = np.abs(row_sums) < self.eps
+        has_zero_row_sums = zero_row_sums_mask.any()
+        has_neg_row_sums = (row_sums < -np.eps).any() 
+
+        if has_zero_row_sums:
+            print("We have zero row sums.")
+            row_sums[zero_row_sums_mask] = 0
+
+        if has_neg_row_sums and has_zero_row_sums:
+            txt = "This matrix cannot be processed."
+            print(txt)
+            txt = "Cannot have negative and zero row sums."
+            raise ValueError(txt)
+
         if  has_neg_row_sums:
             #This means we cannot use the fast approach
             #We'll have to build a dense representation
             # of the similarity matrix.
+            if 5000 < n_rows:
+                print("The row sums are negative.")
+                print("We will use a full eigen decomp.")
+                print(f"The block size is {n_rows}.")
+                print("Warning ...")
+                txt = "This operation is very expensive."
+                print(txt)
             laplacian_mtx  = B @ B.T
             row_sums_mtx   = sp.diags(row_sums)
             laplacian_mtx  = row_sums_mtx - laplacian_mtx
@@ -711,7 +732,7 @@ class TooManyCells:
             W = np.real(eig_vecs[:,idx])
             W = np.squeeze(np.asarray(W))
 
-        elif self.use_eig_decomp or not all_pos_row_sums:
+        elif self.use_eig_decomp or has_zero_row_sums:
             laplacian_mtx  = B @ B.T
             row_sums_mtx   = sp.diags(row_sums)
             laplacian_mtx  = row_sums_mtx - laplacian_mtx
@@ -735,6 +756,12 @@ class TooManyCells:
             except:
                 #This is a very expensive operation
                 #since it computes all the eigenvectors.
+                if 5000 < n_rows:
+                    print("We will use a full eigen decomp.")
+                    print(f"The block size is {n_rows}.")
+                    print("Warning ...")
+                    txt = "This operation is very expensive."
+                    print(txt)
                 inv_row_sums   = 1/row_sums
                 inv_row_sums   = sp.diags(inv_row_sums)
                 laplacian_mtx  = inv_row_sums @ laplacian_mtx
@@ -747,7 +774,7 @@ class TooManyCells:
                 W = np.squeeze(np.asarray(W))
 
 
-        elif all_pos_row_sums:
+        else:
             #This is the fast approach.
             #It is fast in the sense that the 
             #operations are faster if the matrix
@@ -762,8 +789,6 @@ class TooManyCells:
             #Get the singular vector corresponding to the
             #second largest singular value.
             W = W[:,idx[0]]
-        else:
-            raise ValueError("Unexpected case for sparse.")
 
 
         mask_c1 = 0 < W
@@ -827,11 +852,30 @@ class TooManyCells:
         laplacian_mtx  = row_sums_mtx - S
         L = np.sum(row_sums) - n_rows
 
-        has_neg_row_sums = (row_sums < 0).any() 
+        zero_row_sums_mask = np.abs(row_sums) < self.eps
+        has_zero_row_sums = zero_row_sums_mask.any()
+        has_neg_row_sums = (row_sums < -np.eps).any() 
+
+        if has_zero_row_sums:
+            print("We have zero row sums.")
+            row_sums[zero_row_sums_mask] = 0
+
+        if has_neg_row_sums and has_zero_row_sums:
+            txt = "This matrix cannot be processed."
+            print(txt)
+            txt = "Cannot have negative and zero row sums."
+            raise ValueError(txt)
 
         if has_neg_row_sums:
             #This is a very expensive operation
             #since it computes all the eigenvectors.
+            if 5000 < n_rows:
+                print("The row sums are negative.")
+                print("We will use a full eigen decomp.")
+                print(f"The block size is {n_rows}.")
+                print("Warning ...")
+                txt = "This operation is very expensive."
+                print(txt)
             inv_row_sums   = 1/row_sums
             inv_row_sums   = sp.diags(inv_row_sums)
             laplacian_mtx  = inv_row_sums @ laplacian_mtx
@@ -864,6 +908,12 @@ class TooManyCells:
             except:
                 #This is a very expensive operation
                 #since it computes all the eigenvectors.
+                if 5000 < n_rows:
+                    print("We will use a full eigen decomp.")
+                    print(f"The block size is {n_rows}.")
+                    print("Warning ...")
+                    txt = "This operation is very expensive."
+                    print(txt)
                 inv_row_sums   = 1/row_sums
                 inv_row_sums   = sp.diags(inv_row_sums)
                 laplacian_mtx  = inv_row_sums @ laplacian_mtx
