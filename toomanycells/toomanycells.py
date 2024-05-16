@@ -327,6 +327,7 @@ class TooManyCells:
     #=====================================
     def run_spectral_clustering(
             self,
+            shift_similarity_matrix:Optional[float] = 0,
             normalize_rows:Optional[bool] = False,
             similarity_function:Optional[str]="cosine_sparse",
             similarity_norm: Optional[float] = 2,
@@ -541,6 +542,11 @@ class TooManyCells:
             self.X += 1
 
         if similarity_function != "cosine_sparse":
+
+            if shift_similarity_matrix != 0:
+                print(f"Similarity matrix will be shifted.")
+                print(f"Shift: {shift_similarity_matrix}.")
+                self.X += shift_similarity_matrix
             
             print("Similarity matrix has been built.")
             tf = clock()
@@ -549,6 +555,7 @@ class TooManyCells:
             txt = ("Elapsed time for similarity build: " +
                     f"{delta:.2f} minutes.")
             print(txt)
+
 
         self.use_eig_decomp = use_eig_decomp
 

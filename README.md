@@ -153,10 +153,8 @@ to get negative entries for $S$. This could
 in turn produce negative row sums for $S$. 
 If that is the case,
 the convergence to a solution could be extremely slow.
-Moreover, a negative 
-similarity is non-physical and therefore we 
-do not recommend the cosine similarity function 
-in this situation.
+However, if you use the non-sparse version of this
+function, we provide a reasonable solution to this problem.
 ### Cosine
 If your matrix is dense, 
 and you want to use the cosine similarity, then use the
@@ -166,11 +164,29 @@ tmc_obj.run_spectral_clustering(
    similarity_function="cosine")
 ```
 The same comment about negative entries applies here.
-The subsequent similarity functions always produce
-nonnegative outputs.
+However, there is a simple solution. While shifting
+the matrix of observations can drastically change the
+interpretation of the data, shifting the similarity 
+matrix is actually a reasonable method to remove negative
+entries. The reason is that shifting by a constant is
+an order-preserving transformation, which implies
+that if the similarity between $x$ and $y$ is
+less than the similarity between $u$ and $w$, i.e.,
+$S(x,y)<S(u,w)$, then $S(x,y)+1 < S(u,w)+1$. Samples
+have no natural order, but similarities do.
+To shift the (dense) similarity matrix by $s=1$, use the 
+following instruction.
+```
+tmc_obj.run_spectral_clustering(
+   similarity_function="cosine",
+   shift_similarity_matrix=1)
+```
+Note that since the range of the cosine similarity
+is $[-1,1]$, the shifted range with $s=1$ becomes $[0,2]$.
+
 ### Laplacian
-The similarity function is
-$$S(i,j)=\exp(-\gamma\cdot ||x-y||_1)$$
+The similarity matrix is
+$$S(x,y)=\exp(-\gamma\cdot ||x-y||_1)$$
 This is an example:
 ```
 tmc_obj.run_spectral_clustering(
@@ -179,10 +195,12 @@ tmc_obj.run_spectral_clustering(
 ```
 This function is very sensitive to $\gamma$. Hence, an
 inadequate choice can result in poor results or 
-no convergence.
+no convergence. If you obtain poor results, try using  
+a smaller value for $\gamma$.
+
 ### Gaussian
-The similarity function is
-$$S(i,j)=\exp(-\gamma\cdot ||x-y||_2^2)$$
+The similarity matrix is
+$$S(x,y)=\exp(-\gamma\cdot ||x-y||_2^2)$$
 This is an example:
 ```
 tmc_obj.run_spectral_clustering(
@@ -195,8 +213,8 @@ big differences between $x$ and $y$ into very small
 quantities.
 
 ### Divide by the sum
-The similarity function is 
-$$S(i,j)=1-\frac{||x-y||_p}{||x||_p+||y||_p},$$
+The similarity matrix is 
+$$S(x,y)=1-\frac{||x-y||_p}{||x||_p+||y||_p},$$
 where $p =1$ or $p=2$. The rows 
 of the matrix are normalized (unit norm)
 before computing the similarity.
@@ -207,6 +225,7 @@ tmc_obj.run_spectral_clustering(
 ```
 
 ## Additional features
+### TF-IDF
 If you want to use the inverse document
 frequency (IDF) normalization, then use
 ```
@@ -230,6 +249,26 @@ tmc_obj.run_spectral_clustering(
    tf_idf_norm="l1")
 ```
 to use the $1$-norm.
+
+### Normalization
+Sometimes normalizing your matrix
+of observations can improve the
+performance of some routines. 
+To normalize the row, use the following instruction.
+```
+tmc_obj.run_spectral_clustering(
+   similarity_function="some_sim_function",
+   normalize_rows=True)
+```
+Be default, the $2$-norm is used. To 
+use any other $p$-norm, use
+```
+tmc_obj.run_spectral_clustering(
+   similarity_function="some_sim_function",
+   normalize_rows=True,
+   similarity_norm=p)
+```
+
 
 ## Acknowledgments
 I would like to thank 
