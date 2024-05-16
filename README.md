@@ -172,7 +172,7 @@ entries. The reason is that shifting by a constant is
 an order-preserving transformation, which implies
 that if the similarity between $x$ and $y$ is
 less than the similarity between $u$ and $w$, i.e.,
-$S(x,y)<S(u,w)$, then $S(x,y)+1 < S(u,w)+1$. Samples
+$S(x,y) < S(u,w)$, then $S(x,y)+1 < S(u,w)+1$. Samples
 have no natural order, but similarities do.
 To shift the (dense) similarity matrix by $s=1$, use the 
 following instruction.
@@ -234,21 +234,15 @@ tmc_obj.run_spectral_clustering(
    use_tf_idf=True)
 ```
 If you also want to normalize the frequencies to
-unit norm, then use
+unit norm with the $2$-norm, then use
 ```
 tmc_obj.run_spectral_clustering(
    similarity_function="some_sim_function",
    use_tf_idf=True,
    tf_idf_norm="l2")
 ```
-to use the $2$-norm, or
-```
-tmc_obj.run_spectral_clustering(
-   similarity_function="some_sim_function",
-   use_tf_idf=True,
-   tf_idf_norm="l1")
-```
-to use the $1$-norm.
+If instead you want to use the $1$-norm, then
+replace "l2" with "l1".
 
 ### Normalization
 Sometimes normalizing your matrix
