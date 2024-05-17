@@ -124,11 +124,12 @@ $S$ is
 computed by calculating the cosine of the angle 
 between each observation. Concretely, if the 
 matrix of observations is $B$ ($m\times n$), the $i$-th row
-of $B$ is $x = B(i,:)$ and the $j$-th row of $B$ 
-is $y=B(j,:)$, then 
-$$S(i,j)=\frac{x\cdot y}{||x||_2\cdot ||y||_2}$$
-However, this is not the only similarity 
-function. We will list all the available
+of $B$ is $x = B(i,:)$, and the $j$-th row of $B$ 
+is $y=B(j,:)$, then the similarity between $x$ and
+$y$ is
+$$S(x,y)=\frac{x\cdot y}{||x||_2\cdot ||y||_2}.$$
+However, this is not the only way to compute
+a similarity matrix. We will list all the available
 similarity functions and how to call them.
 ### Cosine (sparse)
 If your matrix is sparse, i.e., the number of nonzero
@@ -166,13 +167,16 @@ tmc_obj.run_spectral_clustering(
 The same comment about negative entries applies here.
 However, there is a simple solution. While shifting
 the matrix of observations can drastically change the
-interpretation of the data, shifting the similarity 
+interpretation of the data because each column lives
+in a different (gene) space, shifting the similarity 
 matrix is actually a reasonable method to remove negative
-entries. The reason is that shifting by a constant is
-an order-preserving transformation, which implies
-that if the similarity between $x$ and $y$ is
+entries. The reason is that similarities live in an 
+ordered space and shifting by a constant is
+an order-preserving transformation. Equivalently,
+if the similarity between $x$ and $y$ is
 less than the similarity between $u$ and $w$, i.e.,
-$S(x,y) < S(u,w)$, then $S(x,y)+1 < S(u,w)+1$. Samples
+$S(x,y) < S(u,w)$, then $S(x,y)+s < S(u,w)+s$ for
+any constant $s$. The raw data
 have no natural order, but similarities do.
 To shift the (dense) similarity matrix by $s=1$, use the 
 following instruction.
@@ -182,7 +186,9 @@ tmc_obj.run_spectral_clustering(
    shift_similarity_matrix=1)
 ```
 Note that since the range of the cosine similarity
-is $[-1,1]$, the shifted range with $s=1$ becomes $[0,2]$.
+is $[-1,1]$, the shifted range for $s=1$ becomes $[0,2]$.
+The shift transformation can also be applied to any of the subsequent
+similarity matrices.
 
 ### Laplacian
 The similarity matrix is
@@ -248,7 +254,7 @@ replace "l2" with "l1".
 Sometimes normalizing your matrix
 of observations can improve the
 performance of some routines. 
-To normalize the row, use the following instruction.
+To normalize the rows, use the following instruction.
 ```
 tmc_obj.run_spectral_clustering(
    similarity_function="some_sim_function",
