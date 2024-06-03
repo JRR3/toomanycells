@@ -1189,7 +1189,7 @@ class TooManyCells:
         self.tmci_mtx_dir = os.path.join(
             self.output, tmci_mtx_dir)
 
-        os.makedirs(self.matrix_dir, exist_ok=True)
+        os.makedirs(self.tmci_mtx_dir, exist_ok=True)
 
         # Genes
         genes_f = "genes.tsv"
