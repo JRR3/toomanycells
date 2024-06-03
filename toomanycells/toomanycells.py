@@ -198,6 +198,9 @@ class TooManyCells:
 
         print(self.A)
 
+        #Location of the matrix data for TMCI
+        self.tmci_mtx_dir = ""
+
         #We use a deque to enforce a breadth-first traversal.
         self.Dq = deque()
 
@@ -1177,11 +1180,56 @@ class TooManyCells:
         ca.to_csv(fname, index=True)
 
     #=====================================
+    def create_data_for_tmci(
+            self,
+            tmci_mtx_dir: Optional[str] = "tmci_mtx_data",
+            list_of_genes: Optional[list] = [],
+            create_matrix: Optional[bool] = True):
+
+        self.tmci_mtx_dir = os.path.join(
+            self.output, tmci_mtx_dir)
+
+        os.makedirs(self.matrix_dir, exist_ok=True)
+
+        # Genes
+        genes_f = "genes.tsv"
+        genes_f = os.path.join(self.tmci_mtx_dir, genes_f)
+
+        if 0 < len(list_of_genes):
+            var_names = list_of_genes
+        else:
+            var_names = self.A.var_names
+
+        pd.Series(var_names).to_csv(
+            genes_f,
+            sep="\t",
+            header=False,
+            index=False)
+
+        # Barcodes
+        barcodes_f = "barcodes.tsv"
+        barcodes_f = os.path.join(self.tmci_mtx_dir,
+                                  barcodes_f)
+        pd.Series(self.A.obs_names).to_csv(
+            barcodes_f,
+            sep="\t",
+            header=False,
+            index=False)
+
+        # Matrix
+        if create_matrix:
+            matrix_f = "matrix.mtx"
+            matrix_f = os.path.join(self.tmci_mtx_dir,
+                                    matrix_f)
+            mmwrite(matrix_f, sp.coo_matrix(self.A.X))
+
+    #=====================================
     def visualize_with_tmc_interactive(self,
             path_to_tmc_interactive: str,
             use_column_for_labels: Optional[str] = "",
             port: Optional[int] = 9991,
-            use_matrix_data: Optional[bool] = False,
+            include_matrix_data: Optional[bool] = False,
+            tmci_mtx_dir: Optional[str] = "",
             ) -> None:
         """
         This function produces a visualization\
@@ -1220,35 +1268,17 @@ class TooManyCells:
             label_path_str = "--label-path"
             label_path     = self.cell_annotations_path
         
-        if use_matrix_data:
+        if include_matrix_data:
             matrix_path_str = "--matrix-dir"
-            matrix_dir = "matrix_data"
-            matrix_dir = os.path.join(self.output,
-                                      matrix_dir)
-            os.makedirs(matrix_dir, exist_ok=True)
-
-            # Genes
-            genes_f = "genes.tsv"
-            genes_f = os.path.join(matrix_dir, genes_f)
-            pd.Series(self.A.var_names).to_csv(
-                genes_f,
-                sep="\t",
-                header=False,
-                index=False)
-
-            # Barcodes
-            barcodes_f = "barcodes.tsv"
-            barcodes_f = os.path.join(matrix_dir, barcodes_f)
-            pd.Series(self.A.obs_names).to_csv(
-                barcodes_f,
-                sep="\t",
-                header=False,
-                index=False)
-
-            # Matrix
-            matrix_f = "matrix.mtx"
-            matrix_f = os.path.join(matrix_dir, matrix_f)
-            mmwrite(matrix_f, sp.coo_matrix(self.A.X))
+            if 0 < len(tmci_mtx_dir):
+                matrix_dir = tmci_mtx_dir
+            else:
+                if len(self.tmci_mtx_dir) == 0:
+                    print("No path for TMCI mtx.")
+                    print("Creating TMCI mtx data.")
+                    self.create_data_for_tmci()
+                else:
+                    matrix_dir = self.tmci_mtx_dir
         else:
             matrix_path_str = ""
             matrix_dir = ""
