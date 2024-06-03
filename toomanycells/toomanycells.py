@@ -16,6 +16,7 @@ import networkx as nx
 from scipy import sparse as sp
 from scipy.sparse.linalg import eigsh as Eigen_Hermitian
 from scipy.io import mmread
+from scipy.io import mmwrite
 from time import perf_counter as clock
 import anndata as ad
 from anndata import AnnData
@@ -1178,8 +1179,10 @@ class TooManyCells:
     #=====================================
     def visualize_with_tmc_interactive(self,
             path_to_tmc_interactive: str,
-            use_column_for_labels: str = "",
-            port: Optional[int] = 9991) -> None:
+            use_column_for_labels: Optional[str] = "",
+            port: Optional[int] = 9991,
+            use_matrix_data: Optional[bool] = False,
+            ) -> None:
         """
         This function produces a visualization\
                 using too-many-cells-interactive.
@@ -1207,6 +1210,7 @@ class TooManyCells:
 
         bash_exec = "./start-and-load.sh"
 
+
         if len(use_column_for_labels) == 0:
             label_path_str = ""
             label_path     = ""
@@ -1215,9 +1219,44 @@ class TooManyCells:
                     use_column_for_labels)
             label_path_str = "--label-path"
             label_path     = self.cell_annotations_path
+        
+        if use_matrix_data:
+            matrix_path_str = "--matrix-dir"
+            matrix_dir = "matrix_data"
+            matrix_dir = os.path.join(self.output,
+                                      matrix_dir)
+            os.makedirs(matrix_dir, exist_ok=True)
+
+            # Genes
+            genes_f = "genes.tsv"
+            genes_f = os.path.join(matrix_dir, genes_f)
+            pd.Series(self.A.var_names).to_csv(
+                genes_f,
+                sep="\t",
+                header=False,
+                index=False)
+
+            # Barcodes
+            barcodes_f = "barcodes.tsv"
+            barcodes_f = os.path.join(matrix_dir, barcodes_f)
+            pd.Series(self.A.obs_names).to_csv(
+                barcodes_f,
+                sep="\t",
+                header=False,
+                index=False)
+
+            # Matrix
+            matrix_f = "matrix.mtx"
+            matrix_f = os.path.join(matrix_dir, matrix_f)
+            mmwrite(matrix_f, sp.coo_matrix(self.A.X))
+        else:
+            matrix_path_str = ""
+            matrix_dir = ""
 
         command = [
                 bash_exec,
+                matrix_path_str,
+                matrix_dir,
                 '--tree-path',
                 tree_path,
                 label_path_str,
