@@ -1221,7 +1221,7 @@ class TooManyCells:
             matrix_f = "matrix.mtx"
             matrix_f = os.path.join(self.tmci_mtx_dir,
                                     matrix_f)
-            mmwrite(matrix_f, sp.coo_matrix(self.A.X))
+            mmwrite(matrix_f, sp.coo_matrix(self.A.X.T))
 
     #=====================================
     def visualize_with_tmc_interactive(self,
