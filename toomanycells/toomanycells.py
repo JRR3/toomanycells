@@ -1273,12 +1273,13 @@ class TooManyCells:
             if 0 < len(tmci_mtx_dir):
                 matrix_dir = tmci_mtx_dir
             else:
+
                 if len(self.tmci_mtx_dir) == 0:
                     print("No path for TMCI mtx.")
                     print("Creating TMCI mtx data.")
                     self.create_data_for_tmci()
-                else:
-                    matrix_dir = self.tmci_mtx_dir
+
+                matrix_dir = self.tmci_mtx_dir
         else:
             matrix_path_str = ""
             matrix_dir = ""
