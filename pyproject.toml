@@ -1,6 +1,6 @@
 [project]
 name = "toomanycells"
-version = "1.0.26"
+version = "1.0.27"
 dynamic = [
     "dependencies",
 ]
@@ -55,7 +55,7 @@ universal = true
 
 
 [tool.bumpversion]
-current_version = "1.0.26"
+current_version = "1.0.27"
 commit = true
 tag = true
 
