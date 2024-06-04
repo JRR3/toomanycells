@@ -1200,7 +1200,8 @@ class TooManyCells:
         else:
             var_names = self.A.var_names
 
-        pd.Series(var_names).to_csv(
+        L = [var_names,var_names]
+        pd.DataFrame(L).transpose().to_csv(
             genes_f,
             sep="\t",
             header=False,
