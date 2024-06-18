@@ -980,13 +980,13 @@ class TooManyCells:
             exists, one can specify such condition with \
             the flag `load_dot_file=True`. This function \
             also generates two CSV files. One is the \
-            clusters_hm.csv file, which stores the \
+            clusters.csv file, which stores the \
             relation between cell ids and the cluster they \
-            belong. The second is node_info_hm.csv, which \
+            belong. The second is node_info.csv, which \
             provides information regarding the number of \
             cells belonging to that node and its \
             modularity if it has children. Lastly, a file \
-            named cluster_tree_hm.json is produced, which \
+            named cluster_tree.json is produced, which \
             stores the tree structure in the JSON format. \
             This last file can be used with too-many-cells \
             interactive.
@@ -1008,6 +1008,7 @@ class TooManyCells:
             #Write cell to node data frame.
             self.write_cell_assignment_to_csv()
             self.convert_graph_to_json()
+            self.write_cluster_list_to_json()
 
         print(self.G)
 
@@ -1029,7 +1030,7 @@ class TooManyCells:
         #Write node information to CSV
         D = {'node': node_list, 'size':size_list, 'Q':Q_list}
         df = pd.DataFrame(D)
-        fname = 'node_info_hm.csv'
+        fname = 'node_info.csv'
         fname = os.path.join(self.output, fname)
         df.to_csv(fname, index=False)
 
@@ -1124,7 +1125,7 @@ class TooManyCells:
             the third column is the path from the root \
             node to the given node.
         """
-        fname = 'clusters_hm.csv'
+        fname = 'clusters.csv'
         fname = os.path.join(self.output, fname)
         labels = ['sp_cluster','sp_path']
         df = self.A.obs[labels]
@@ -1134,17 +1135,57 @@ class TooManyCells:
         df.to_csv(fname, index=True)
 
     #=====================================
+    def write_cluster_list_to_json(self):
+        """
+        This function creates a JSON file that indicates \
+            the assignment of each cell to a specific \
+            cluster. 
+        """
+        fname = 'cluster_list.json'
+        fname = os.path.join(self.output, fname)
+        master_list = []
+        relevant_cols = ["sp_cluster", "sp_path"]
+        df = self.A.obs[relevant_cols]
+        df = df.reset_index(names="cell")
+        df = df.sort_values(["sp_cluster","cell"])
+        for idx, row in df.iterrows():
+            cluster = row["sp_cluster"]
+            path_str= row["sp_path"]
+            cell    = row["cell"]
+            nodes = path_str.split("/")
+            list_of_nodes = []
+            sub_dict_1 = {"unCell":cell}
+            sub_dict_2 = {"unRow":idx}
+            main_dict = {"_barcode":sub_dict_1,
+                         "_cellRow":sub_dict_2}
+            for node in nodes:
+                d = {"unCluster":int(node)}
+                list_of_nodes.append(d)
+            
+            master_list.append([main_dict, list_of_nodes])
+
+        s = str(master_list)
+        replace_dict = {' ':'', "'":'"'}
+        pattern = '|'.join(replace_dict.keys())
+        regexp  = re.compile(pattern)
+        fun = lambda x: replace_dict[x.group(0)] 
+        obj = regexp.sub(fun, s)
+        with open(fname, 'w') as output_file:
+            output_file.write(obj)
+
+
+    #=====================================
     def convert_graph_to_json(self):
         """
         The graph structure stored in the attribute\
             self.J has to be formatted into a \
             JSON file. This function takes care\
             of that task. The output file is \
-            named 'cluster_tree_hm.json' and is\
+            named 'cluster_tree.json' and is\
             equivalent to the 'cluster_tree.json'\
             file produced by too-many-cells.
         """
-        fname = "cluster_tree_hm.json"
+        fname = "cluster_tree.json"
         fname = os.path.join(self.output, fname)
         s = str(self.J)
         replace_dict = {' ':'', 'None':'null', "'":'"'}
@@ -1251,7 +1292,7 @@ class TooManyCells:
 
         """
 
-        fname = "cluster_tree_hm.json"
+        fname = "cluster_tree.json"
         fname = os.path.join(self.output, fname)
         tree_path = fname
         port_str = str(port)
