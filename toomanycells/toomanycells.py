@@ -34,6 +34,7 @@ from os.path import dirname
 import subprocess
 from tqdm import tqdm
 import sys
+import scanpy as sc
 
 #sys.path.insert(0, dirname(__file__))
 from .common import MultiIndexList
@@ -973,8 +974,11 @@ class TooManyCells:
         return (Q, partition)
 
     #=====================================
-    def store_outputs(self,
-                   load_dot_file: Optional[bool]=False):
+    def store_outputs(
+            self,
+            load_dot_file: Optional[bool]=False,
+            use_column_for_labels: Optional[str] = "",
+            ):
         """
         Plot the branching tree. If the .dot file already\
             exists, one can specify such condition with \
@@ -1009,6 +1013,15 @@ class TooManyCells:
             self.write_cell_assignment_to_csv()
             self.convert_graph_to_json()
             self.write_cluster_list_to_json()
+
+            #Store the cell annotations in the output folder.
+            if 0 < len(use_column_for_labels):
+                col = use_column_for_labels
+                if col in self.A.obs.columns:
+                    self.generate_cell_annotation_file(col)
+                else:
+                    txt = "Annotation column does not exists."
+                    raise ValueError(txt)
 
         print(self.G)
 
@@ -1379,6 +1392,117 @@ class TooManyCells:
             raise ValueError("Data frame size mismatch.")
 
         self.A.obs[column] =  df["label"]
+
+    #=====================================
+    def generate_matrix_from_signature_file(
+            self,
+            signature_path: str):
+        """
+        Generate a matrix from the signature provided \
+            through a file. The entries with a positive
+            weight are assumed to be upregulated and \
+            those with a negative weight are assumed \
+            to be downregulated. The algorithm will \
+            standardize the matrix and create an \
+            average for each category. The weights \
+            are adjusted to give equal weight to the \
+            upregulated and downregulated genes. \
+            Assumptions: \
+            We assume that the file has at least two \
+            columns. One should be named "Gene" and \
+            the other "Weight". \
+            The count matrix has cells for rows and \
+            genes for columns.
+        """
+
+        df_signature = pd.read_csv(signature_path, header=0)
+
+        Z = sc.pp.scale(self.A, copy=True)
+        Z_is_sparse = sp.issparse(Z)
+
+        vec = np.zeros(Z.X.shape[0])
+        up_reg = vec * 0
+        down_reg = vec * 0
+        up_count = 0
+        down_count = 0
+
+        G = df_signature["Gene"]
+        W = df_signature["Weight"]
+        for gene, weight in zip(G, W):
+            if gene not in Z.var.index:
+                continue
+            col_index = Z.var.index.get_loc(gene)
+
+            if Z_is_sparse:
+                gene_col = Z.X.getcol(col_index)
+                gene_col = np.squeeze(gene_col.toarray())
+            else:
+                gene_col = Z.X[:,col_index]
+
+            if 0 < weight:
+                up_reg += gene_col
+                up_count += 1
+            else:
+                down_reg += gene_col
+                down_count += 1
+        
+        total_counts = up_count + down_count
+
+        unwSign = 1 * up_reg - 1 * down_reg
+        unwSign /= total_counts
+
+        up_factor = down_count / total_counts
+        down_factor = up_count / total_counts
+
+        modified_total_counts = 2 * up_count * down_count
+        modified_total_counts /= total_counts
+        
+        check = up_factor*up_count + down_factor*down_count
+
+        print(f"{up_count=}")
+        print(f"{down_count=}")
+        print(f"{total_counts=}")
+        print(f"{modified_total_counts=}")
+        print(f"{check=}")
+        print(f"{up_factor=}")
+        print(f"{down_factor=}")
+
+        up_reg_mean   = up_reg / up_count
+        down_reg_mean = down_reg / down_count
+
+        wSign = up_factor * up_reg - down_factor * down_reg
+        wSign /= modified_total_counts
+
+        m = np.vstack((up_reg_mean,
+                       down_reg_mean,
+                       -down_reg_mean,
+                       unwSign,
+                       wSign))
+
+        self.create_data_for_tmci(
+            list_of_genes = ["UpReg",
+                             "DownReg",
+                             "negDownReg",
+                             "unwSignature",
+                             "wSignature",
+                             ],
+            create_matrix=False)
+        
+
+        self.A.obs["wSignature"] = wSign
+        self.A.obs["UpReg"] = up_reg_mean
+        self.A.obs["negDownReg"] = -down_reg_mean
+
+        print(self.A.obs["UpReg"].describe())
+        print(self.A.obs["negDownReg"].describe())
+
+        m = m.astype(np.float32)
+
+        mtx_path = os.path.join(
+            self.tmci_mtx_dir, "matrix.mtx")
+        mmwrite(mtx_path, sp.coo_matrix(m))
+
+
 
 
     #====END=OF=CLASS=====================
