@@ -1,4 +1,5 @@
 anndata
+scanpy
 scipy
 numpy
 pandas

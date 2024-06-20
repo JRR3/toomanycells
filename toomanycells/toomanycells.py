@@ -1421,13 +1421,19 @@ class TooManyCells:
         Z_is_sparse = sp.issparse(Z)
 
         vec = np.zeros(Z.X.shape[0])
+
         up_reg = vec * 0
         down_reg = vec * 0
+
         up_count = 0
+        up_weight = 0
+
         down_count = 0
+        down_weight = 0
 
         G = df_signature["Gene"]
         W = df_signature["Weight"]
+
         for gene, weight in zip(G, W):
             if gene not in Z.var.index:
                 continue
@@ -1440,16 +1446,19 @@ class TooManyCells:
                 gene_col = Z.X[:,col_index]
 
             if 0 < weight:
-                up_reg += gene_col
+                up_reg += weight * gene_col
+                up_weight += weight
                 up_count += 1
             else:
-                down_reg += gene_col
+                down_reg += weight * gene_col
+                down_weight += np.abs(weight)
                 down_count += 1
         
         total_counts = up_count + down_count
+        total_weight = up_weight + down_weight
 
-        unwSign = 1 * up_reg - 1 * down_reg
-        unwSign /= total_counts
+        unwSign = up_reg + down_reg
+        unwSign /= total_weight
 
         up_factor = down_count / total_counts
         down_factor = up_count / total_counts
@@ -1470,36 +1479,49 @@ class TooManyCells:
         up_reg_mean   = up_reg / up_count
         down_reg_mean = down_reg / down_count
 
-        wSign = up_factor * up_reg - down_factor * down_reg
+        wSign = up_factor * up_reg + down_factor * down_reg
         wSign /= modified_total_counts
 
         m = np.vstack((up_reg_mean,
                        down_reg_mean,
-                       -down_reg_mean,
                        unwSign,
                        wSign))
 
+        #This function will produce the 
+        #barcodes.tsv and the genes.tsv file.
         self.create_data_for_tmci(
             list_of_genes = ["UpReg",
                              "DownReg",
-                             "negDownReg",
                              "unwSignature",
                              "wSignature",
                              ],
             create_matrix=False)
         
 
+        self.A.obs["unwSignature"] = unwSign
         self.A.obs["wSignature"] = wSign
         self.A.obs["UpReg"] = up_reg_mean
-        self.A.obs["negDownReg"] = -down_reg_mean
+        self.A.obs["DownReg"] = down_reg_mean
 
+        #Print the stats for the upregulated and
+        #downregulated genes.
+
+        print("UpRegulated genes: stats")
         print(self.A.obs["UpReg"].describe())
-        print(self.A.obs["negDownReg"].describe())
+
+        print("DownRegulated genes: stats")
+        print(self.A.obs["DownReg"].describe())
+
+        txt = ("Note: In our representation, " 
+               "the higher the value of a downregulated "
+               "gene, the more downregulated it is.")
+        print(txt)
 
         m = m.astype(np.float32)
 
         mtx_path = os.path.join(
             self.tmci_mtx_dir, "matrix.mtx")
+
         mmwrite(mtx_path, sp.coo_matrix(m))
 
 
