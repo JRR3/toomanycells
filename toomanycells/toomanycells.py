@@ -1457,8 +1457,14 @@ class TooManyCells:
         total_counts = up_count + down_count
         total_weight = up_weight + down_weight
 
+        list_of_names = []
+        list_of_gvecs = []
+
         unwSign = up_reg + down_reg
         unwSign /= total_weight
+        self.A.obs["unwSign"] = unwSign
+        list_of_gvecs.append(unwSign)
+        list_of_names.append("unwSign")
 
         up_factor = down_count / total_counts
         down_factor = up_count / total_counts
@@ -1476,46 +1482,49 @@ class TooManyCells:
         print(f"{up_factor=}")
         print(f"{down_factor=}")
 
-        up_reg_mean   = up_reg / up_count
-        down_reg_mean = down_reg / down_count
 
-        wSign = up_factor * up_reg + down_factor * down_reg
-        wSign /= modified_total_counts
+        mixed_signs = True
+        if 0 < up_count:
+            UpReg   = up_reg / up_count
+            self.A.obs["UpReg"] = UpReg
+            list_of_gvecs.append(UpReg)
+            list_of_names.append("UpReg")
+            print("UpRegulated genes: stats")
+            print(self.A.obs["UpReg"].describe())
+    
+        else:
+            mixed_signs = False
 
-        m = np.vstack((up_reg_mean,
-                       down_reg_mean,
-                       unwSign,
-                       wSign))
+        if 0 < down_count:
+            DownReg   = down_reg / down_count
+            self.A.obs["DownReg"] = DownReg
+            list_of_gvecs.append(DownReg)
+            list_of_names.append("DownReg")
+            print("DownRegulated genes: stats")
+            print(self.A.obs["DownReg"].describe())
+            txt = ("Note: In our representation, " 
+                   "the higher the value of a downregulated "
+                   "gene, the more downregulated it is.")
+            print(txt)
+        else:
+            mixed_signs = False
+
+        if mixed_signs:
+            wSign  = up_factor * up_reg
+            wSign += down_factor * down_reg
+            wSign /= modified_total_counts
+            self.A.obs["wSign"] = wSign
+            list_of_gvecs.append(wSign)
+            list_of_names.append("wSign")
+
+        m = np.vstack(list_of_gvecs)
 
         #This function will produce the 
         #barcodes.tsv and the genes.tsv file.
         self.create_data_for_tmci(
-            list_of_genes = ["UpReg",
-                             "DownReg",
-                             "unwSignature",
-                             "wSignature",
-                             ],
+            list_of_genes = list_of_names,
             create_matrix=False)
-        
 
-        self.A.obs["unwSignature"] = unwSign
-        self.A.obs["wSignature"] = wSign
-        self.A.obs["UpReg"] = up_reg_mean
-        self.A.obs["DownReg"] = down_reg_mean
-
-        #Print the stats for the upregulated and
-        #downregulated genes.
-
-        print("UpRegulated genes: stats")
-        print(self.A.obs["UpReg"].describe())
-
-        print("DownRegulated genes: stats")
-        print(self.A.obs["DownReg"].describe())
-
-        txt = ("Note: In our representation, " 
-               "the higher the value of a downregulated "
-               "gene, the more downregulated it is.")
-        print(txt)
 
         m = m.astype(np.float32)
 
@@ -1523,8 +1532,6 @@ class TooManyCells:
             self.tmci_mtx_dir, "matrix.mtx")
 
         mmwrite(mtx_path, sp.coo_matrix(m))
-
-
 
 
     #====END=OF=CLASS=====================
