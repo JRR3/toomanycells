@@ -592,7 +592,7 @@ class TooManyCells:
 
         with tqdm(total=max_n_iter) as pbar:
             while 0 < len(self.Dq):
-                rows, node_id = self.Dq.popleft()
+                rows, node_id = self.Dq.pop()
                 if similarity_function == "cosine_sparse":
                     Q,S = self.compute_partition_for_sp(rows)
                 else:
