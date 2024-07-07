@@ -634,6 +634,7 @@ class TooManyCells:
         with tqdm(total=max_n_iter) as pbar:
             while 0 < len(self.Dq):
                 rows, p_node_id = self.Dq.pop()
+                node_id += 1
 
                 # For every cluster of cells that is popped
                 # from the deque, we update the node_id. 
@@ -650,8 +651,14 @@ class TooManyCells:
                     Q,S = self.compute_partition_for_gen(rows)
 
                 # If the parent node is 0, then the path is
-                # "0"
+                # "0".
                 current_path = self.node_to_path[p_node_id]
+
+                #Update path for the new node
+                new_path = current_path 
+                new_path += '/' + str(node_id) 
+                self.node_to_path[node_id]=new_path
+
                 # If the parent node is 0, then j_index is
                 # (1,)
                 j_index = self.node_to_j_index[p_node_id]
@@ -661,8 +668,14 @@ class TooManyCells:
                 #Update the j_index. For example, if
                 #j_index = (1,) and no blocks have been
                 #stored, then the new j_index is (1,0).
-                #Otherwise, it is (1,1)
+                #Otherwise, it is (1,1).
                 j_index += (n_stored_blocks,)
+
+                #Include new node into the graph.
+                self.G.add_node(node_id, size=len(rows))
+
+                #Include new edge into the graph.
+                self.G.add_edge(p_node_id, node_id)
 
                 if self.eps < Q:
                     #Modularity is above threshold, and
@@ -671,38 +684,27 @@ class TooManyCells:
 
                     D = self.modularity_to_json(Q)
                     self.J[j_index].append(D)
-                    self.J[j_index].append([[],[]])
+                    self.J[j_index].append([])
                     j_index += (1,)
 
+                    # We only store the modularity of nodes
+                    # whose modularity is above threshold.
                     self.G.nodes[node_id]['Q'] = Q
 
-                    for k,indices in enumerate(S):
-                        new_node = self.node_counter
-                        self.G.add_node(new_node,
-                                size=len(indices))
-                        self.G.add_edge(node_id, new_node)
-                        T = (indices, new_node)
+                    # Update the j_index for the newly 
+                    # created node. (1,0,1)
+                    self.node_to_j_index[node_id] = j_index
+
+                    # Append each partition to the deque.
+                    for indices in S:
+                        T = (indices, node_id)
                         self.Dq.append(T)
-
-                        #Update path for the new node
-                        new_path = current_path 
-                        new_path += '/' + str(new_node) 
-                        self.node_to_path[new_node]=new_path
-
-                        seq = j_index + (k,)
-                        self.node_to_j_index[new_node] = seq
-
-                        self.node_counter += 1
 
                 else:
                     #Modularity is below threshold and 
                     #therefore this partition will not
                     #be considered.
-                    if j_index is None:
-                        txt = ("All cells belong" 
-                               " to the same partition.")
-                        print(txt)
-                        continue
+
                     #Update the relation between a set of
                     #cells and the corresponding leaf node.
                     #Also include the path to reach that node.
@@ -710,7 +712,7 @@ class TooManyCells:
                     self.A.obs.iloc[rows, c] = node_id
 
                     reversed_path = self.reverse_path(
-                        current_path)
+                        new_path)
                     p = self.path_column_index
                     self.A.obs.iloc[rows, p] = reversed_path
 
