@@ -566,13 +566,17 @@ class TooManyCells:
 
         self.t0 = clock()
 
+        #===========================================
+        #=============Main=Loop=====================
+        #===========================================
         node_id = self.node_counter
 
         #Initialize the array of cells to partition
         rows = np.array(range(self.X.shape[0]))
 
         #Initialize the deque
-        self.Dq.append((rows, node_id))
+        # self.Dq.append((rows, None))
+        # self.Dq.append(rows)
 
         #Initialize the graph
         self.G.add_node(node_id, size=len(rows))
@@ -581,10 +585,47 @@ class TooManyCells:
         self.node_to_path[node_id] = str(node_id)
 
         #Indices to reach root node.
-        self.node_to_j_index[node_id] = None
+        self.node_to_j_index[node_id] = (1,)
 
         #Update the node counter
         self.node_counter += 1
+
+        #============STEP=1================Cluster(0)
+
+        p_node_id = node_id
+
+        if similarity_function == "cosine_sparse":
+            Q,S = self.compute_partition_for_sp(rows)
+        else:
+            Q,S = self.compute_partition_for_gen(rows)
+
+        if self.eps < Q:
+            #Modularity is above threshold, and
+            #thus each partition will be 
+            #inserted into the deque.
+
+            D = self.modularity_to_json(Q)
+
+            #Update json index
+            self.J.append(D)
+            self.J.append([])
+            # self.J.append([[],[]])
+            # j_index = (1,)
+
+            self.G.nodes[node_id]['Q'] = Q
+
+            for indices in S:
+                T = (indices, p_node_id)
+                self.Dq.append(T)
+
+        else:
+            #Modularity is below threshold and 
+            #therefore this partition will not
+            #be considered.
+            txt = ("All cells belong" 
+                    " to the same partition.")
+            print(txt)
+            return
 
         max_n_iter = self.estimate_n_of_iterations()
 
@@ -592,24 +633,46 @@ class TooManyCells:
 
         with tqdm(total=max_n_iter) as pbar:
             while 0 < len(self.Dq):
-                rows, node_id = self.Dq.pop()
+                rows, p_node_id = self.Dq.pop()
+
+                # For every cluster of cells that is popped
+                # from the deque, we update the node_id. 
+                # If the cluster is further partitioned we 
+                # will store each partition but will not 
+                # assign node numbers. Node numbers will 
+                # only be assigned after being popped from 
+                # the deque.
+
+                # C
                 if similarity_function == "cosine_sparse":
                     Q,S = self.compute_partition_for_sp(rows)
                 else:
                     Q,S = self.compute_partition_for_gen(rows)
-                current_path = self.node_to_path[node_id]
-                j_index = self.node_to_j_index[node_id]
+
+                # If the parent node is 0, then the path is
+                # "0"
+                current_path = self.node_to_path[p_node_id]
+                # If the parent node is 0, then j_index is
+                # (1,)
+                j_index = self.node_to_j_index[p_node_id]
+
+                n_stored_blocks = len(self.J[j_index])
+                self.J[j_index].append([])
+                #Update the j_index. For example, if
+                #j_index = (1,) and no blocks have been
+                #stored, then the new j_index is (1,0).
+                #Otherwise, it is (1,1)
+                j_index += (n_stored_blocks,)
+
                 if self.eps < Q:
+                    #Modularity is above threshold, and
+                    #thus each partition will be 
+                    #inserted into the deque.
 
                     D = self.modularity_to_json(Q)
-                    if j_index is None:
-                        self.J.append(D)
-                        self.J.append([[],[]])
-                        j_index = (1,)
-                    else:
-                        self.J[j_index].append(D)
-                        self.J[j_index].append([[],[]])
-                        j_index += (1,)
+                    self.J[j_index].append(D)
+                    self.J[j_index].append([[],[]])
+                    j_index += (1,)
 
                     self.G.nodes[node_id]['Q'] = Q
 
@@ -632,6 +695,9 @@ class TooManyCells:
                         self.node_counter += 1
 
                 else:
+                    #Modularity is below threshold and 
+                    #therefore this partition will not
+                    #be considered.
                     if j_index is None:
                         txt = ("All cells belong" 
                                " to the same partition.")
