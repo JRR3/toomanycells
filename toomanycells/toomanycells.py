@@ -633,7 +633,13 @@ class TooManyCells:
 
         with tqdm(total=max_n_iter) as pbar:
             while 0 < len(self.Dq):
+
+                #Get the rows corresponding to the
+                #partition and the (parent) node
+                #that produced such partition.
                 rows, p_node_id = self.Dq.pop()
+
+                #This id is for the new node.
                 node_id += 1
 
                 # For every cluster of cells that is popped
@@ -644,7 +650,8 @@ class TooManyCells:
                 # only be assigned after being popped from 
                 # the deque.
 
-                # C
+                # We need to know the modularity to 
+                # determine if the node will 
                 if similarity_function == "cosine_sparse":
                     Q,S = self.compute_partition_for_sp(rows)
                 else:
