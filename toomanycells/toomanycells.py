@@ -202,7 +202,10 @@ class TooManyCells:
         #Location of the matrix data for TMCI
         self.tmci_mtx_dir = ""
 
-        #We use a deque to enforce a breadth-first traversal.
+        # We use a deque to offer the possibility of breadth-
+        # versus depth-first. Our current implementation
+        # uses depth-first to be consistent with the 
+        # numbering scheme of TooManyCellsInteractive.
         self.Dq = deque()
 
         #We use a directed graph to enforce the parent
@@ -1051,24 +1054,26 @@ class TooManyCells:
     #=====================================
     def store_outputs(
             self,
-            load_dot_file: Optional[bool]=False,
             use_column_for_labels: Optional[str] = "",
             ):
         """
-        Plot the branching tree. If the .dot file already\
-            exists, one can specify such condition with \
-            the flag `load_dot_file=True`. This function \
-            also generates two CSV files. One is the \
-            clusters.csv file, which stores the \
-            relation between cell ids and the cluster they \
-            belong. The second is node_info.csv, which \
-            provides information regarding the number of \
-            cells belonging to that node and its \
-            modularity if it has children. Lastly, a file \
-            named cluster_tree.json is produced, which \
-            stores the tree structure in the JSON format. \
-            This last file can be used with too-many-cells \
-            interactive.
+        Store the outputs and plot the branching tree.
+
+        File outputs:
+
+        cluster_list.json: The json file containing a list 
+        of clusters. 
+
+        cluster_tree.json: The json file containing the 
+        output tree in a recursive format.
+
+        graph.dot: A dot file of the tree. It includes the 
+        modularity and the size.
+
+        node_info.csv: Size and modularity of each node.
+
+        clusters.csv: The cluster membership for each cell.
+
         """
 
         self.t0 = clock()
@@ -1077,26 +1082,20 @@ class TooManyCells:
         fname = 'graph.dot'
         dot_fname = os.path.join(self.output, fname)
 
-        if load_dot_file:
-            self.G = nx.nx_agraph.read_dot(dot_fname)
-            self.G = nx.DiGraph(self.G)
-            self.G = nx.convert_node_labels_to_integers(
-                    self.G)
-        else:
-            nx.nx_agraph.write_dot(self.G, dot_fname)
-            #Write cell to node data frame.
-            self.write_cell_assignment_to_csv()
-            self.convert_graph_to_json()
-            self.write_cluster_list_to_json()
+        nx.nx_agraph.write_dot(self.G, dot_fname)
+        #Write cell to node data frame.
+        self.write_cell_assignment_to_csv()
+        self.convert_graph_to_json()
+        self.write_cluster_list_to_json()
 
-            #Store the cell annotations in the output folder.
-            if 0 < len(use_column_for_labels):
-                col = use_column_for_labels
-                if col in self.A.obs.columns:
-                    self.generate_cell_annotation_file(col)
-                else:
-                    txt = "Annotation column does not exists."
-                    raise ValueError(txt)
+        #Store the cell annotations in the output folder.
+        if 0 < len(use_column_for_labels):
+            col = use_column_for_labels
+            if col in self.A.obs.columns:
+                self.generate_cell_annotation_file(col)
+            else:
+                txt = "Annotation column does not exists."
+                raise ValueError(txt)
 
         print(self.G)
 
@@ -1144,6 +1143,112 @@ class TooManyCells:
             txt = ('Elapsed time for plotting: ' +
                     f'{delta:.2f} seconds.')
             print(txt)
+
+    #=====================================
+    def load_graph(
+            self,
+            dot_file_path: Optional[str]="",
+            ):
+        """
+        Load the dot file.
+        """
+
+        self.t0 = clock()
+
+
+        if 0 < len(dot_file_path):
+            dot_fname = dot_file_path
+
+        else:
+            fname = 'graph.dot'
+            dot_fname = os.path.join(self.output, fname)
+
+        if not os.path.exists(dot_fname):
+            raise ValueError("File does not exists.")
+
+        self.G = nx.nx_agraph.read_dot(dot_fname)
+        self.G = nx.DiGraph(self.G)
+        # self.G = nx.convert_node_labels_to_integers(self.G)
+
+        print(self.G)
+
+    #=====================================
+    def get_path_from_root_to_node(
+            self,
+            target: int,
+            ):
+        """
+        For a given node, we find the path from the root 
+        to that node.
+        """
+
+        node = str(target)
+        path_vec = [node]
+        dist_vec = ["0"]
+
+        while node != "0":
+            predecessors = self.G.predecessors(node)
+            node = next(predecessors)
+            Q = self.G._node[node]["Q"]
+            path_vec.append(node)
+            dist_vec.append(Q)
+        
+        # print(path_vec)
+        dist_vec = 0.5 * np.array(dist_vec, dtype=float)
+        path_vec = np.array(path_vec, dtype=int)
+
+        return (path_vec, dist_vec)
+
+    #=====================================
+    def get_path_from_node_x_to_node_y(
+            self,
+            x: int,
+            y: int,
+            ):
+        """
+        For a given pair of nodes x and y, we find the
+        path between those nodes.
+        """
+        x_path, x_dist = self.get_path_from_root_to_node(x)
+        y_path, y_dist = self.get_path_from_root_to_node(y)
+
+        x_set = set(x_path)
+        y_set = set(y_path)
+
+        print(x_dist)
+        print(y_dist)
+
+        print("===========")
+
+        print(x_path)
+        print(y_path)
+
+        print("===========")
+
+        intersection = x_set.intersection(y_set)
+        intersection = list(intersection)
+        intersection = np.array(intersection)
+        n_intersection = len(intersection)
+        
+        pivot_node = x_path[-n_intersection]
+        pivot_dist = x_dist[-n_intersection]
+
+        x_path = x_path[:-n_intersection]
+        y_path = y_path[:-n_intersection]
+        y_path = y_path[::-1]
+
+        x_dist = x_dist[:-n_intersection]
+        y_dist = y_dist[1:-n_intersection]
+        y_dist = y_dist[::-1]
+
+        full_path = np.hstack((x_path,pivot_node,y_path))
+        full_dist = np.hstack(
+            (x_dist, pivot_dist, pivot_dist, y_dist))
+
+        table = np.vstack((full_path,full_dist))
+        table = table.T
+
+        print(table)
 
 
     #=====================================
@@ -1607,6 +1712,30 @@ class TooManyCells:
             self.tmci_mtx_dir, "matrix.mtx")
 
         mmwrite(mtx_path, sp.coo_matrix(m))
+
+    #=====================================
+    def generate_matrix_from_signature_file(
+            self,
+            signature_path: str):
+        """
+        Generate a matrix from the signature provided \
+            through a file. The entries with a positive
+            weight are assumed to be upregulated and \
+            those with a negative weight are assumed \
+            to be downregulated. The algorithm will \
+            standardize the matrix and create an \
+            average for each category. The weights \
+            are adjusted to give equal weight to the \
+            upregulated and downregulated genes. \
+            Assumptions: \
+            We assume that the file has at least two \
+            columns. One should be named "Gene" and \
+            the other "Weight". \
+            The count matrix has cells for rows and \
+            genes for columns.
+        """
+
+        df_signature = pd.read_csv(signature_path, header=0)
 
 
     #====END=OF=CLASS=====================
