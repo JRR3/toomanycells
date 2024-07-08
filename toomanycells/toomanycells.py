@@ -1245,10 +1245,12 @@ class TooManyCells:
         full_dist = np.hstack(
             (x_dist, pivot_dist, pivot_dist, y_dist))
 
-        table = np.vstack((full_path,full_dist))
-        table = table.T
-
-        print(table)
+        print(full_path)
+        print(full_dist)
+        print(full_dist.cumsum())
+        # table = np.vstack((full_path,full_dist))
+        # table = table.T
+        # print(table)
 
 
     #=====================================
