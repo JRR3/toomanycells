@@ -35,6 +35,14 @@ import subprocess
 from tqdm import tqdm
 import sys
 import scanpy as sc
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
+mpl.rcParams["figure.dpi"]=600
+mpl.rcParams["pdf.fonttype"]=42
+font = {'weight' : 'normal', 'size'   : 18}
+
+mpl.rc("font", **font)
 
 #sys.path.insert(0, dirname(__file__))
 from .common import MultiIndexList
@@ -1144,114 +1152,6 @@ class TooManyCells:
                     f'{delta:.2f} seconds.')
             print(txt)
 
-    #=====================================
-    def load_graph(
-            self,
-            dot_file_path: Optional[str]="",
-            ):
-        """
-        Load the dot file.
-        """
-
-        self.t0 = clock()
-
-
-        if 0 < len(dot_file_path):
-            dot_fname = dot_file_path
-
-        else:
-            fname = 'graph.dot'
-            dot_fname = os.path.join(self.output, fname)
-
-        if not os.path.exists(dot_fname):
-            raise ValueError("File does not exists.")
-
-        self.G = nx.nx_agraph.read_dot(dot_fname)
-        self.G = nx.DiGraph(self.G)
-        # self.G = nx.convert_node_labels_to_integers(self.G)
-
-        print(self.G)
-
-    #=====================================
-    def get_path_from_root_to_node(
-            self,
-            target: int,
-            ):
-        """
-        For a given node, we find the path from the root 
-        to that node.
-        """
-
-        node = str(target)
-        path_vec = [node]
-        dist_vec = ["0"]
-
-        while node != "0":
-            predecessors = self.G.predecessors(node)
-            node = next(predecessors)
-            Q = self.G._node[node]["Q"]
-            path_vec.append(node)
-            dist_vec.append(Q)
-        
-        # print(path_vec)
-        dist_vec = 0.5 * np.array(dist_vec, dtype=float)
-        path_vec = np.array(path_vec, dtype=int)
-
-        return (path_vec, dist_vec)
-
-    #=====================================
-    def get_path_from_node_x_to_node_y(
-            self,
-            x: int,
-            y: int,
-            ):
-        """
-        For a given pair of nodes x and y, we find the
-        path between those nodes.
-        """
-        x_path, x_dist = self.get_path_from_root_to_node(x)
-        y_path, y_dist = self.get_path_from_root_to_node(y)
-
-        x_set = set(x_path)
-        y_set = set(y_path)
-
-        print(x_dist)
-        print(y_dist)
-
-        print("===========")
-
-        print(x_path)
-        print(y_path)
-
-        print("===========")
-
-        intersection = x_set.intersection(y_set)
-        intersection = list(intersection)
-        intersection = np.array(intersection)
-        n_intersection = len(intersection)
-        
-        pivot_node = x_path[-n_intersection]
-        pivot_dist = x_dist[-n_intersection]
-
-        x_path = x_path[:-n_intersection]
-        y_path = y_path[:-n_intersection]
-        y_path = y_path[::-1]
-
-        x_dist = x_dist[:-n_intersection]
-        y_dist = y_dist[1:-n_intersection]
-        y_dist = y_dist[::-1]
-
-        full_path = np.hstack((x_path,pivot_node,y_path))
-        full_dist = np.hstack(
-            (x_dist, pivot_dist, pivot_dist, y_dist))
-
-        print(full_path)
-        print(full_dist)
-        print(full_dist.cumsum())
-        # table = np.vstack((full_path,full_dist))
-        # table = table.T
-        # print(table)
-
 
     #=====================================
     def convert_mm_from_source_to_anndata(self):
@@ -1585,12 +1485,21 @@ class TooManyCells:
             weight are assumed to be upregulated and \
             those with a negative weight are assumed \
             to be downregulated. The algorithm will \
-            standardize the matrix and create an \
-            average for each category. The weights \
+            standardize the matrix, i.e., centering \
+            and scaling.
+
+        If the signature has both positive and \
+            negative weights, two versions will be \
+            created. The unadjusted version simply \
+            computes a weighted average using the \
+            weights provided in the signature file.\
+            In the adjusted version the weights \
             are adjusted to give equal weight to the \
-            upregulated and downregulated genes. \
-            Assumptions: \
-            We assume that the file has at least two \
+            upregulated and downregulated genes.
+
+        Assumptions
+
+        We assume that the file has at least two \
             columns. One should be named "Gene" and \
             the other "Weight". \
             The count matrix has cells for rows and \
@@ -1642,11 +1551,11 @@ class TooManyCells:
         list_of_names = []
         list_of_gvecs = []
 
-        unwSign = up_reg + down_reg
-        unwSign /= total_weight
-        self.A.obs["unwSign"] = unwSign
-        list_of_gvecs.append(unwSign)
-        list_of_names.append("unwSign")
+        UnAdjSign = up_reg + down_reg
+        UnAdjSign /= total_weight
+        self.A.obs["UnAdjSign"] = UnAdjSign
+        list_of_gvecs.append(UnAdjSign)
+        list_of_names.append("UnAdjSign")
 
         up_factor = down_count / total_counts
         down_factor = up_count / total_counts
@@ -1692,12 +1601,12 @@ class TooManyCells:
             mixed_signs = False
 
         if mixed_signs:
-            wSign  = up_factor * up_reg
-            wSign += down_factor * down_reg
-            wSign /= modified_total_counts
-            self.A.obs["wSign"] = wSign
-            list_of_gvecs.append(wSign)
-            list_of_names.append("wSign")
+            AdjSign  = up_factor * up_reg
+            AdjSign += down_factor * down_reg
+            AdjSign /= modified_total_counts
+            self.A.obs["AdjSign"] = AdjSign
+            list_of_gvecs.append(AdjSign)
+            list_of_names.append("AdjSign")
 
         m = np.vstack(list_of_gvecs)
 
@@ -1716,28 +1625,244 @@ class TooManyCells:
         mmwrite(mtx_path, sp.coo_matrix(m))
 
     #=====================================
-    def generate_matrix_from_signature_file(
+    def load_graph(
             self,
-            signature_path: str):
+            dot_file_path: Optional[str]="",
+            ):
         """
-        Generate a matrix from the signature provided \
-            through a file. The entries with a positive
-            weight are assumed to be upregulated and \
-            those with a negative weight are assumed \
-            to be downregulated. The algorithm will \
-            standardize the matrix and create an \
-            average for each category. The weights \
-            are adjusted to give equal weight to the \
-            upregulated and downregulated genes. \
-            Assumptions: \
-            We assume that the file has at least two \
-            columns. One should be named "Gene" and \
-            the other "Weight". \
-            The count matrix has cells for rows and \
-            genes for columns.
+        Load the dot file.
         """
 
-        df_signature = pd.read_csv(signature_path, header=0)
+        self.t0 = clock()
+
+
+        if 0 < len(dot_file_path):
+            dot_fname = dot_file_path
+
+        else:
+            fname = 'graph.dot'
+            dot_fname = os.path.join(self.output, fname)
+
+        if not os.path.exists(dot_fname):
+            raise ValueError("File does not exists.")
+
+        self.G = nx.nx_agraph.read_dot(dot_fname)
+        self.G = nx.DiGraph(self.G)
+        # self.G = nx.convert_node_labels_to_integers(self.G)
+
+        print(self.G)
+
+    #=====================================
+    def get_path_from_root_to_node(
+            self,
+            target: int,
+            ):
+        """
+        For a given node, we find the path from the root 
+        to that node.
+        """
+
+        node = str(target)
+        path_vec = [node]
+        dist_vec = ["0"]
+
+        while node != "0":
+            predecessors = self.G.predecessors(node)
+            node = next(predecessors)
+            Q = self.G._node[node]["Q"]
+            path_vec.append(node)
+            dist_vec.append(Q)
+        
+        # We assume that the distance between two children
+        # nodes is equal to the modularity of the parent node.
+        # Hence, the distance from a child to a parent is 
+        # half the modularity.
+        dist_vec = 0.5 * np.array(dist_vec, dtype=float)
+        path_vec = np.array(path_vec, dtype=int)
+
+        return (path_vec, dist_vec)
+
+    #=====================================
+    def get_path_from_node_x_to_node_y(
+            self,
+            x: int,
+            y: int,
+            ):
+        """
+        For a given pair of nodes x and y, we find the
+        path between those nodes.
+        """
+        x_path, x_dist = self.get_path_from_root_to_node(x)
+        y_path, y_dist = self.get_path_from_root_to_node(y)
+
+        x_set = set(x_path)
+        y_set = set(y_path)
+
+        # print(x_dist)
+        # print(y_dist)
+
+        # print("===========")
+
+        # print(x_path)
+        # print(y_path)
+
+        # print("===========")
+
+        intersection = x_set.intersection(y_set)
+        intersection = list(intersection)
+        intersection = np.array(intersection)
+        n_intersection = len(intersection)
+        
+        pivot_node = x_path[-n_intersection]
+        pivot_dist = x_dist[-n_intersection]
+
+        x_path = x_path[:-n_intersection]
+        y_path = y_path[:-n_intersection]
+        y_path = y_path[::-1]
+
+        x_dist = x_dist[:-n_intersection]
+        y_dist = y_dist[1:-n_intersection]
+        y_dist = y_dist[::-1]
+
+        full_path = np.hstack((x_path,pivot_node,y_path))
+        full_dist = np.hstack(
+            (x_dist, pivot_dist, pivot_dist, y_dist))
+        full_dist = full_dist.cumsum()
+
+        # print(full_path) 
+        # print(full_dist)
+
+        return (full_path, full_dist)
+
+    #=====================================
+    def compute_cluster_mean_expression(
+            self, 
+            cluster: int, 
+            genes: Union[list, str],
+            output_list: Optional[bool] = False,
+            ):
+
+        node = str(cluster)
+        nodes = nx.descendants(self.G, node)
+        if len(nodes) == 0:
+            nodes = [cluster]
+        else:
+            nodes = list(map(int,nodes))
+
+        is_string = False
+
+        if isinstance(genes, str):
+            is_string = True
+            list_of_genes = [genes]
+        else:
+            list_of_genes = genes
+
+        exp_vec = []
+        mean_exp = 0
+
+        for gene in list_of_genes:
+
+            if gene not in self.A.var.index:
+                raise ValueError(f"{gene=} was not found.")
+
+            col_index = self.A.var.index.get_loc(gene)
+
+            total_exp = 0
+            n_cells = 0
+
+            for node in nodes:
+                mask = self.A.obs["sp_cluster"] == node
+                n_cells += mask.sum()
+                total_exp += self.A.X[mask, col_index].sum()
+
+            mean_exp = total_exp / n_cells
+            exp_vec.append(mean_exp)
+
+        # print(f"{total_exp=}")
+        # print(f"{n_cells=}")
+        # print(f"{mean_exp=}")
+
+        if is_string and not output_list:
+            return mean_exp
+        else:
+            return exp_vec
+
+    #=====================================
+    def load_cluster_info(
+            self,
+            cluster_file_path: Optional[str]="",
+            ):
+        """
+        Load the cluster file.
+        """
+
+        self.t0 = clock()
+
+        if 0 < len(cluster_file_path):
+            cluster_fname = cluster_file_path
+
+        else:
+            fname = 'clusters.csv'
+            cluster_fname = os.path.join(self.output, fname)
+
+        if not os.path.exists(cluster_fname):
+            raise ValueError("File does not exists.")
+
+        df = pd.read_csv(cluster_fname, index_col=0)
+        self.A.obs["sp_cluster"] = df["cluster"]
+
+
+    #=====================================
+    def plot_expression_from_node_x_to_node_y(
+            self,
+            x: int,
+            y: int,
+            genes: Union[list, str],
+            ):
+        """
+        For a given pair of nodes x and y, we find the
+        path between those nodes.
+        """
+
+        if isinstance(genes, str):
+            list_of_genes = [genes]
+        else:
+            list_of_genes = genes
+
+        T = self.get_path_from_node_x_to_node_y(x,y)
+        path_vec, dist_vec = T
+        n_nodes = len(path_vec)
+        n_genes = len(list_of_genes)
+        exp_mat = np.zeros((n_genes,n_nodes))
+
+        for col,node in enumerate(path_vec):
+            g_exp = self.compute_cluster_mean_expression(
+                node, list_of_genes)
+            exp_mat[:,col] = g_exp
+
+        fig,ax = plt.subplots()
+
+        for row, gene in enumerate(list_of_genes):
+            ax.plot(dist_vec,
+                    exp_mat[row,:],
+                    linewidth=2,
+                    label=gene)
+
+        plt.legend()
+        txt = f"From node {x} to node {y}"
+        ax.set_title(txt)
+        ax.set_ylabel("Gene expression")
+        ax.set_xlabel("Distance (modularity units)")
+        plt.ticklabel_format(style='sci',
+                             axis='x',
+                             scilimits=(0,0))
+
+        fname = "exp_path.pdf"
+        fname = os.path.join(self.output, fname)
+        fig.savefig(fname, bbox_inches="tight")
+            
+                            
+
 
 
     #====END=OF=CLASS=====================
