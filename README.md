@@ -305,13 +305,6 @@ tmc_obj.run_spectral_clustering(
    similarity_function="div_by_sum")
 ```
 
-## Gene expression along a path
-Imagine you have the following tree structure after 
-running toomanycells.
-![Tree path](https://github.com/JRR3/toomanycells/blob/main/tests/exp_path_test.svg)
-![Gene expression](https://github.com/JRR3/toomanycells/blob/main/tests/tree_path_example.svg)
-
-## Additional features
 ### TF-IDF
 If you want to use the inverse document
 frequency (IDF) normalization, then use
@@ -350,6 +343,65 @@ tmc_obj.run_spectral_clustering(
    similarity_norm=p)
 ```
 
+
+## Gene expression along a path
+Imagine you have the following tree structure after 
+running toomanycells. 
+![Tree path](https://github.com/JRR3/toomanycells/blob/main/tests/tree_path_example.svg)
+Further, assume that the colors denote different classes
+satisfying specific properties.  We want to know how the
+expression of two genes, for instance, `Gene S` and `Gene T`,
+fluctuates as we move from node $X$ (below), which is rich
+in `Class B`, to node $Y$ (above), which is rich in `Class
+C`. To compute such quantities, we first need to define the
+distance between the nodes. Assume we have a (parent) node $P$ with
+two children nodes $C_1$ and $C_2$. Recall that the modularity of 
+$P$ indicates the strength of separation between the cell
+populations of $C_1$ and $C_2$. 
+A large the modularity indicates strong connections,
+i.e., high similarity, within each cluster $C_i$,
+and also implies weak connections, i.e., low similarity, between 
+$C_1$ and $C_2$. If the modularity at $P$ is $Q(P)$, we define
+the distance between $C_1$ and $C_2$ as $$d(C_1,C_2) = Q(P).$$
+We also define $d(C_i,P) = Q(P)/2$. Note that with 
+those definitions we have that $$d(C_1,C_2)=d(C_1,P)
++d(P,C_2)=Q(P)/2+Q(P)/2=Q(P),$$
+as expected. Now that we know how to calculate the
+distance between a node and its parent or child, let 
+$X$ and $Y$ be two distinct nodes, and let
+$(N_i)_{i=0}^{n}$ be the sequence of nodes that describes
+the unique path between them satisfying:
+1. $N_0 = X$,
+2. $N_n=Y$,
+3. $N_i$ is a direct relative of $N_{i+1}$, i.e., 
+$N_i$ is either a child or parent of $N_{i+1}$,
+4. $N_i \neq N_j$ for $i\neq j$.
+
+Then, the distance between $X$ and $Y$ is given by
+$$ d(X,Y) = \sum_{i=0}^{n-1} d(N_i,N_{i+1}).$$
+We define the expression of `Gene G` at a node $N$,
+$Exp(G,N)$,
+as the mean expression of `Gene G` cosidering all the
+cells that belong to node $N$. Hence, for the sequence
+$(N_i)_{i=0}^{n}$ we can compute the corresponding
+gene expression sequence
+$(E_i)_{i=0}^{n}$, where $E_i = Exp(G,N_i)$. Lastly,
+since we are interested in plotting the gene expression
+as a function of the distance with respect to the 
+node $X$, we define the sequence of real numbers
+$(D_i)_{i=0}^{n}$, where $D_i = d(X,N_i)$.
+Summarizing, we have
+1. The sequence of nodes between $X$ and $Y$
+$$(N_i)_{i=0}^{n}$$
+2. The sequence of gene expression levels between $X$ and $Y$
+$$(E_i)_{i=0}^{n}$$
+3. And the sequence of distances with respect to node $X$
+$$(D_i)_{i=0}^{n}$$
+
+The final plot is simply $E_i$ versus $D_i$. An example
+is given in the following figure.
+
+![Gene expression](https://github.com/JRR3/toomanycells/blob/main/tests/exp_path_test.svg)
 
 ## Acknowledgments
 I would like to thank 
