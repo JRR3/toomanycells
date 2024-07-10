@@ -305,6 +305,8 @@ tmc_obj.run_spectral_clustering(
    similarity_function="div_by_sum")
 ```
 
+## Normalization
+
 ### TF-IDF
 If you want to use the inverse document
 frequency (IDF) normalization, then use
@@ -324,7 +326,7 @@ tmc_obj.run_spectral_clustering(
 If instead you want to use the $1$-norm, then
 replace "l2" with "l1".
 
-### Normalization
+### Simple normalization
 Sometimes normalizing your matrix
 of observations can improve the
 performance of some routines. 
@@ -382,9 +384,11 @@ Then, the distance between $X$ and $Y$ is given by
 $$d(X,Y) = \sum_{i=0}^{n-1} d(N_{i},N_{i+1}).$$
 We define the expression of `Gene G` at a 
 node $N$, $Exp(G,N)$,
-as the mean expression of `Gene G` cosidering all the
-cells that belong to node $N$. Hence, for the 
-sequence ${(N_{i})}_{i=0}^{n}$ we can compute the corresponding
+as the mean expression of `Gene G` considering all the
+cells that belong to node $N$. 
+Hence, for the 
+sequence ${(N_{i})}_{i=0}^{n}$ we can compute the 
+corresponding
 gene expression sequence ${(E_{i})}_{i=0}^{n}$, 
 where $E_i = Exp(G,N_i)$. Lastly,
 since we are interested in plotting the gene expression
