@@ -383,9 +383,9 @@ We define the expression of `Gene G` at a node $N$,
 $Exp(G,N)$,
 as the mean expression of `Gene G` cosidering all the
 cells that belong to node $N$. Hence, for the sequence
-$(N_i)_{i=0}^{n}$ we can compute the corresponding
+$ (N_i)_{i=0}^{n}$ we can compute the corresponding
 gene expression sequence
-$(E_i)_{i=0}^{n}$, where $E_i = Exp(G,N_i)$. Lastly,
+$ (E_i)_{i=0}^{n}$, where $E_i = Exp(G,N_i)$. Lastly,
 since we are interested in plotting the gene expression
 as a function of the distance with respect to the 
 node $X$, we define the sequence of real numbers
