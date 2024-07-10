@@ -378,7 +378,7 @@ $N_i$ is either a child or parent of $N_{i+1}$,
 4. $N_i \neq N_j$ for $i\neq j$.
 
 Then, the distance between $X$ and $Y$ is given by
-$$ d(X,Y) = \sum_{i=0}^{n-1} d(N_i,N_{i+1}).$$
+$$d(X,Y) = \sum_{i=0}^{n-1} d(N_i,N_{i+1}).$$
 We define the expression of `Gene G` at a node $N$,
 $Exp(G,N)$,
 as the mean expression of `Gene G` cosidering all the
