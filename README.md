@@ -369,7 +369,7 @@ those definitions we have that $$d(C_1,C_2)=d(C_1,P)
 as expected. Now that we know how to calculate the
 distance between a node and its parent or child, let 
 $X$ and $Y$ be two distinct nodes, and let
-$(N_i)_{i=0}^{n}$ be the sequence of nodes that describes
+${(N_{i})}_{i=0}^{n}$ be the sequence of nodes that describes
 the unique path between them satisfying:
 
 1. $N_0 = X$,
