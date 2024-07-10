@@ -306,7 +306,10 @@ tmc_obj.run_spectral_clustering(
 ```
 
 ## Gene expression along a path
-![Gene exp]("./tests/exp_path.png")
+Imagine you have the following tree structure after 
+running toomanycells.
+![Tree path](https://github.com/JRR3/toomanycells/blob/main/tests/exp_path_test.svg)
+![Gene expression](https://github.com/JRR3/toomanycells/blob/main/tests/tree_path_example.svg)
 
 ## Additional features
 ### TF-IDF
