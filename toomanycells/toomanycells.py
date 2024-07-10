@@ -1130,27 +1130,13 @@ class TooManyCells:
         df.to_csv(fname, index=False)
 
         if self.use_twopi_cmd:
+            self.plot_radial_tree_from_dot_file()
 
-            fname = 'output_graph.svg'
-            fname = os.path.join(self.output, fname)
-
-            command = ['twopi',
-                    '-Groot=0',
-                    '-Goverlap=true',
-                    '-Granksep=2',
-                    '-Tsvg',
-                    dot_fname,
-                    '>',
-                    fname,
-                    ]
-            command = ' '.join(command)
-            p = subprocess.call(command, shell=True)
-
-            self.tf = clock()
-            delta = self.tf - self.t0
-            txt = ('Elapsed time for plotting: ' +
-                    f'{delta:.2f} seconds.')
-            print(txt)
+        self.tf = clock()
+        delta = self.tf - self.t0
+        txt = ('Elapsed time for storing outputs: ' +
+                f'{delta:.2f} seconds.')
+        print(txt)
 
 
     #=====================================
@@ -1627,7 +1613,7 @@ class TooManyCells:
     #=====================================
     def load_graph(
             self,
-            dot_file_path: Optional[str]="",
+            dot_fname: Optional[str]="",
             ):
         """
         Load the dot file.
@@ -1636,10 +1622,7 @@ class TooManyCells:
         self.t0 = clock()
 
 
-        if 0 < len(dot_file_path):
-            dot_fname = dot_file_path
-
-        else:
+        if len(dot_fname) == 0:
             fname = 'graph.dot'
             dot_fname = os.path.join(self.output, fname)
 
@@ -1648,7 +1631,10 @@ class TooManyCells:
 
         self.G = nx.nx_agraph.read_dot(dot_fname)
         self.G = nx.DiGraph(self.G)
+
         # self.G = nx.convert_node_labels_to_integers(self.G)
+        # Changing the labels to integers can potentially 
+        # produce unexpected results. Better be safe.
 
         print(self.G)
 
@@ -1842,14 +1828,21 @@ class TooManyCells:
 
         fig,ax = plt.subplots()
 
+        # bogus_names = ["Gene A", "Gene B"]
+        # colors = ["blue", "red"]
+
         for row, gene in enumerate(list_of_genes):
             ax.plot(dist_vec,
                     exp_mat[row,:],
-                    linewidth=2,
-                    label=gene)
+                    linewidth=3,
+                    label=gene,
+                    # label=bogus_names[row],
+                    # color = colors[row]
+                    )
 
         plt.legend()
-        txt = f"From node {x} to node {y}"
+        # txt = f"From node {x} to node {y}"
+        txt = f"From node X to node Y"
         ax.set_title(txt)
         ax.set_ylabel("Gene expression")
         ax.set_xlabel("Distance (modularity units)")
@@ -1860,6 +1853,33 @@ class TooManyCells:
         fname = "exp_path.pdf"
         fname = os.path.join(self.output, fname)
         fig.savefig(fname, bbox_inches="tight")
+
+    #=====================================
+    def plot_radial_tree_from_dot_file(
+            self,
+            dot_fname: Optional[str] = "",
+    ):
+        if len(dot_fname) == 0:
+            fname = 'graph.dot'
+            dot_fname = os.path.join(self.output, fname)
+        else:
+            if not os.path.exists(dot_fname):
+                raise ValueError("DOT file not found.")
+
+        fname = 'output_graph.svg'
+        fname = os.path.join(self.output, fname)
+
+        command = ['twopi',
+                '-Groot=0',
+                '-Goverlap=true',
+                '-Granksep=2',
+                '-Tsvg',
+                dot_fname,
+                '>',
+                fname,
+                ]
+        command = ' '.join(command)
+        p = subprocess.call(command, shell=True)
             
                             
 
