@@ -371,6 +371,7 @@ distance between a node and its parent or child, let
 $X$ and $Y$ be two distinct nodes, and let
 $(N_i)_{i=0}^{n}$ be the sequence of nodes that describes
 the unique path between them satisfying:
+
 1. $N_0 = X$,
 2. $N_n=Y$,
 3. $N_i$ is a direct relative of $N_{i+1}$, i.e., 
@@ -383,25 +384,30 @@ We define the expression of `Gene G` at a
 node $N$, $Exp(G,N)$,
 as the mean expression of `Gene G` cosidering all the
 cells that belong to node $N$. Hence, for the 
-sequence $(N_{i})_{i=0}^{n}$ we can compute the corresponding
-gene expression sequence $(E_{i})_{i=0}^{n}$, 
+sequence ${(N_{i})}_{i=0}^{n}$ we can compute the corresponding
+gene expression sequence ${(E_{i})}_{i=0}^{n}$, 
 where $E_i = Exp(G,N_i)$. Lastly,
 since we are interested in plotting the gene expression
 as a function of the distance with respect to the 
 node $X$, we define the sequence of real 
-numbers $(D_{i})_{i=0}^{n}$, where $D_{i} = d(X,N_{i})$.
+numbers ${(D_{i})}_{i=0}^{n}$, where $D_{i} = d(X,N_{i})$.
 Summarizing, we have
 1. The sequence of nodes between $X$ and $Y$
-$$(N_{i})_{i=0}^{n}$$
+$${(N_{i})}_{i=0}^{n}$$
 2. The sequence of gene expression levels between $X$ and $Y$
-$$(E_{i})_{i=0}^{n}$$
+$${(E_{i})}_{i=0}^{n}$$
 3. And the sequence of distances with respect to node $X$
-$$(D_{i})_{i=0}^{n}$$
+$${(D_{i})}_{i=0}^{n}$$
 
 The final plot is simply $E_{i}$ versus $D_{i}$. An example
 is given in the following figure.
 
 ![Gene expression](https://github.com/JRR3/toomanycells/blob/main/tests/exp_path_test.svg)
+
+Note how the expression of `Gene A` is high relative to
+that of `Gene B` at node $X$, and as we farther towards 
+node $Y$ the trend is inverted and now `Gene B` is 
+highly expressed relative to `Gene A` at node $Y$.
 
 ## Acknowledgments
 I would like to thank 
