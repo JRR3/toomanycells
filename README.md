@@ -354,8 +354,8 @@ running toomanycells.
 Further, assume that the colors denote different classes
 satisfying specific properties.  We want to know how the
 expression of two genes, for instance, `Gene S` and `Gene T`,
-fluctuates as we move from node $X$ (below), which is rich
-in `Class B`, to node $Y$ (above), which is rich in `Class
+fluctuates as we move from node $X$ (lower left side of the tree), which is rich
+in `Class B`, to node $Y$ (upper left side of the tree), which is rich in `Class
 C`. To compute such quantities, we first need to define the
 distance between nodes. 
 ### Distance between nodes
@@ -396,10 +396,14 @@ We define the expression
 of `Gene G` at a node $N$, $Exp(G,N)$, as the mean expression
 of `Gene G` considering all the cells that belong to node
 $N$. Hence, given the sequence of nodes 
-$(N_i)_{i=0}^n$ 
+```math 
+(N_i)_{i=0}^{n}
+```
 we can compute the corresponding gene
-expression sequence ${(E_{i})}_{i=0}^{n}$, 
-where $E_i = Exp(G,N_i)$. 
+expression sequence 
+```math
+(E_{i})_{i=0}^{n}, \quad E_i = Exp(G,N_i).
+```
 ### Cumulative distance
 Lastly, since we are interested in plotting the
 gene expression as a function of the distance with respect to
