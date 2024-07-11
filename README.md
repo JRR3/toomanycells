@@ -408,7 +408,9 @@ expression sequence
 Lastly, since we are interested in plotting the
 gene expression as a function of the distance with respect to
 the node $X$, we define the sequence of real numbers
-${(D_{i})}_{i=0}^{n}$, where $D_{i} = d(X,N_{i})$.
+```math 
+(D_{i})_{i=0}^{n}, \quad D_{i} = d(X,N_{i}).
+```
 ### Summary
 1. The sequence of nodes between $X$ and $Y$
 $${(N_{i})}_{i=0}^{n}$$
