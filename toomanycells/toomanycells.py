@@ -1631,6 +1631,12 @@ class TooManyCells:
 
         self.G = nx.nx_agraph.read_dot(dot_fname)
         self.G = nx.DiGraph(self.G)
+        n_nodes = self.G.number_of_nodes()
+        D = {}
+        for k in range(n_nodes):
+            D[str(k)] = k
+
+        self.G = nx.relabel_nodes(self.G, D, copy=True)
 
         # self.G = nx.convert_node_labels_to_integers(self.G)
         # Changing the labels to integers can potentially 
@@ -1648,14 +1654,15 @@ class TooManyCells:
         to that node.
         """
 
-        node = str(target)
+        node = target
         path_vec = [node]
-        dist_vec = ["0"]
+        dist_vec = [0]
 
-        while node != "0":
+        while node != 0:
             predecessors = self.G.predecessors(node)
             node = next(predecessors)
             Q = self.G._node[node]["Q"]
+            Q = float(Q)
             path_vec.append(node)
             dist_vec.append(Q)
         
@@ -1882,8 +1889,5 @@ class TooManyCells:
         p = subprocess.call(command, shell=True)
             
                             
-
-
-
     #====END=OF=CLASS=====================
 
