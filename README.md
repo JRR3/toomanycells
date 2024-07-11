@@ -369,8 +369,11 @@ and also implies weak connections, i.e., low similarity, between
 $C_1$ and $C_2$. If the modularity at $P$ is $Q(P)$, we define
 the distance between $C_1$ and $C_2$ as $$d(C_1,C_2) = Q(P).$$
 We also define $d(C_i,P) = Q(P)/2$. Note that with 
-those definitions we have that $$d(C_1,C_2)=d(C_1,P)
-+d(P,C_2)=Q(P)/2+Q(P)/2=Q(P),$$
+those definitions we have that 
+```math
+d(C_1,C_2)=d(C_1,P)
++d(P,C_2)=Q(P)/2+Q(P)/2=Q(P),
+```
 as expected. Now that we know how to calculate the
 distance between a node and its parent or child, let 
 $X$ and $Y$ be two distinct nodes, and let
@@ -383,14 +386,17 @@ the unique path between them satisfying:
 $N_i$ is either a child or parent of $N_{i+1}$,
 4. $N_i \neq N_j$ for $i\neq j$.
 
-Then, the distance between $X$ and $Y$ is given by $$d(X,Y) =
-\sum_{i=0}^{n-1} d(N_{i},N_{i+1}).$$ 
+Then, the distance between $X$ and $Y$ is given by 
+```math
+d(X,Y) =
+\sum_{i=0}^{n-1} d(N_{i},N_{i+1}).
+```
 ### Gene expression
 We define the expression
 of `Gene G` at a node $N$, $Exp(G,N)$, as the mean expression
 of `Gene G` considering all the cells that belong to node
 $N$. Hence, given the sequence of nodes 
-$$(N_i)_{i=0}^n$$ 
+$(N_i)_{i=0}^n$ 
 we can compute the corresponding gene
 expression sequence ${(E_{i})}_{i=0}^{n}$, 
 where $E_i = Exp(G,N_i)$. 
