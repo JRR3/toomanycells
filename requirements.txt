@@ -6,3 +6,4 @@ pandas
 networkx
 tqdm
 scikit-learn
+matplotlib

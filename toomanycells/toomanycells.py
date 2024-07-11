@@ -44,8 +44,8 @@ font = {'weight' : 'normal', 'size'   : 18}
 
 mpl.rc("font", **font)
 
-#sys.path.insert(0, dirname(__file__))
-from .common import MultiIndexList
+sys.path.insert(0, dirname(__file__))
+from common import MultiIndexList
 
 #=====================================================
 class TooManyCells:
