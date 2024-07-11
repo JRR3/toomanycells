@@ -384,10 +384,7 @@ Then, the distance between $X$ and $Y$ is given by $$d(X,Y) =
 \sum_{i=0}^{n-1} d(N_{i},N_{i+1}).$$ We define the expression
 of `Gene G` at a node $N$, $Exp(G,N)$, as the mean expression
 of `Gene G` considering all the cells that belong to node
-$N$ Math $x$. 
-
-Hence, given the sequence of 
-nodes $(N_{i})_{i=0}^{n}$ we can 
+$N$. Hence, given the sequence of nodes $(N_{i})_{i=0}^{n}$ we can 
 compute the corresponding gene
 expression sequence ${(E_{i})}_{i=0}^{n}$, where $E_i =
 Exp(G,N_i)$. Lastly, since we are interested in plotting the
