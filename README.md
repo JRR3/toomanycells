@@ -389,11 +389,10 @@ Then, the distance between $X$ and $Y$ is given by $$d(X,Y) =
 We define the expression
 of `Gene G` at a node $N$, $Exp(G,N)$, as the mean expression
 of `Gene G` considering all the cells that belong to node
-$N$. 
-Hence, given the sequence of nodes $(N_{i})_{i=0}^{n}$ we can 
-compute the corresponding gene
-expression sequence ${(E_{i})}_{i=0}^{n}$, where $E_i =
-Exp(G,N_i)$. 
+$N$. Hence, given the sequence of nodes $(N_{i})_{i=0}^{n}$ 
+we can compute the corresponding gene
+expression sequence ${(E_{i})}_{i=0}^{n}$, 
+where $E_i = Exp(G,N_i)$. 
 ### Cumulative distance
 Lastly, since we are interested in plotting the
 gene expression as a function of the distance with respect to
