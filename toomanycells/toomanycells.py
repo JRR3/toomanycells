@@ -1632,6 +1632,8 @@ class TooManyCells:
         self.G = nx.nx_agraph.read_dot(dot_fname)
         self.G = nx.DiGraph(self.G)
         n_nodes = self.G.number_of_nodes()
+
+        # Change string labels to integers.
         D = {}
         for k in range(n_nodes):
             D[str(k)] = k
@@ -1639,8 +1641,9 @@ class TooManyCells:
         self.G = nx.relabel_nodes(self.G, D, copy=True)
 
         # self.G = nx.convert_node_labels_to_integers(self.G)
-        # Changing the labels to integers can potentially 
-        # produce unexpected results. Better be safe.
+        # Changing the labels to integers using the above 
+        # function follows a different numbering scheme to 
+        # that given by the labels of the node.
 
         print(self.G)
 
@@ -1656,24 +1659,27 @@ class TooManyCells:
 
         node = target
         path_vec = [node]
-        dist_vec = [0]
+        modularity_vec = [0]
 
         while node != 0:
+            # Get an iterator for the predecessors.
+            # There should only be one predecessor.
             predecessors = self.G.predecessors(node)
             node = next(predecessors)
             Q = self.G._node[node]["Q"]
             Q = float(Q)
             path_vec.append(node)
-            dist_vec.append(Q)
+            modularity_vec.append(Q)
         
         # We assume that the distance between two children
         # nodes is equal to the modularity of the parent node.
         # Hence, the distance from a child to a parent is 
         # half the modularity.
-        dist_vec = 0.5 * np.array(dist_vec, dtype=float)
+        modularity_vec = 0.5 * np.array(
+            modularity_vec, dtype=float)
         path_vec = np.array(path_vec, dtype=int)
 
-        return (path_vec, dist_vec)
+        return (path_vec, modularity_vec)
 
     #=====================================
     def get_path_from_node_x_to_node_y(
@@ -1730,17 +1736,20 @@ class TooManyCells:
     #=====================================
     def compute_cluster_mean_expression(
             self, 
-            cluster: int, 
+            node: int, 
             genes: Union[list, str],
             output_list: Optional[bool] = False,
             ):
 
-        node = str(cluster)
+        #Get all the descendants for a given node.
+        #This is a set.
         nodes = nx.descendants(self.G, node)
+
         if len(nodes) == 0:
-            nodes = [cluster]
+            #This is a leaf node.
+            nodes = [node]
         else:
-            nodes = list(map(int,nodes))
+            nodes = list(nodes)
 
         is_string = False
 
@@ -1848,8 +1857,8 @@ class TooManyCells:
                     )
 
         plt.legend()
-        # txt = f"From node {x} to node {y}"
-        txt = f"From node X to node Y"
+        txt = f"From node {x} to node {y}"
+        # txt = f"From node X to node Y"
         ax.set_title(txt)
         ax.set_ylabel("Gene expression")
         ax.set_xlabel("Distance (modularity units)")
@@ -1857,9 +1866,10 @@ class TooManyCells:
                              axis='x',
                              scilimits=(0,0))
 
-        fname = "exp_path.pdf"
+        fname = "expression_path.pdf"
         fname = os.path.join(self.output, fname)
         fig.savefig(fname, bbox_inches="tight")
+        print("Plot has been generated.")
 
     #=====================================
     def plot_radial_tree_from_dot_file(

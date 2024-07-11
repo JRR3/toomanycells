@@ -425,7 +425,8 @@ is given in the following figure.
 ![Gene expression](https://github.com/JRR3/toomanycells/blob/main/tests/exp_path_test.svg)
 
 Note how the expression of `Gene A` is high relative to
-that of `Gene B` at node $X$, and as we farther towards 
+that of `Gene B` at node $X$, and as we move
+farther towards 
 node $Y$ the trend is inverted and now `Gene B` is 
 highly expressed relative to `Gene A` at node $Y$.
 
