@@ -1306,7 +1306,18 @@ class TooManyCells:
             self,
             tmci_mtx_dir: Optional[str] = "tmci_mtx_data",
             list_of_genes: Optional[list] = [],
-            create_matrix: Optional[bool] = True):
+            path_to_genes: Optional[str] = "",
+            create_matrix: Optional[bool] = True,
+            ):
+        """
+        Produce the 10X files for a given set of\
+            genes.  This function produces the\
+            genes x cells matrix market format matrix,\
+            the genes.tsv file and the barcodes.
+        If a path is provided for the genes, then the\
+            first column of the csv file must have the\
+            gene names.
+        """
 
         self.tmci_mtx_dir = os.path.join(
             self.output, tmci_mtx_dir)
@@ -1317,10 +1328,28 @@ class TooManyCells:
         genes_f = "genes.tsv"
         genes_f = os.path.join(self.tmci_mtx_dir, genes_f)
 
+        var_names = []
+        col_indices = []
+
+        if 0 < len(path_to_genes):
+            df = pd.read_csv(path_to_genes, header=0)
+            list_of_genes = df.iloc[:,0].to_list()
+
         if 0 < len(list_of_genes):
-            var_names = list_of_genes
+
+            for gene in list_of_genes:
+                if gene not in self.A.var.index:
+                    continue
+                var_names.append(gene)
+                col_index = self.A.var.index.get_loc(gene)
+                col_indices.append(col_index)
+    
+            G_mtx = self.A.X[:,col_indices]
+
         else:
+            #If not list is provided, use all the genes.
             var_names = self.A.var_names
+            G_mtx = self.A.X
 
         L = [var_names,var_names]
         pd.DataFrame(L).transpose().to_csv(
@@ -1344,7 +1373,7 @@ class TooManyCells:
             matrix_f = "matrix.mtx"
             matrix_f = os.path.join(self.tmci_mtx_dir,
                                     matrix_f)
-            mmwrite(matrix_f, sp.coo_matrix(self.A.X.T))
+            mmwrite(matrix_f, sp.coo_matrix(G_mtx.T))
 
     #=====================================
     def visualize_with_tmc_interactive(self,
