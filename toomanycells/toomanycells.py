@@ -29,6 +29,7 @@ from sklearn.metrics.pairwise import pairwise_kernels
 from sklearn.preprocessing import normalize
 from sklearn.feature_extraction.text import TfidfTransformer
 from collections import deque
+from collections import defaultdict
 import os
 from os.path import dirname
 import subprocess
@@ -214,7 +215,7 @@ class TooManyCells:
         # versus depth-first. Our current implementation
         # uses depth-first to be consistent with the 
         # numbering scheme of TooManyCellsInteractive.
-        self.Dq = deque()
+        self.DQ = deque()
 
         #We use a directed graph to enforce the parent
         #to child relation.
@@ -586,8 +587,8 @@ class TooManyCells:
         rows = np.array(range(self.X.shape[0]))
 
         #Initialize the deque
-        # self.Dq.append((rows, None))
-        # self.Dq.append(rows)
+        # self.DQ.append((rows, None))
+        # self.DQ.append(rows)
 
         #Initialize the graph
         self.G.add_node(node_id, size=len(rows))
@@ -627,7 +628,7 @@ class TooManyCells:
 
             for indices in S:
                 T = (indices, p_node_id)
-                self.Dq.append(T)
+                self.DQ.append(T)
 
         else:
             #Modularity is below threshold and 
@@ -643,12 +644,12 @@ class TooManyCells:
         self.print_message_before_clustering()
 
         with tqdm(total=max_n_iter) as pbar:
-            while 0 < len(self.Dq):
+            while 0 < len(self.DQ):
 
                 #Get the rows corresponding to the
                 #partition and the (parent) node
                 #that produced such partition.
-                rows, p_node_id = self.Dq.pop()
+                rows, p_node_id = self.DQ.pop()
 
                 #This id is for the new node.
                 node_id += 1
@@ -716,7 +717,7 @@ class TooManyCells:
                     # Append each partition to the deque.
                     for indices in S:
                         T = (indices, node_id)
-                        self.Dq.append(T)
+                        self.DQ.append(T)
 
                 else:
                     #Modularity is below threshold and 
@@ -1778,6 +1779,9 @@ class TooManyCells:
             #This is a leaf node.
             nodes = [node]
         else:
+            #Make sure these are leaf nodes.
+            x = self.set_of_leaf_nodes.intersection(nodes)
+            nodes = x
             nodes = list(nodes)
 
         is_string = False
@@ -1799,12 +1803,10 @@ class TooManyCells:
             col_index = self.A.var.index.get_loc(gene)
 
             total_exp = 0
-            n_cells = 0
 
-            for node in nodes:
-                mask = self.A.obs["sp_cluster"] == node
-                n_cells += mask.sum()
-                total_exp += self.A.X[mask, col_index].sum()
+            mask = self.A.obs["sp_cluster"].isin(nodes)
+            n_cells = mask.sum()
+            total_exp += self.A.X[mask, col_index].sum()
 
             mean_exp = total_exp / n_cells
             exp_vec.append(mean_exp)
@@ -1842,6 +1844,8 @@ class TooManyCells:
         df = pd.read_csv(cluster_fname, index_col=0)
         self.A.obs["sp_cluster"] = df["cluster"]
 
+        self.set_of_leaf_nodes = set(df["cluster"])
+
 
     #=====================================
     def plot_expression_from_node_x_to_node_y(
@@ -1851,8 +1855,11 @@ class TooManyCells:
             genes: Union[list, str],
             ):
         """
-        For a given pair of nodes x and y, we find the
-        path between those nodes.
+        For a given pair of nodes x and y, we compute the \
+            gene expression path along the path connecting\
+            those nodes.
+        Make sure that property set_of_leaf_nodes is\
+            populated with the correct information.
         """
 
         if isinstance(genes, str):
@@ -1926,6 +1933,143 @@ class TooManyCells:
                 ]
         command = ' '.join(command)
         p = subprocess.call(command, shell=True)
+
+    #=====================================
+    def recompute_cell_annotations(
+            self,
+            cell_group_path: str,
+            cell_marker_path: str,
+            cell_ann_col: Optional[str] = "cell_annotations",
+            threshold: Optional[float] = 0.7,
+    ):
+        if not os.path.exists(cell_group_path):
+            print(cell_group_path)
+            raise ValueError("File does not exists.")
+
+        if not os.path.exists(cell_marker_path):
+            print(cell_marker_path)
+            raise ValueError("File does not exists.")
+        
+        df_cg = pd.read_csv(cell_group_path)
+        print("===============================")
+        print("Cell to Group file")
+        print(df_cg)
+        CA = cell_ann_col
+
+        df_cm = pd.read_csv(cell_marker_path)
+        print("===============================")
+        print("Cell to Marker file")
+        print(df_cm)
+
+        cell_to_group = {}
+        cell_types_to_erase = []
+        group_to_cells = defaultdict(list)
+
+        #Create the cell to group dictionary and
+        #the group to cell dictionary
+        for index, row in df_cg.iterrows():
+            cell = row["Cell"]
+            group = row["Group"]
+
+            if pd.isna(group):
+                group = cell
+            elif group == "0":
+                cell_types_to_erase.append(cell)
+                continue
+
+            cell_to_group[cell] = group
+            group_to_cells[group].append(cell)
+
+        cell_to_markers = defaultdict(list)
+        for index, row in df_cm.iterrows():
+            cell = row["Cell"]
+            gene = row["Gene"]
+            cell_to_markers[cell].append(gene)
+
+        
+        if 0 < len(cell_types_to_erase):
+            mask = self.A.obs[CA].isin(cell_types_to_erase)
+            n_cells = mask.sum()
+            vc = self.A.obs[CA].loc[mask].value_counts()
+            #Take the complement of the cells we 
+            #want to erase.
+            self.A = self.A[~mask].copy()
+            print("===============================")
+            print(f"{n_cells} cells have been deleted.")
+            print(vc)
+
+        S = self.A.obs[CA].astype(str)
+        for cell, group in cell_to_group.items():
+
+            if cell == group:
+                continue
+
+            mask = S == cell
+            S.loc[mask] = group
+
+        S = S.astype("category")
+        OCA = "original_cell_annotations"
+        self.A.obs[OCA] = self.A.obs[CA]
+        self.A.obs[CA] = S
+        vc = self.A.obs[CA].value_counts()
+        print("===============================")
+        print("Relabeled cell counts")
+        print(vc)
+
+        node = 0
+        DQ = deque()
+
+        DQ.append(0)
+
+        iteration = 0
+
+        while 0 < len(DQ):
+            print("===============================")
+            node = DQ.popleft()
+            print(f"Working with {node=}")
+            children = self.G.successors(node)
+            nodes = nx.descendants(self.G, node)
+            x = self.set_of_leaf_nodes.intersection(nodes)
+            nodes = list(x)
+
+            mask = self.A.obs["sp_cluster"].isin(nodes)
+            vc = self.A.obs[CA].loc[mask].value_counts(
+                normalize=True)
+            print("===============================")
+            print(vc)
+
+            group_majority = vc.index[0]
+
+            if vc.iloc[0] < threshold:
+                #Below threshold, so we add these nodes
+                #to the deque for further processing.
+                print("===============================")
+                for child in children:
+                    print(f"Adding node {child} to DQ.")
+                    DQ.append(child)
+            else:
+                #Above threshold. Hence, we can 
+                #star cleaning this node.
+                print("===============================")
+                print(f"Cleaning {node=}.")
+                for group, ratio in vc.iloc[1:].items():
+                    print(group, ratio)
+                    for cell in group_to_cells[group_majority]:
+                        print(cell)
+
+
+
+            if iteration == 1:
+                break
+            else:
+                iteration += 1
+
+
+            
+
+        
+
+
             
                             
     #====END=OF=CLASS=====================
