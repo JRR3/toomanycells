@@ -2,7 +2,7 @@
 #Princess Margaret Cancer Research Tower
 #Schwartz Lab
 #Javier Ruiz Ramirez
-#May 2024
+#July 2024
 #########################################################
 #This is a Python implementation of the command line 
 #tool too-many-cells.
@@ -1280,7 +1280,8 @@ class TooManyCells:
 
     #=====================================
     def generate_cell_annotation_file(self,
-            column: str) -> None:
+            cell_ann_col: Optional[str] = "cell_annotations",
+    ):
         """
         This function stores a CSV file with\
             the labels for each cell.
@@ -1295,7 +1296,7 @@ class TooManyCells:
         """
         fname = 'cell_annotation_labels.csv'
         #ca = cell_annotations
-        ca = self.A.obs[column].copy()
+        ca = self.A.obs[cell_ann_col].copy()
         ca.index.names = ['item']
         ca = ca.rename('label')
         fname = os.path.join(self.output, fname)
@@ -1802,13 +1803,8 @@ class TooManyCells:
 
             col_index = self.A.var.index.get_loc(gene)
 
-            total_exp = 0
-
             mask = self.A.obs["sp_cluster"].isin(nodes)
-            n_cells = mask.sum()
-            total_exp += self.A.X[mask, col_index].sum()
-
-            mean_exp = total_exp / n_cells
+            mean_exp = self.A.X[mask, col_index].mean()
             exp_vec.append(mean_exp)
 
         # print(f"{total_exp=}")
@@ -1935,12 +1931,90 @@ class TooManyCells:
         p = subprocess.call(command, shell=True)
 
     #=====================================
+    def compute_marker_mean_value_for_cell(
+            self,
+            marker: str,
+            cell: str,
+            cell_ann_col: Optional[str] = "cell_annotations",
+    ):
+
+        CA = cell_ann_col
+        if marker not in self.A.var_names:
+            return None
+
+        col_index = self.A.var.index.get_loc(marker)
+        mask = self.A.obs[CA] == cell
+        mean_exp = self.A.X[mask, col_index].mean()
+
+        return mean_exp
+    #=====================================
+    def compute_marker_median_value_for_cell(
+            self,
+            marker: str,
+            cell: str,
+            cell_ann_col: Optional[str] = "cell_annotations",
+    ):
+
+        CA = cell_ann_col
+        if marker not in self.A.var_names:
+            return None
+
+        col_index = self.A.var.index.get_loc(marker)
+        mask = self.A.obs[CA] == cell
+        values = self.A.X[mask, col_index].data
+
+        if len(values) == 0:
+            return 0
+
+        return np.median(values)
+
+    #=====================================
+    def compute_mean_expression_from_indices(
+            self,
+            marker: str,
+            indices: list,
+    ):
+
+        if marker not in self.A.var_names:
+            return None
+
+        col_index = self.A.var.index.get_loc(marker)
+        mask = self.A.obs_names.isin(indices)
+        mean_exp = self.A.X[mask, col_index].mean()
+
+        return mean_exp
+
+    #=====================================
+    def compute_median_expression_from_indices(
+            self,
+            marker: str,
+            indices: list,
+    ):
+
+        if marker not in self.A.var_names:
+            return None
+
+        col_index = self.A.var.index.get_loc(marker)
+        mask = self.A.obs_names.isin(indices)
+        values = self.A.X[mask, col_index].data
+
+        if len(values) == 0:
+            return 0
+
+        return np.median(values)
+
+
+
+    #=====================================
     def recompute_cell_annotations(
             self,
             cell_group_path: str,
             cell_marker_path: str,
             cell_ann_col: Optional[str] = "cell_annotations",
-            threshold: Optional[float] = 0.7,
+            clean_threshold: Optional[float] = 0.8,
+            conversion_threshold: Optional[float] = 0.9,
+            confirmation_threshold: Optional[float] = 0.9,
+            elimination_ratio: Optional[float] = -1.,
     ):
         if not os.path.exists(cell_group_path):
             print(cell_group_path)
@@ -1980,13 +2054,28 @@ class TooManyCells:
             cell_to_group[cell] = group
             group_to_cells[group].append(cell)
 
-        cell_to_markers = defaultdict(list)
-        for index, row in df_cm.iterrows():
-            cell = row["Cell"]
-            gene = row["Gene"]
-            cell_to_markers[cell].append(gene)
 
-        
+        #Create the cell to markers dictionary and
+        #marker to value dictionary.
+        cell_to_markers = defaultdict(list)
+        marker_to_mean_value = {}
+        marker_to_median_value = {}
+
+        for index, row in df_cm.iterrows():
+
+            cell = row["Cell"]
+            marker = row["Marker"]
+            cell_to_markers[cell].append(marker)
+
+            if cell not in cell_to_group:
+                continue
+
+            if marker not in marker_to_mean_value:
+                x = self.compute_marker_median_value_for_cell(
+                    marker, cell)
+                marker_to_median_value[marker] = x
+
+        #Eliminate cells that belong to the erase category.
         if 0 < len(cell_types_to_erase):
             mask = self.A.obs[CA].isin(cell_types_to_erase)
             n_cells = mask.sum()
@@ -1998,6 +2087,9 @@ class TooManyCells:
             print(f"{n_cells} cells have been deleted.")
             print(vc)
 
+        #Create a series where the original cell 
+        #annotations have been mapped to their 
+        #corresponding group.
         S = self.A.obs[CA].astype(str)
         for cell, group in cell_to_group.items():
 
@@ -2023,50 +2115,186 @@ class TooManyCells:
 
         iteration = 0
 
+        # EL = "elimination"
+        # self.A.obs[EL] = False
+        elim_list = []
+
         while 0 < len(DQ):
             print("===============================")
             node = DQ.popleft()
-            print(f"Working with {node=}")
             children = self.G.successors(node)
             nodes = nx.descendants(self.G, node)
-            x = self.set_of_leaf_nodes.intersection(nodes)
-            nodes = list(x)
+            if len(nodes) == 0:
+                nodes = [node]
+            else:
+                x = self.set_of_leaf_nodes.intersection(
+                    nodes)
+                nodes = list(x)
 
             mask = self.A.obs["sp_cluster"].isin(nodes)
-            vc = self.A.obs[CA].loc[mask].value_counts(
-                normalize=True)
+            S = self.A.obs[CA].loc[mask]
+            majority_size = mask.sum()
+            print(f"Working with {node=}")
+            print(f"Size of {node=}: {majority_size}")
+            vc = S.value_counts(normalize=True)
             print("===============================")
             print(vc)
 
-            group_majority = vc.index[0]
+            majority_group = vc.index[0]
+            majority_ratio = vc.iloc[0]
 
-            if vc.iloc[0] < threshold:
-                #Below threshold, so we add these nodes
-                #to the deque for further processing.
+            if majority_ratio < clean_threshold:
+                #We are below clean_threshold, so we add 
+                #these nodes to the deque for 
+                #further processing.
                 print("===============================")
                 for child in children:
                     print(f"Adding node {child} to DQ.")
                     DQ.append(child)
             else:
-                #Above threshold. Hence, we can 
+                #We are above threshold. Hence, we can 
                 #star cleaning this node.
                 print("===============================")
                 print(f"Cleaning {node=}.")
+                print(f"{majority_group=}.")
+                print(f"{majority_ratio=}.")
+
+                #What cells belong to 
+                #the majority group?
+                x = group_to_cells[majority_group]
+                cells_in_majority_group = x
+
+                #We are going to iterate over all the 
+                #groups below the majority group.
                 for group, ratio in vc.iloc[1:].items():
-                    print(group, ratio)
-                    for cell in group_to_cells[group_majority]:
-                        print(cell)
+
+                    #This is the question we want to answer.
+                    belongs_to_majority = False
+
+                    #These are the cells that belong to one
+                    #of the minorities. We choose Q because 
+                    #their current status is under question.
+                    mask = S == group
+                    Q = S.loc[mask]
+
+                    minority_size = mask.sum()
+
+                    if minority_size == 0:
+                        break
+
+                    print("===============================")
+                    print(group, ratio, minority_size)
+                    print("===============================")
+
+                    if ratio < elimination_ratio:
+                        elim_list.extend(Q.index)
+                        continue
 
 
+                    #What cells belong to 
+                    #the minority group?
+                    x = group_to_cells[group]
+                    cells_in_minority_group = x
+
+                    #Now we are going to iterate over the
+                    #cells that belong to the majority
+                    #group. We do this to determine if 
+                    #the non-majority cells could qualify
+                    #as a member of the majority group by
+                    #using a marker for cells of the 
+                    #majority group.
+                    for cell in cells_in_majority_group:
+                        if belongs_to_majority:
+                            break
+                        print(f"Are they {cell}?")
+                        for marker in cell_to_markers[cell]:
+                            m_value = marker_to_median_value[marker]
+                            if m_value is None:
+                                continue
+                            x=self.compute_median_expression_from_indices(
+                                marker, Q.index)
+                            print("\t",marker, m_value, x)
+                            y = m_value
+                            #Let X be the mean expression 
+                            #value of that marker for the
+                            #given minority.
+                            #Let Y be the mean expression
+                            #value of that same marker for
+                            #the cells in the sample that 
+                            #are known to express that
+                            #marker. If X is above Y 
+                            #multiplied by the conversion
+                            #threshold, then we add that
+                            #minority to the majority,
+                            if y * conversion_threshold < x:
+                                belongs_to_majority = True
+                                print("\t","To convert.")
+                                break
+
+                    if belongs_to_majority:
+                        self.A.obs[CA].loc[Q.index] = majority_group
+                        continue
+
+                    print("===============================")
+                    print(">>>Cells do not belong to majority.")
+                    print("===============================")
+                    belongs_to_minority = False
+
+                    for cell in cells_in_minority_group:
+                        if belongs_to_minority:
+                            break
+                        print(f"Are they {cell}?")
+                        for marker in cell_to_markers[cell]:
+                            m_value = marker_to_median_value[marker]
+                            if m_value is None:
+                                continue
+                            x=self.compute_median_expression_from_indices(
+                                marker, Q.index)
+                            print("\t",marker, m_value, x)
+                            y = m_value
+                            #Let X be the mean expression 
+                            #value of that marker for the
+                            #given minority.
+                            #Let Y be the mean expression
+                            #value of that same marker for
+                            #the cells in the sample that 
+                            #are known to express that
+                            #marker. If X is above Y 
+                            #multiplied by the conversion
+                            #threshold, then we add that
+                            #minority to the majority,
+                            if y * confirmation_threshold < x:
+                                belongs_to_minority = True
+                                print("\t","Stays as it is.")
+                                break
+
+                    if belongs_to_minority:
+                        continue
+                    
+                    print("===============================")
+                    print(">>>Cells will be eliminated.")
+                    print("===============================")
+                    elim_list.extend(Q.index)
+                    #For visualization purposes we make the 
+                    #cells part of the group.
+                    #self.A.obs[CA].loc[Q.index] = majority_group
+                            
 
             if iteration == 1:
-                break
+                pass
+                #break
             else:
                 iteration += 1
-
-
             
 
+        print("Elimination list size:", len(elim_list))
+        if 0 < len(elim_list):
+            mask = self.A.obs_names.isin(elim_list)
+            self.A.obs[CA] = self.A.obs[CA].cat.add_categories("X")
+            self.A.obs[CA].loc[mask] = "X"
+            # self.A = self.A[~mask]
+
+        self.generate_cell_annotation_file(cell_ann_col=CA)
         
 
 
