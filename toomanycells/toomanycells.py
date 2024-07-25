@@ -38,6 +38,7 @@ import sys
 import scanpy as sc
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import json
 
 mpl.rcParams["figure.dpi"]=600
 mpl.rcParams["pdf.fonttype"]=42
@@ -210,6 +211,8 @@ class TooManyCells:
 
         #Location of the matrix data for TMCI
         self.tmci_mtx_dir = ""
+
+        self.spectral_clustering_has_been_called = False
 
         # We use a deque to offer the possibility of breadth-
         # versus depth-first. Our current implementation
@@ -389,6 +392,9 @@ class TooManyCells:
         if similarity_function not in similarity_functions:
             raise ValueError("Unexpected similarity fun.")
 
+
+        #In case the user wants to call this function again.
+        self.spectral_clustering_has_been_called = True
 
         #TF-IDF section
         if use_tf_idf:
@@ -1063,7 +1069,7 @@ class TooManyCells:
     #=====================================
     def store_outputs(
             self,
-            use_column_for_labels: Optional[str] = "",
+            cell_ann_col: Optional[str] = "cell_annotations",
             ):
         """
         Store the outputs and plot the branching tree.
@@ -1098,13 +1104,13 @@ class TooManyCells:
         self.write_cluster_list_to_json()
 
         #Store the cell annotations in the output folder.
-        if 0 < len(use_column_for_labels):
-            col = use_column_for_labels
-            if col in self.A.obs.columns:
-                self.generate_cell_annotation_file(col)
+        if 0 < len(cell_ann_col):
+            if cell_ann_col in self.A.obs.columns:
+                self.generate_cell_annotation_file(
+                    cell_ann_col)
             else:
                 txt = "Annotation column does not exists."
-                raise ValueError(txt)
+                #raise ValueError(txt)
 
         print(self.G)
 
@@ -1281,6 +1287,7 @@ class TooManyCells:
     #=====================================
     def generate_cell_annotation_file(self,
             cell_ann_col: Optional[str] = "cell_annotations",
+            tag: Optional[str]="cell_annotation_labels"
     ):
         """
         This function stores a CSV file with\
@@ -1294,13 +1301,17 @@ class TooManyCells:
             types.
 
         """
-        fname = 'cell_annotation_labels.csv'
-        #ca = cell_annotations
+        if tag[-3:] == ".csv":
+            pass
+        else:
+            fname = tag + ".csv"
+
+        fname = os.path.join(self.output, fname)
+        self.cell_annotations_path = fname
+
         ca = self.A.obs[cell_ann_col].copy()
         ca.index.names = ['item']
         ca = ca.rename('label')
-        fname = os.path.join(self.output, fname)
-        self.cell_annotations_path = fname
         ca.to_csv(fname, index=True)
 
     #=====================================
@@ -2003,6 +2014,130 @@ class TooManyCells:
 
         return np.median(values)
 
+    #=====================================
+    def check_if_cells_belong_to_group(
+            self,
+            cells: pd.Series,
+            group: str,
+            group_to_cells: dict,
+    ):
+        x = group_to_cells[group]
+
+        #We are going to iterate over all the 
+        #groups below the majority group.
+        for group, ratio in vc.iloc[1:].items():
+
+            #This is the question we want to answer.
+            belongs_to_majority = False
+
+            #These are the cells that belong to one
+            #of the minorities. We choose Q because 
+            #their current status is under question.
+            mask = S == group
+            Q = S.loc[mask]
+
+            minority_size = mask.sum()
+
+            if minority_size == 0:
+                break
+
+            print("===============================")
+            print(group, ratio, minority_size)
+            print("===============================")
+
+    #=====================================
+    def homogenize_leaf_nodes(
+            self,
+            cell_ann_col: Optional[str] = "cell_annotations",
+            follow_parent: Optional[bool] = False,
+            follow_majority: Optional[bool] = False,
+    ):
+
+        if follow_parent == follow_majority:
+            print("Homogeneous leafs strategy:")
+            raise ValueError("Strategy has to be unique.")
+
+        CA = cell_ann_col
+        elim_set = set()
+
+        for node in self.G.nodes:
+            if 0 < self.G.out_degree(node):
+                continue
+            parent = next(self.G.predecessors(node))
+            #print(f"{parent}-->{node}")
+
+            #Parent
+            mask = self.A.obs["sp_cluster"].isin([parent])
+            S = self.A.obs[CA].loc[mask]
+            vc = S.value_counts(normalize=True)
+            parent_majority = vc.index[0]
+
+            #Child
+            mask = self.A.obs["sp_cluster"].isin([node])
+            S = self.A.obs[CA].loc[mask]
+            vc = S.value_counts(normalize=True)
+            child_majority = vc.index[0]
+            child_ratio = vc.iloc[0]
+
+            if child_ratio == 1:
+                #The node is already homogeneous
+                continue
+
+            if follow_parent:
+                #Who is different from the parent?
+                Q = S != parent_majority
+                elim_set.update(Q.index)
+                continue
+
+            if follow_majority:
+                #Who is different from the child's majority?
+                Q = S != child_majority
+                elim_set.update(Q.index)
+                continue
+
+        # print("Elimination list size:", len(elim_set))
+        # if 0 < len(elim_set):
+        #     mask = self.A.obs_names.isin(elim_set)
+        #     self.A = self.A[~mask]
+
+        return elim_set
+
+                    
+    #=====================================
+    def erase_cells_from_json_file(
+            self,
+            set_of_barcodes: set,
+            json_file_path: Optional[str] = "",
+    ):
+
+        #{'_barcode': {'unCell': 'CAGCTGGCACGGTAGA-176476-OM'}, '_cellRow': {'unRow': 29978}}
+        if len(json_file_path) == 0:
+            folder = "tmc_outputs"
+            source = os.getcwd()
+            fname = "cluster_tree.json"
+            fname = os.path.join(source, folder, fname)
+
+        else:
+            fname = json_file_path
+
+        with open(fname, "r") as f:
+            source = f.readline()
+
+        for barcode in set_of_barcodes:
+            print(barcode)
+            txt = '[{][^{]+[{][a-zA-Z":]+[ ]?["]'
+            txt += barcode
+            txt += '["][}][^}]+[}]{2}'
+            source = re.sub(txt,"",source)
+            #reg_exp = re.compile(txt)
+            #obj = reg_exp.search(source)
+
+        print(source)
+
+
+
+
+
 
 
     #=====================================
@@ -2015,6 +2150,11 @@ class TooManyCells:
             conversion_threshold: Optional[float] = 0.9,
             confirmation_threshold: Optional[float] = 0.9,
             elimination_ratio: Optional[float] = -1.,
+            homogeneous_leafs: Optional[bool] = False,
+            follow_parent: Optional[bool] = False,
+            follow_majority: Optional[bool] = False,
+            no_mixtures: Optional[bool] = False,
+            recompute_tree: Optional[bool] = False,
     ):
         if not os.path.exists(cell_group_path):
             print(cell_group_path)
@@ -2023,6 +2163,11 @@ class TooManyCells:
         if not os.path.exists(cell_marker_path):
             print(cell_marker_path)
             raise ValueError("File does not exists.")
+
+        if homogeneous_leafs:
+            if follow_majority == follow_parent:
+                print("Homogeneous leafs strategy:")
+                raise ValueError("Strategy is not unique.")
         
         df_cg = pd.read_csv(cell_group_path)
         print("===============================")
@@ -2109,22 +2254,28 @@ class TooManyCells:
         print(vc)
 
         node = 0
+        parent_majority = None
+        parent_ratio = None
+        # We use a deque to do a breadth-first traversal.
         DQ = deque()
 
-        DQ.append(0)
+        T = (node, parent_majority, parent_ratio)
+        DQ.append(T)
 
         iteration = 0
 
-        # EL = "elimination"
-        # self.A.obs[EL] = False
-        elim_list = []
+        # Elimination container
+        elim_set = set()
 
         while 0 < len(DQ):
             print("===============================")
-            node = DQ.popleft()
+            T = DQ.popleft()
+            node, parent_majority, parent_ratio = T
             children = self.G.successors(node)
             nodes = nx.descendants(self.G, node)
+            is_leaf_node = False
             if len(nodes) == 0:
+                is_leaf_node = True
                 nodes = [node]
             else:
                 x = self.set_of_leaf_nodes.intersection(
@@ -2143,6 +2294,12 @@ class TooManyCells:
             majority_group = vc.index[0]
             majority_ratio = vc.iloc[0]
 
+            if majority_ratio == 1:
+                #The cluster is homogeneous.
+                #Nothing to do here.
+                continue
+
+
             if majority_ratio < clean_threshold:
                 #We are below clean_threshold, so we add 
                 #these nodes to the deque for 
@@ -2150,14 +2307,24 @@ class TooManyCells:
                 print("===============================")
                 for child in children:
                     print(f"Adding node {child} to DQ.")
-                    DQ.append(child)
+                    T = (child,
+                         majority_group,
+                         majority_ratio)
+                    DQ.append(T)
             else:
-                #We are above threshold. Hence, we can 
-                #star cleaning this node.
+                #We are above the cleaning threshold. 
+                #Hence, we can star cleaning this node.
                 print("===============================")
                 print(f"Cleaning {node=}.")
                 print(f"{majority_group=}.")
                 print(f"{majority_ratio=}.")
+
+                if no_mixtures:
+                    #We do not allow minorities.
+                    mask = S != majority_group
+                    Q = S.loc[mask]
+                    elim_set.update(Q.index)
+                    continue
 
                 #What cells belong to 
                 #the majority group?
@@ -2187,7 +2354,7 @@ class TooManyCells:
                     print("===============================")
 
                     if ratio < elimination_ratio:
-                        elim_list.extend(Q.index)
+                        elim_set.update(Q.index)
                         continue
 
 
@@ -2238,6 +2405,9 @@ class TooManyCells:
                     print("===============================")
                     print(">>>Cells do not belong to majority.")
                     print("===============================")
+
+                    #This is the new question we are 
+                    #trying to answer.
                     belongs_to_minority = False
 
                     for cell in cells_in_minority_group:
@@ -2272,9 +2442,9 @@ class TooManyCells:
                         continue
                     
                     print("===============================")
-                    print(">>>Cells will be eliminated.")
+                    print(f">>>{len(Q.index)} cells will be eliminated.")
                     print("===============================")
-                    elim_list.extend(Q.index)
+                    elim_set.update(Q.index)
                     #For visualization purposes we make the 
                     #cells part of the group.
                     #self.A.obs[CA].loc[Q.index] = majority_group
@@ -2287,17 +2457,66 @@ class TooManyCells:
                 iteration += 1
             
 
-        print("Elimination list size:", len(elim_list))
-        if 0 < len(elim_list):
-            mask = self.A.obs_names.isin(elim_list)
-            self.A.obs[CA] = self.A.obs[CA].cat.add_categories("X")
+        #Elimination phase 1
+        print("Elimination set size before homogenization:",
+              len(elim_set))
+        self.A.obs[CA] = self.A.obs[CA].cat.add_categories("X")
+        if 0 < len(elim_set):
+            mask = self.A.obs_names.isin(elim_set)
             self.A.obs[CA].loc[mask] = "X"
-            # self.A = self.A[~mask]
 
-        self.generate_cell_annotation_file(cell_ann_col=CA)
+        #Homogenization
+        if homogeneous_leafs:
+            
+            S = self.homogenize_leaf_nodes(
+                CA,
+                follow_parent,
+                follow_majority)
+
+
+            if 0 < len(S):
+
+                if follow_parent:
+                    print("Using parentn node majority.")
+
+                if follow_majority:
+                    print("Using leaf node majority.")
+
+                print("Cells lost through homogenization:",
+                    len(S))
+
+                mask = self.A.obs_names.isin(S)
+                self.A.obs[CA].loc[mask] = "X"
+                elim_set.update(S)
+
+
+        print("Total cells lost:", len(elim_set))
+        remaining_cells = self.A.X.shape[0] - len(elim_set)
+        print("Remaining cells:", remaining_cells)
+
+        self.generate_cell_annotation_file(
+            cell_ann_col=CA, tag = "new_cell_labels")
+
+        if len(elim_set) == 0:
+            #Nothing to be done.
+            print("Nothing left to be done.")
+            return
+
+        self.erase_cells_from_json_file(elim_set)
+        return
+
+        if recompute_tree:
+            #Removing the cells with cell 
+            #type "X".
+            mask = self.A.obs[CA] != "X"
+            self.A = self.A[mask].copy()
+            print("Recomputing tree ...")
+            tmc_obj = TooManyCells(self.A, "sub_tree")
+            tmc_obj.run_spectral_clustering()
+            tmc_obj.store_outputs()
+            p = "/home/javier/Documents/repos/too-many-cells-interactive"
+            #tmc_obj.visualize_with_tmc_interactive(p,CA,1234)
         
-
-
             
                             
     #====END=OF=CLASS=====================
