@@ -38,7 +38,6 @@ import sys
 import scanpy as sc
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import json
 
 mpl.rcParams["figure.dpi"]=600
 mpl.rcParams["pdf.fonttype"]=42
@@ -2066,12 +2065,6 @@ class TooManyCells:
             parent = next(self.G.predecessors(node))
             #print(f"{parent}-->{node}")
 
-            #Parent
-            mask = self.A.obs["sp_cluster"].isin([parent])
-            S = self.A.obs[CA].loc[mask]
-            vc = S.value_counts(normalize=True)
-            parent_majority = vc.index[0]
-
             #Child
             mask = self.A.obs["sp_cluster"].isin([node])
             S = self.A.obs[CA].loc[mask]
@@ -2084,21 +2077,24 @@ class TooManyCells:
                 continue
 
             if follow_parent:
+                #Parent
+                mask = self.A.obs["sp_cluster"].isin([parent])
+                S = self.A.obs[CA].loc[mask]
+                vc = S.value_counts(normalize=True)
+                parent_majority = vc.index[0]
+    
                 #Who is different from the parent?
-                Q = S != parent_majority
+                mask = S != parent_majority
+                Q = S.loc[mask]
                 elim_set.update(Q.index)
                 continue
 
             if follow_majority:
                 #Who is different from the child's majority?
-                Q = S != child_majority
+                mask = S != child_majority
+                Q = S.loc[mask]
                 elim_set.update(Q.index)
                 continue
-
-        # print("Elimination list size:", len(elim_set))
-        # if 0 < len(elim_set):
-        #     mask = self.A.obs_names.isin(elim_set)
-        #     self.A = self.A[~mask]
 
         return elim_set
 
@@ -2108,6 +2104,7 @@ class TooManyCells:
             self,
             set_of_barcodes: set,
             json_file_path: Optional[str] = "",
+            target_json_file_path: Optional[str] = "",
     ):
 
         #{'_barcode': {'unCell': 'CAGCTGGCACGGTAGA-176476-OM'}, '_cellRow': {'unRow': 29978}}
@@ -2115,24 +2112,39 @@ class TooManyCells:
             folder = "tmc_outputs"
             source = os.getcwd()
             fname = "cluster_tree.json"
-            fname = os.path.join(source, folder, fname)
+            source_fname = os.path.join(
+                source, folder, fname)
+            fname = "pruned_cluster_tree.json"
+            target_fname = os.path.join(
+                source, folder, fname)
 
         else:
-            fname = json_file_path
+            source_fname = json_file_path
+            target_fname = target_json_file_path
 
-        with open(fname, "r") as f:
+        with open(source_fname, "r") as f:
             source = f.readline()
 
-        for barcode in set_of_barcodes:
-            print(barcode)
-            txt = '[{][^{]+[{][a-zA-Z":]+[ ]?["]'
-            txt += barcode
-            txt += '["][}][^}]+[}]{2}'
-            source = re.sub(txt,"",source)
-            #reg_exp = re.compile(txt)
-            #obj = reg_exp.search(source)
+        list_of_regexp = []
+        replace_dict = {}
 
-        print(source)
+        for k, barcode in enumerate(set_of_barcodes):
+            txt = '[{][^{]+[{][a-zA-Z":]+[ ]?["]'
+            # txt += "(?P<barcode>"
+            txt += barcode
+            # txt += ")"
+            txt += '["][}][^}]+[}]{2}[,]?'
+            list_of_regexp.append(txt)
+            replace_dict[barcode] = ""
+
+        pattern = "|".join(list_of_regexp)
+        regexp = re.compile(pattern)
+        fun = lambda x: ""
+        obj = regexp.sub(fun, source)
+
+        with open(target_fname, "w") as output_file:
+            output_file.write(obj)
+
 
 
 
@@ -2467,20 +2479,19 @@ class TooManyCells:
 
         #Homogenization
         if homogeneous_leafs:
+
+            if follow_parent:
+                print("Using parent node majority.")
+
+            if follow_majority:
+                print("Using leaf node majority.")
             
             S = self.homogenize_leaf_nodes(
                 CA,
                 follow_parent,
                 follow_majority)
 
-
             if 0 < len(S):
-
-                if follow_parent:
-                    print("Using parentn node majority.")
-
-                if follow_majority:
-                    print("Using leaf node majority.")
 
                 print("Cells lost through homogenization:",
                     len(S))
@@ -2503,7 +2514,6 @@ class TooManyCells:
             return
 
         self.erase_cells_from_json_file(elim_set)
-        return
 
         if recompute_tree:
             #Removing the cells with cell 
