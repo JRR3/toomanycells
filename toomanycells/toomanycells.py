@@ -104,7 +104,12 @@ class TooManyCells:
 
         """
 
-        if isinstance(input, str):
+        if isinstance(input, TooManyCells):
+            #Clone the given TooManyCells object.
+            self.A = input.A.copy()
+            self.G = input.G.copy()
+
+        elif isinstance(input, str):
             self.source = os.path.abspath(input)
             if self.source.endswith('.h5ad'):
                 self.t0 = clock()
@@ -2012,37 +2017,67 @@ class TooManyCells:
             return 0
 
         return np.median(values)
+    #=====================================
+    def find_stable_tree(
+            self,
+            cell_ann_col: Optional[str] = "cell_annotations",
+    ):
+        CA = cell_ann_col
+        tmc_obj = TooManyCells(self, "sub_tree")
+
+        while tmc_obj.check_leaf_homogeneity(CA)
+            
+
+        tmc_obj.run_spectral_clustering()
+        tmc_obj.store_outputs()
+        self.check_leaf_homogeneity(CA)
+
+    def recompute_cell_annotations(
+            self,
+            cell_group_path: str,
+            cell_marker_path: str,
+            cell_ann_col: Optional[str] = "cell_annotations",
+            clean_threshold: Optional[float] = 0.8,
+            favor_minorities: Optional[bool] = False,
+            conversion_threshold: Optional[float] = 0.9,
+            confirmation_threshold: Optional[float] = 0.9,
+            elimination_ratio: Optional[float] = -1.,
+            homogeneous_leafs: Optional[bool] = False,
+            follow_parent: Optional[bool] = False,
+            follow_majority: Optional[bool] = False,
+            no_mixtures: Optional[bool] = False,
+            recompute_tree: Optional[bool] = False,
+    ):
+        pass
 
     #=====================================
-    def check_if_cells_belong_to_group(
+    def check_leaf_homogeneity(
             self,
-            cells: pd.Series,
-            group: str,
-            group_to_cells: dict,
+            cell_ann_col: Optional[str] = "cell_annotations",
     ):
-        x = group_to_cells[group]
 
-        #We are going to iterate over all the 
-        #groups below the majority group.
-        for group, ratio in vc.iloc[1:].items():
+        CA = cell_ann_col
 
-            #This is the question we want to answer.
-            belongs_to_majority = False
+        for node in self.G.nodes:
+            if 0 < self.G.out_degree(node):
+                continue
 
-            #These are the cells that belong to one
-            #of the minorities. We choose Q because 
-            #their current status is under question.
-            mask = S == group
-            Q = S.loc[mask]
+            #Child
+            mask = self.A.obs["sp_cluster"].isin([node])
+            S = self.A.obs[CA].loc[mask].unique()
 
-            minority_size = mask.sum()
+            if len(S) == 1:
+                #The node is already homogeneous
+                continue
+            else:
+                #We found one leaf node that is not
+                #homogeneous.
+                self.leaf_nodes_are_homogeneous = False
+                return False
 
-            if minority_size == 0:
-                break
+        self.leaf_nodes_are_homogeneous = True
 
-            print("===============================")
-            print(group, ratio, minority_size)
-            print("===============================")
+        return True
 
     #=====================================
     def homogenize_leaf_nodes(
@@ -2107,7 +2142,9 @@ class TooManyCells:
             target_json_file_path: Optional[str] = "",
     ):
 
-        #{'_barcode': {'unCell': 'CAGCTGGCACGGTAGA-176476-OM'}, '_cellRow': {'unRow': 29978}}
+        #{'_barcode':
+        #{'unCell': 'CAGCTGGCACGGTAGA-176476-OM'},
+        #'_cellRow': {'unRow': 29978}}
         if len(json_file_path) == 0:
             folder = "tmc_outputs"
             source = os.getcwd()
@@ -2146,8 +2183,77 @@ class TooManyCells:
             output_file.write(obj)
 
 
+    #=================================================
+    def check_if_cells_belong_to_group(
+            self,
+            cells: pd.Series,
+            group: str,
+            conversion_threshold: Optional[float] = 0.9,
+            cell_ann_col: Optional[str] = "cell_annotations",
+    ):
+        """
+        The cells parameter is a series that contains
+        the cells types as values and the indices 
+        correspond to the barcodes.
+        """
+        #This is the question we are trying to
+        #answer.
+        belongs_to_group = False
+        CA = cell_ann_col
 
+        #What cells types belong to 
+        #the given group?
+        x = self.group_to_cell_types[group]
+        cell_types_in_group = x
 
+        #Now we are going to iterate over the
+        #cells that belong to the majority
+        #group. We do this to determine if 
+        #the non-majority cells could qualify
+        #as a member of the majority group by
+        #using a marker for cells of the 
+        #majority group.
+        for cell_type in cell_types_in_group:
+            if belongs_to_group:
+                break
+            print(f"Are they {cell_type}?")
+            markers = self.cell_type_to_markers[cell_type]
+
+            for marker in markers:
+                x = self.marker_to_median_value[marker]
+                marker_value = x
+                if marker_value is None:
+                    #Nothing to be done.
+                    continue
+
+                x=self.compute_median_expression_from_indices(
+                    marker, cells.index)
+                expression_value = x
+                print("\t", marker, marker_value, x)
+                #Let X be the mean/median expression 
+                #value of that marker for the
+                #given minority.
+                #Let Y be the mean/median expression
+                #value of that same marker for
+                #the cells in the sample that 
+                #are known to express that
+                #marker. If X is above Y 
+                #multiplied by the conversion
+                #threshold, then we add that
+                #minority to the majority,
+                if marker_value * conversion_threshold < x:
+                    belongs_to_group = True
+                    print("\t","To convert.")
+                    break
+
+        if belongs_to_group:
+            self.A.obs[CA].loc[cells.index] = group
+            return True
+        else:
+            print("===============================")
+            print(f">>>Cells do not belong to {group}.")
+            print("===============================")
+            return False
 
 
 
@@ -2159,6 +2265,7 @@ class TooManyCells:
             cell_marker_path: str,
             cell_ann_col: Optional[str] = "cell_annotations",
             clean_threshold: Optional[float] = 0.8,
+            favor_minorities: Optional[bool] = False,
             conversion_threshold: Optional[float] = 0.9,
             confirmation_threshold: Optional[float] = 0.9,
             elimination_ratio: Optional[float] = -1.,
@@ -2194,7 +2301,7 @@ class TooManyCells:
 
         cell_to_group = {}
         cell_types_to_erase = []
-        group_to_cells = defaultdict(list)
+        self.group_to_cell_types = defaultdict(list)
 
         #Create the cell to group dictionary and
         #the group to cell dictionary
@@ -2209,20 +2316,20 @@ class TooManyCells:
                 continue
 
             cell_to_group[cell] = group
-            group_to_cells[group].append(cell)
+            self.group_to_cell_types[group].append(cell)
 
 
         #Create the cell to markers dictionary and
         #marker to value dictionary.
-        cell_to_markers = defaultdict(list)
+        self.cell_type_to_markers = defaultdict(list)
         marker_to_mean_value = {}
-        marker_to_median_value = {}
+        self.marker_to_median_value = {}
 
         for index, row in df_cm.iterrows():
 
             cell = row["Cell"]
             marker = row["Marker"]
-            cell_to_markers[cell].append(marker)
+            self.cell_type_to_markers[cell].append(marker)
 
             if cell not in cell_to_group:
                 continue
@@ -2230,7 +2337,7 @@ class TooManyCells:
             if marker not in marker_to_mean_value:
                 x = self.compute_marker_median_value_for_cell(
                     marker, cell)
-                marker_to_median_value[marker] = x
+                self.marker_to_median_value[marker] = x
 
         #Eliminate cells that belong to the erase category.
         if 0 < len(cell_types_to_erase):
@@ -2278,6 +2385,8 @@ class TooManyCells:
 
         # Elimination container
         elim_set = set()
+
+        self.labels_have_changed = False
 
         while 0 < len(DQ):
             print("===============================")
@@ -2338,129 +2447,101 @@ class TooManyCells:
                     elim_set.update(Q.index)
                     continue
 
-                #What cells belong to 
-                #the majority group?
-                x = group_to_cells[majority_group]
-                cells_in_majority_group = x
-
                 #We are going to iterate over all the 
                 #groups below the majority group.
-                for group, ratio in vc.iloc[1:].items():
+                #We call these the minority_groups.
 
-                    #This is the question we want to answer.
-                    belongs_to_majority = False
+                #We have two options. Start checking if
+                #the minority actually belongs to the 
+                #majority or first check if the minority
+                #is indeed a true minority.
+                for minority_group, mr in vc.iloc[1:].items():
+
+                    minority_ratio = mr
 
                     #These are the cells that belong to one
-                    #of the minorities. We choose Q because 
-                    #their current status is under question.
-                    mask = S == group
+                    #of the minorities. We label them as
+                    #Q because their current status 
+                    #is under question.
+                    mask = S == minority_group
+                    minority_size = mask.sum()
+                    if minority_size == 0:
+                        #Nothing to be done with this and 
+                        #subsequent minorities because the
+                        #cell ratios are sorted in 
+                        #decreasing order. If one is zero,
+                        #the rest are zero too.
+                        break
                     Q = S.loc[mask]
 
-                    minority_size = mask.sum()
-
-                    if minority_size == 0:
-                        break
-
-                    print("===============================")
-                    print(group, ratio, minority_size)
-                    print("===============================")
-
-                    if ratio < elimination_ratio:
+                    if minority_ratio < elimination_ratio:
+                        #If the ratio is below the 
+                        #given threshold, then we 
+                        #remove these cells.
                         elim_set.update(Q.index)
                         continue
 
-
-                    #What cells belong to 
-                    #the minority group?
-                    x = group_to_cells[group]
-                    cells_in_minority_group = x
-
-                    #Now we are going to iterate over the
-                    #cells that belong to the majority
-                    #group. We do this to determine if 
-                    #the non-majority cells could qualify
-                    #as a member of the majority group by
-                    #using a marker for cells of the 
-                    #majority group.
-                    for cell in cells_in_majority_group:
-                        if belongs_to_majority:
-                            break
-                        print(f"Are they {cell}?")
-                        for marker in cell_to_markers[cell]:
-                            m_value = marker_to_median_value[marker]
-                            if m_value is None:
-                                continue
-                            x=self.compute_median_expression_from_indices(
-                                marker, Q.index)
-                            print("\t",marker, m_value, x)
-                            y = m_value
-                            #Let X be the mean expression 
-                            #value of that marker for the
-                            #given minority.
-                            #Let Y be the mean expression
-                            #value of that same marker for
-                            #the cells in the sample that 
-                            #are known to express that
-                            #marker. If X is above Y 
-                            #multiplied by the conversion
-                            #threshold, then we add that
-                            #minority to the majority,
-                            if y * conversion_threshold < x:
-                                belongs_to_majority = True
-                                print("\t","To convert.")
-                                break
-
-                    if belongs_to_majority:
-                        self.A.obs[CA].loc[Q.index] = majority_group
-                        continue
-
-                    print("===============================")
-                    print(">>>Cells do not belong to majority.")
-                    print("===============================")
-
-                    #This is the new question we are 
-                    #trying to answer.
-                    belongs_to_minority = False
-
-                    for cell in cells_in_minority_group:
+                    #Check membership
+                    if favor_minorities:
+                        #We first check if the minority is
+                        #indeed a true minority.
+                        x=self.check_if_cells_belong_to_group(
+                            Q, 
+                            minority_group, 
+                            conversion_threshold,
+                            cell_ann_col,
+                        )
+                        belongs_to_minority = x
                         if belongs_to_minority:
-                            break
-                        print(f"Are they {cell}?")
-                        for marker in cell_to_markers[cell]:
-                            m_value = marker_to_median_value[marker]
-                            if m_value is None:
-                                continue
-                            x=self.compute_median_expression_from_indices(
-                                marker, Q.index)
-                            print("\t",marker, m_value, x)
-                            y = m_value
-                            #Let X be the mean expression 
-                            #value of that marker for the
-                            #given minority.
-                            #Let Y be the mean expression
-                            #value of that same marker for
-                            #the cells in the sample that 
-                            #are known to express that
-                            #marker. If X is above Y 
-                            #multiplied by the conversion
-                            #threshold, then we add that
-                            #minority to the majority,
-                            if y * confirmation_threshold < x:
-                                belongs_to_minority = True
-                                print("\t","Stays as it is.")
-                                break
+                            #Move to the next minority.
+                            continue
+                        #Otherwise, check if belongs to 
+                        #the majority group.
+                        x=self.check_if_cells_belong_to_group(
+                            Q, 
+                            majority_group, 
+                            conversion_threshold,
+                            cell_ann_col,
+                        )
+                        identity_was_determined = x
+                        belongs_to_majority = x
 
-                    if belongs_to_minority:
+                        if belongs_to_majority:
+                            self.labels_have_changed = True
+
+                    else:
+                        #We first check if the minority is
+                        #actually part of the majority.
+                        x=self.check_if_cells_belong_to_group(
+                            Q, 
+                            majority_group, 
+                            conversion_threshold,
+                            cell_ann_col,
+                        )
+                        belongs_to_majority = x
+                        if belongs_to_majority:
+                            #Move to the next minority.
+                            self.labels_have_changed = True
+                            continue
+                        #Otherwise, check if belongs to 
+                        #the minority group.
+                        x=self.check_if_cells_belong_to_group(
+                            Q, 
+                            minority_group, 
+                            conversion_threshold,
+                            cell_ann_col,
+                        )
+                        identity_was_determined = x
+
+                    if identity_was_determined:
+                        #Nothing to be done.
+                        #Move to the next minority.
                         continue
-                    
-                    print("===============================")
-                    print(f">>>{len(Q.index)} cells will be eliminated.")
-                    print("===============================")
-                    elim_set.update(Q.index)
-                    #For visualization purposes we make the 
-                    #cells part of the group.
-                    #self.A.obs[CA].loc[Q.index] = majority_group
-                            
+                    else:
+                        #Cells could not be classified
+                        #and therefore will be eliminated.
+                        elim_set.update(Q.index)
+
 
             if iteration == 1:
                 pass
@@ -2472,10 +2553,6 @@ class TooManyCells:
         #Elimination phase 1
         print("Elimination set size before homogenization:",
               len(elim_set))
-        self.A.obs[CA] = self.A.obs[CA].cat.add_categories("X")
-        if 0 < len(elim_set):
-            mask = self.A.obs_names.isin(elim_set)
-            self.A.obs[CA].loc[mask] = "X"
 
         #Homogenization
         if homogeneous_leafs:
@@ -2492,26 +2569,31 @@ class TooManyCells:
                 follow_majority)
 
             if 0 < len(S):
-
                 print("Cells lost through homogenization:",
                     len(S))
-
-                mask = self.A.obs_names.isin(S)
-                self.A.obs[CA].loc[mask] = "X"
                 elim_set.update(S)
 
+        if 0 < len(elim_set):
+            print("Total cells lost:", len(elim_set))
+            remaining_cells = self.A.X.shape[0]
+            remaining_cells -= len(elim_set)
+            print("Remaining cells:", remaining_cells)
 
-        print("Total cells lost:", len(elim_set))
-        remaining_cells = self.A.X.shape[0] - len(elim_set)
-        print("Remaining cells:", remaining_cells)
+            #Create a new category.
+            x = self.A.obs[CA].cat.add_categories("X")
+            self.A.obs[CA] = x
+            #Label the cells to be eliminated with "X".
+            mask = self.A.obs_names.isin(elim_set)
+            self.A.obs[CA].loc[mask] = "X"
 
-        self.generate_cell_annotation_file(
-            cell_ann_col=CA, tag = "new_cell_labels")
+            self.labels_have_changed = True
 
-        if len(elim_set) == 0:
-            #Nothing to be done.
-            print("Nothing left to be done.")
-            return
+        if self.labels_have_changed:
+            self.generate_cell_annotation_file(
+                cell_ann_col=CA, tag = "updated_cell_labels")
+        else:
+            print("Nothing has changed.")
+
 
         self.erase_cells_from_json_file(elim_set)
 
