@@ -2594,7 +2594,10 @@ class TooManyCells:
         else:
             print("Nothing has changed.")
 
+        return elim_set
 
+
+    def fun(self):
         self.erase_cells_from_json_file(elim_set)
 
         if recompute_tree:
