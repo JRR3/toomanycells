@@ -104,10 +104,19 @@ class TooManyCells:
 
         """
 
+        #We use a directed graph to enforce the parent
+        #to child relation.
+        self.G = nx.DiGraph()
+
+        self.set_of_leaf_nodes = set()
+
         if isinstance(input, TooManyCells):
+
             #Clone the given TooManyCells object.
             self.A = input.A.copy()
             self.G = input.G.copy()
+            S = input.set_of_leaf_nodes.copy()
+            self.set_of_leaf_nodes = S
 
         elif isinstance(input, str):
             self.source = os.path.abspath(input)
@@ -157,13 +166,16 @@ class TooManyCells:
         #This column of the obs data frame indicates
         #the correspondence between a cell and the 
         #leaf node of the spectral clustering tree.
-        n_cols = len(self.A.obs.columns)
-        self.A.obs['sp_cluster'] = -1
-        self.A.obs['sp_path']    = ""
+        sp_cluster = "sp_cluster"
+        sp_path = "sp_path"
+        if sp_cluster not in self.A.obs.columns:
+            self.A.obs[sp_cluster] = -1
+        if sp_path not in self.A.obs.columns:
+            self.A.obs[sp_path]    = ""
 
-        t = self.A.obs.columns.get_loc("sp_cluster")
+        t = self.A.obs.columns.get_loc(sp_cluster)
         self.cluster_column_index = t
-        t = self.A.obs.columns.get_loc("sp_path")
+        t = self.A.obs.columns.get_loc(sp_path)
         self.path_column_index = t
 
         self.delta_clustering = 0
@@ -218,17 +230,16 @@ class TooManyCells:
 
         self.spectral_clustering_has_been_called = False
 
+        self.cells_to_be_eliminated = None
+
+        x = "/home/javier/Documents/repos/too-many-cells-interactive"
+
         # We use a deque to offer the possibility of breadth-
         # versus depth-first. Our current implementation
         # uses depth-first to be consistent with the 
         # numbering scheme of TooManyCellsInteractive.
         self.DQ = deque()
 
-        #We use a directed graph to enforce the parent
-        #to child relation.
-        self.G = nx.DiGraph()
-
-        self.set_of_leaf_nodes = set()
 
         #Map a node to the path in the
         #binary tree that connects the
@@ -263,7 +274,7 @@ class TooManyCells:
             compressed sparse row format.
         """
 
-        print('Normalizing rows.')
+        print("Normalizing rows.")
 
 
         #It's just an alias.
@@ -1350,6 +1361,7 @@ class TooManyCells:
 
         if 0 < len(path_to_genes):
             df = pd.read_csv(path_to_genes, header=0)
+            #The first column should contain the genes.
             list_of_genes = df.iloc[:,0].to_list()
 
         if 0 < len(list_of_genes):
@@ -2020,20 +2032,6 @@ class TooManyCells:
     #=====================================
     def find_stable_tree(
             self,
-            cell_ann_col: Optional[str] = "cell_annotations",
-    ):
-        CA = cell_ann_col
-        tmc_obj = TooManyCells(self, "sub_tree")
-
-        while tmc_obj.check_leaf_homogeneity(CA)
-            
-
-        tmc_obj.run_spectral_clustering()
-        tmc_obj.store_outputs()
-        self.check_leaf_homogeneity(CA)
-
-    def recompute_cell_annotations(
-            self,
             cell_group_path: str,
             cell_marker_path: str,
             cell_ann_col: Optional[str] = "cell_annotations",
@@ -2046,9 +2044,63 @@ class TooManyCells:
             follow_parent: Optional[bool] = False,
             follow_majority: Optional[bool] = False,
             no_mixtures: Optional[bool] = False,
-            recompute_tree: Optional[bool] = False,
+            storage_path: Optional[str] = "stable_tree",
     ):
-        pass
+        CA = cell_ann_col
+        tmc_obj = TooManyCells(self, storage_path)
+
+        something_has_changed = False
+        iterations = 0
+
+        while True:
+
+            tmc_obj.annotate_using_tree(
+            cell_group_path,
+            cell_marker_path,
+            cell_ann_col,
+            clean_threshold,
+            favor_minorities,
+            conversion_threshold,
+            confirmation_threshold,
+            elimination_ratio,
+            homogeneous_leafs,
+            follow_parent,
+            follow_majority,
+            no_mixtures,
+            )
+
+            iterations += 1
+
+            if not tmc_obj.labels_have_changed:
+                #No cells have changed their label
+                #and no cell has been tagged for 
+                #elimination.
+                print("Nothing has changed.")
+                break
+
+            something_has_changed = True
+
+            #We know the labels have changed.
+            #We will only recompute the tree if 
+            #cells have been eliminated.
+
+            S = tmc_obj.cells_to_be_eliminated
+
+            if 0 == len(S):
+                print("No cells have been eliminated.")
+                break
+
+            #Cells have been eliminated.
+            #A new tree will be generated.
+            mask = tmc_obj.A.obs_names.isin(S)
+            A = tmc_obj.A[~mask].copy()
+            tmc_obj = TooManyCells(A, storage_path)
+            tmc_obj.run_spectral_clustering()
+            tmc_obj.store_outputs()
+
+        if something_has_changed:
+            print(f"{iterations=}")
+            
 
     #=====================================
     def check_leaf_homogeneity(
@@ -2137,7 +2189,6 @@ class TooManyCells:
     #=====================================
     def erase_cells_from_json_file(
             self,
-            set_of_barcodes: set,
             json_file_path: Optional[str] = "",
             target_json_file_path: Optional[str] = "",
     ):
@@ -2165,7 +2216,9 @@ class TooManyCells:
         list_of_regexp = []
         replace_dict = {}
 
-        for k, barcode in enumerate(set_of_barcodes):
+        for k, barcode in enumerate(
+            self.cells_to_be_eliminated):
+
             txt = '[{][^{]+[{][a-zA-Z":]+[ ]?["]'
             # txt += "(?P<barcode>"
             txt += barcode
@@ -2259,7 +2312,7 @@ class TooManyCells:
 
 
     #=====================================
-    def recompute_cell_annotations(
+    def annotate_using_tree(
             self,
             cell_group_path: str,
             cell_marker_path: str,
@@ -2273,7 +2326,6 @@ class TooManyCells:
             follow_parent: Optional[bool] = False,
             follow_majority: Optional[bool] = False,
             no_mixtures: Optional[bool] = False,
-            recompute_tree: Optional[bool] = False,
     ):
         if not os.path.exists(cell_group_path):
             print(cell_group_path)
@@ -2302,6 +2354,8 @@ class TooManyCells:
         cell_to_group = {}
         cell_types_to_erase = []
         self.group_to_cell_types = defaultdict(list)
+
+        self.cells_to_be_eliminated = None
 
         #Create the cell to group dictionary and
         #the group to cell dictionary
@@ -2405,9 +2459,9 @@ class TooManyCells:
 
             mask = self.A.obs["sp_cluster"].isin(nodes)
             S = self.A.obs[CA].loc[mask]
-            majority_size = mask.sum()
+            node_size = mask.sum()
             print(f"Working with {node=}")
-            print(f"Size of {node=}: {majority_size}")
+            print(f"Size of {node=}: {node_size}")
             vc = S.value_counts(normalize=True)
             print("===============================")
             print(vc)
@@ -2594,25 +2648,8 @@ class TooManyCells:
         else:
             print("Nothing has changed.")
 
-        return elim_set
+        self.cells_to_be_eliminated = elim_set
 
-
-    def fun(self):
-        self.erase_cells_from_json_file(elim_set)
-
-        if recompute_tree:
-            #Removing the cells with cell 
-            #type "X".
-            mask = self.A.obs[CA] != "X"
-            self.A = self.A[mask].copy()
-            print("Recomputing tree ...")
-            tmc_obj = TooManyCells(self.A, "sub_tree")
-            tmc_obj.run_spectral_clustering()
-            tmc_obj.store_outputs()
-            p = "/home/javier/Documents/repos/too-many-cells-interactive"
-            #tmc_obj.visualize_with_tmc_interactive(p,CA,1234)
-        
-            
                             
     #====END=OF=CLASS=====================
 
