@@ -1085,6 +1085,7 @@ class TooManyCells:
     def store_outputs(
             self,
             cell_ann_col: Optional[str] = "cell_annotations",
+            store_tree_svg: Optional[bool] = True,
             ):
         """
         Store the outputs and plot the branching tree.
@@ -1112,7 +1113,9 @@ class TooManyCells:
         fname = 'graph.dot'
         dot_fname = os.path.join(self.output, fname)
 
-        nx.nx_agraph.write_dot(self.G, dot_fname)
+        if store_tree_svg:
+            nx.nx_agraph.write_dot(self.G, dot_fname)
+
         #Write cell to node data frame.
         self.write_cell_assignment_to_csv()
         self.convert_graph_to_json()
@@ -1151,7 +1154,7 @@ class TooManyCells:
         fname = os.path.join(self.output, fname)
         df.to_csv(fname, index=False)
 
-        if self.use_twopi_cmd:
+        if self.use_twopi_cmd and store_tree_svg:
             self.plot_radial_tree_from_dot_file()
 
         self.tf = clock()

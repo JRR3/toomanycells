@@ -125,10 +125,27 @@ computer. ![Progress bar example](https://github.com/JRR3/toomanycells/blob/main
    ```
    tmc_obj.store_outputs()
    ```
-This call will generate a PDF of the tree and a DOT file
-for the graph, two CSV files that describe the clusters
-and the information of each node, and a JSON file that
-contains the tree structure. 
+This call will generate a graphical representation of the 
+tree (`output_graph.svg`), a DOT file
+containing the nodes and edges of the graph (`graph.dot`), 
+one CSV file that describes the cluster
+information (`clusters.csv`), another CSV file containing 
+the information of each node (`node_info.csv`), and two 
+JSON files.  One relates cells to clusters 
+(`cluster_list.json`), and the other has the 
+full tree structure (`cluster_tree.json`). You need this
+last file for TMCI.
+
+For those who may have problems installing `pygraphviz`,
+you can still store the main outputs using the call
+   ```
+   tmc_obj.store_outputs(store_tree_svg=False)
+   ```
+Note that in this case you will not be able to 
+generate the `output_graph.svg` and `graph.dot`
+files. However, the `cluster_tree.json` file, which is the 
+most important file, will still be generated, and
+you can continue working with this tutorial.
 
 8. If you already have a DOT file you can load it with
    ```
