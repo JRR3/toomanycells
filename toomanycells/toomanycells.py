@@ -2194,6 +2194,7 @@ class TooManyCells:
             self,
             json_file_path: Optional[str] = "",
             target_json_file_path: Optional[str] = "",
+            modify_anndata: Optional[bool] = False,
     ):
 
         #{'_barcode':
@@ -2237,6 +2238,14 @@ class TooManyCells:
 
         with open(target_fname, "w") as output_file:
             output_file.write(obj)
+
+        if modify_anndata:
+            #This will eliminate all the
+            #cells labeled with an X from the 
+            #anndata object.
+            mask = self.A.obs.index.isin(
+                self.cells_to_be_eliminated)
+            self.A = self.A[~mask].copy()
 
 
     #=================================================
@@ -2310,9 +2319,6 @@ class TooManyCells:
             print(f">>>Cells do not belong to {group}.")
             print("===============================")
             return False
-
-
-
 
     #=====================================
     def annotate_using_tree(
@@ -2650,6 +2656,10 @@ class TooManyCells:
                 cell_ann_col=CA, tag = "updated_cell_labels")
         else:
             print("Nothing has changed.")
+
+        #This set constains the cells to be eliminated
+        #and can be used for subsequent processing 
+        #in other functions.
 
         self.cells_to_be_eliminated = elim_set
 

@@ -1,4 +1,3 @@
-anndata
 scanpy
 scipy
 numpy
