@@ -1978,10 +1978,10 @@ class TooManyCells:
 
         return mean_exp
     #=====================================
-    def compute_marker_median_value_for_cell(
+    def compute_marker_median_value_for_cell_type(
             self,
             marker: str,
-            cell: str,
+            cell_type: str,
             cell_ann_col: Optional[str] = "cell_annotations",
     ):
 
@@ -1990,13 +1990,33 @@ class TooManyCells:
             return None
 
         col_index = self.A.var.index.get_loc(marker)
-        mask = self.A.obs[CA] == cell
-        values = self.A.X[mask, col_index].data
+        mask = self.A.obs[CA] == cell_type
+        values = self.A.X[mask, col_index]
 
-        if len(values) == 0:
-            return 0
+        if sp.issparse(self.A.X):
+            values = values.toarray().squeeze()
 
         return np.median(values)
+
+    #=====================================
+    def compute_marker_median_and_mad_for_all_cells(
+            self,
+            marker: str,
+    ):
+
+        if marker not in self.A.var_names:
+            return None
+
+        col_index = self.A.var.index.get_loc(marker)
+        values = self.A.X[:, col_index]
+
+        if sp.issparse(self.A.X):
+            values = values.toarray().squeeze()
+
+        median = np.median(values)
+        mad    = np.median(values-median)
+
+        return (median, mad)
 
     #=====================================
     def compute_mean_expression_from_indices(
@@ -2026,12 +2046,34 @@ class TooManyCells:
 
         col_index = self.A.var.index.get_loc(marker)
         mask = self.A.obs_names.isin(indices)
-        values = self.A.X[mask, col_index].data
+        values = self.A.X[mask, col_index]
 
-        if len(values) == 0:
-            return 0
+        if sp.issparse(self.A.X):
+            values = values.toarray().squeeze()
 
         return np.median(values)
+
+    #=====================================
+    def meddev_expression_from_indices(
+            self,
+            marker: str,
+            indices: list,
+    ):
+
+        if marker not in self.A.var_names:
+            return None
+
+        col_index = self.A.var.index.get_loc(marker)
+        mask = self.A.obs_names.isin(indices)
+        values = self.A.X[mask, col_index]
+
+        if sp.issparse(self.A.X):
+            values = values.toarray().squeeze()
+
+        median = np.median(values)
+
+        #Subtract median from the value
+        values -= median
     #=====================================
     def find_stable_tree(
             self,
@@ -2048,14 +2090,15 @@ class TooManyCells:
             follow_majority: Optional[bool] = False,
             no_mixtures: Optional[bool] = False,
             storage_path: Optional[str] = "stable_tree",
+            max_n_iter: Optional[int] = 100,
     ):
         CA = cell_ann_col
         tmc_obj = TooManyCells(self, storage_path)
 
         something_has_changed = False
-        iterations = 0
+        iteration = 0
 
-        while True:
+        while iteration < max_n_iter:
 
             tmc_obj.annotate_using_tree(
             cell_group_path,
@@ -2072,7 +2115,7 @@ class TooManyCells:
             no_mixtures,
             )
 
-            iterations += 1
+            iteration += 1
 
             if not tmc_obj.labels_have_changed:
                 #No cells have changed their label
@@ -2094,7 +2137,8 @@ class TooManyCells:
                 break
 
             #Cells have been eliminated.
-            #A new tree will be generated.
+            #A new tree will be generated with the
+            #remaining cells.
             mask = tmc_obj.A.obs_names.isin(S)
             A = tmc_obj.A[~mask].copy()
             tmc_obj = TooManyCells(A, storage_path)
@@ -2102,7 +2146,7 @@ class TooManyCells:
             tmc_obj.store_outputs()
 
         if something_has_changed:
-            print(f"{iterations=}")
+            print(f"{iteration=}")
             
 
     #=====================================
@@ -2282,10 +2326,10 @@ class TooManyCells:
             if belongs_to_group:
                 break
             print(f"Are they {cell_type}?")
-            markers = self.cell_type_to_markers[cell_type]
+            markers = self.cell_type_to_marker[cell_type]
 
             for marker in markers:
-                x = self.marker_to_median_value[marker]
+                x = self.marker_to_median_value_for_cell_type[marker]
                 marker_value = x
                 if marker_value is None:
                     #Nothing to be done.
@@ -2360,7 +2404,7 @@ class TooManyCells:
         print("Cell to Marker file")
         print(df_cm)
 
-        cell_to_group = {}
+        self.cell_type_to_group = {}
         cell_types_to_erase = []
         self.group_to_cell_types = defaultdict(list)
 
@@ -2369,38 +2413,44 @@ class TooManyCells:
         #Create the cell to group dictionary and
         #the group to cell dictionary
         for index, row in df_cg.iterrows():
-            cell = row["Cell"]
+            cell_type = row["Cell"]
             group = row["Group"]
 
             if pd.isna(group):
-                group = cell
+                group = cell_type
             elif group == "0":
-                cell_types_to_erase.append(cell)
+                cell_types_to_erase.append(cell_type)
                 continue
 
-            cell_to_group[cell] = group
-            self.group_to_cell_types[group].append(cell)
+            self.cell_type_to_group[cell_type] = group
+            self.group_to_cell_types[group].append(cell_type)
 
 
         #Create the cell to markers dictionary and
         #marker to value dictionary.
-        self.cell_type_to_markers = defaultdict(list)
-        marker_to_mean_value = {}
-        self.marker_to_median_value = {}
+        self.cell_type_to_marker = defaultdict(list)
+        self.marker_to_median_value_for_cell_type = {}
+        # self.marker_to_median_value_for_all_cells = {}
 
         for index, row in df_cm.iterrows():
 
-            cell = row["Cell"]
+            cell_type = row["Cell"]
             marker = row["Marker"]
-            self.cell_type_to_markers[cell].append(marker)
+            self.cell_type_to_marker[cell_type].append(marker)
 
-            if cell not in cell_to_group:
+            #In case some cell types have been erased.
+            if cell_type not in self.cell_type_to_group:
                 continue
 
-            if marker not in marker_to_mean_value:
-                x = self.compute_marker_median_value_for_cell(
-                    marker, cell)
-                self.marker_to_median_value[marker] = x
+            if marker not in self.marker_to_median_value_for_cell_type:
+                x = self.compute_marker_median_value_for_cell_type(
+                    marker, cell_type)
+                self.marker_to_median_value_for_cell_type[marker] = x
+
+            # if marker not in self.marker_to_median_value_for_all_cells:
+            #     x = self.compute_marker_median_value_for_all_cells(
+            #         marker)
+            #     self.marker_to_median_value_for_all_cells[marker] = x
 
         #Eliminate cells that belong to the erase category.
         if 0 < len(cell_types_to_erase):
@@ -2418,7 +2468,7 @@ class TooManyCells:
         #annotations have been mapped to their 
         #corresponding group.
         S = self.A.obs[CA].astype(str)
-        for cell, group in cell_to_group.items():
+        for cell, group in self.cell_type_to_group.items():
 
             if cell == group:
                 continue
@@ -2428,7 +2478,7 @@ class TooManyCells:
 
         S = S.astype("category")
         OCA = "original_cell_annotations"
-        self.A.obs[OCA] = self.A.obs[CA]
+        self.A.obs[OCA] = self.A.obs[CA].copy()
         self.A.obs[CA] = S
         vc = self.A.obs[CA].value_counts()
         print("===============================")
@@ -2450,6 +2500,9 @@ class TooManyCells:
         elim_set = set()
 
         self.labels_have_changed = False
+
+        MNL = "majority_node_label"
+        self.A.obs[MNL] = ""
 
         while 0 < len(DQ):
             print("===============================")
@@ -2502,6 +2555,8 @@ class TooManyCells:
                 print(f"Cleaning {node=}.")
                 print(f"{majority_group=}.")
                 print(f"{majority_ratio=}.")
+
+                self.A.obs.loc[mask, MNL] = majority_group
 
                 if no_mixtures:
                     #We do not allow minorities.
@@ -2636,6 +2691,8 @@ class TooManyCells:
                     len(S))
                 elim_set.update(S)
 
+        #If there are cells to be eliminated, then
+        #we label them with an X.
         if 0 < len(elim_set):
             print("Total cells lost:", len(elim_set))
             remaining_cells = self.A.X.shape[0]
@@ -2662,6 +2719,40 @@ class TooManyCells:
         #in other functions.
 
         self.cells_to_be_eliminated = elim_set
+
+    #=====================================
+    def compute_master_annotation_table(
+            self,
+            cell_ann_col: Optional[str] = "cell_annotations",
+            threshold: Optional[float] = 0.8,
+    ):
+        if not os.path.exists(cell_marker_path):
+            print(cell_marker_path)
+            raise ValueError("File does not exists.")
+
+        CA = cell_ann_col
+
+        df_cm = pd.read_csv(cell_marker_path)
+        print("===============================")
+        print("Cell to Marker file")
+        print(df_cm)
+
+        #Create the cell to markers dictionary and
+        #marker to value dictionary.
+        # self.cell_type_to_marker = defaultdict(list)
+        self.marker_to_median_and_mad_for_all_cells = {}
+        marker_to_col_idx = {}
+
+        for marker in self.marker_to_median_value_for_cell_type.keys():
+
+            x = self.compute_marker_median_and_mad_for_all_cells(
+                marker)
+            self.marker_to_median_and_mad_for_all_cells[marker] = x
+
+        for idx, row in self.A.obs.iterrows():
+            for marker, T in self.marker_to_median_and_mad_for_all_cells.items():
+                m = self.A.X[idx, marker]
+
 
                             
     #====END=OF=CLASS=====================
