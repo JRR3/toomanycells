@@ -23,6 +23,7 @@ from anndata import AnnData
 import numpy as np
 import pandas as pd
 import re
+import seaborn as sb
 from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics.pairwise import pairwise_kernels
@@ -43,6 +44,7 @@ mpl.rcParams["figure.dpi"]=600
 mpl.rcParams["pdf.fonttype"]=42
 font = {'weight' : 'normal', 'size'   : 18}
 
+mpl.use("agg")
 mpl.rc("font", **font)
 
 sys.path.insert(0, dirname(__file__))
@@ -2035,11 +2037,16 @@ class TooManyCells:
         return mean_exp
 
     #=====================================
-    def compute_median_expression_from_indices(
+    def compute_median_and_mad_exp_from_indices(
             self,
             marker: str,
             indices: list,
+            ignore_minimum: Optional[bool] = True,
+            only_median: Optional[bool] = False,
     ):
+        """
+        Aug 13, 2024
+        """
 
         if marker not in self.A.var_names:
             return None
@@ -2048,32 +2055,24 @@ class TooManyCells:
         mask = self.A.obs_names.isin(indices)
         values = self.A.X[mask, col_index]
 
-        if sp.issparse(self.A.X):
-            values = values.toarray().squeeze()
-
-        return np.median(values)
-
-    #=====================================
-    def meddev_expression_from_indices(
-            self,
-            marker: str,
-            indices: list,
-    ):
-
-        if marker not in self.A.var_names:
-            return None
-
-        col_index = self.A.var.index.get_loc(marker)
-        mask = self.A.obs_names.isin(indices)
-        values = self.A.X[mask, col_index]
-
-        if sp.issparse(self.A.X):
-            values = values.toarray().squeeze()
+        if sp.issparse(values):
+            if ignore_minimum:
+                values = values.data
+            else:
+                values = values.toarray().squeeze()
+        else:
+            if ignore_minimum:
+                values = values[values.min() < values]
 
         median = np.median(values)
-
-        #Subtract median from the value
         values -= median
+        mad = np.median(np.abs(values))
+
+        if only_median:
+            return median
+
+        return (median, mad)
+
     #=====================================
     def find_stable_tree(
             self,
@@ -2193,9 +2192,14 @@ class TooManyCells:
         CA = cell_ann_col
         elim_set = set()
 
-        for node in self.G.nodes:
-            if 0 < self.G.out_degree(node):
-                continue
+        # for node in self.G.nodes:
+            # if 0 < self.G.out_degree(node):
+            #     continue
+
+        if len(self.set_of_leaf_nodes) == 0:
+            raise ValueError("Empty set of leaf nodes.")
+
+        for node in self.set_of_leaf_nodes:
             parent = next(self.G.predecessors(node))
             #print(f"{parent}-->{node}")
 
@@ -2335,8 +2339,8 @@ class TooManyCells:
                     #Nothing to be done.
                     continue
 
-                x=self.compute_median_expression_from_indices(
-                    marker, cells.index)
+                x=self.compute_median_and_mad_exp_from_indices(
+                    marker, cells.index, only_median=True)
                 expression_value = x
                 print("\t", marker, marker_value, x)
                 #Let X be the mean/median expression 
@@ -2425,12 +2429,12 @@ class TooManyCells:
             self.cell_type_to_group[cell_type] = group
             self.group_to_cell_types[group].append(cell_type)
 
-
         #Create the cell to markers dictionary and
         #marker to value dictionary.
         self.cell_type_to_marker = defaultdict(list)
         self.marker_to_median_value_for_cell_type = {}
-        # self.marker_to_median_value_for_all_cells = {}
+        self.marker_to_idx_column = {}
+        self.mtx_column_to_marker = {}
 
         for index, row in df_cm.iterrows():
 
@@ -2442,15 +2446,20 @@ class TooManyCells:
             if cell_type not in self.cell_type_to_group:
                 continue
 
+            #In case some cell marker is not present
+            #in the expression matrix.
+            if marker not in self.A.var_names:
+                print(marker)
+                continue
+
+            col_index = self.A.var.index.get_loc(marker)
+            self.marker_to_idx_column[marker] = col_index
+            self.mtx_column_to_marker[col_index] = marker
+
             if marker not in self.marker_to_median_value_for_cell_type:
                 x = self.compute_marker_median_value_for_cell_type(
                     marker, cell_type)
                 self.marker_to_median_value_for_cell_type[marker] = x
-
-            # if marker not in self.marker_to_median_value_for_all_cells:
-            #     x = self.compute_marker_median_value_for_all_cells(
-            #         marker)
-            #     self.marker_to_median_value_for_all_cells[marker] = x
 
         #Eliminate cells that belong to the erase category.
         if 0 < len(cell_types_to_erase):
@@ -2721,37 +2730,121 @@ class TooManyCells:
         self.cells_to_be_eliminated = elim_set
 
     #=====================================
+    def compute_distribution(
+            self,
+            marker: str,
+            cell_ann_col: Optional[str] = "cell_annotations",
+    ):
+        """
+        """
+
+        col_index = self.A.var.index.get_loc(marker)
+
+        n_leaf_nodes = len(self.set_of_leaf_nodes)
+        mean_exp_vec = np.zeros(n_leaf_nodes)
+
+        if len(self.set_of_leaf_nodes) == 0:
+            raise ValueError("Empty leaf node set.")
+
+        for k, node in enumerate(self.set_of_leaf_nodes):
+            nodes = [node]
+            mask = self.A.obs["sp_cluster"].isin(nodes)
+            values = self.A.X[mask, col_index]
+            if sp.issparse(values):
+                values = values.toarray().squeeze()
+            mean_exp = np.mean(values)
+            mean_exp_vec[k] = mean_exp
+
+        mask = 0 < mean_exp_vec
+        mean_exp_vec_pos = mean_exp_vec[mask]
+        n_elem = len(mean_exp_vec_pos)
+        median = np.median(mean_exp_vec)
+        median_pos = np.median(mean_exp_vec_pos)
+        mad = np.abs(mean_exp_vec - median)
+        mad = np.median(mad)
+        mad_pos = np.abs(mean_exp_vec_pos - median_pos)
+        mad_pos = np.median(mad_pos)
+        min_exp = mean_exp_vec_pos.min()
+        min_dist = (min_exp-median_pos) / mad_pos
+        max_exp = mean_exp_vec_pos.max()
+        max_dist = (max_exp-median_pos) / mad_pos
+        print(f"{n_elem=}")
+        print(f"{median=}")
+        print(f"{median_pos=}")
+        print(f"{mad=}")
+        print(f"{mad_pos=}")
+        print(f"{min_exp=}")
+        print(f"{min_dist=}")
+        print(f"{max_exp=}")
+        print(f"{max_dist=}")
+        mad_vector = (mean_exp_vec - median_pos) / mad_pos
+
+        fig,ax = plt.subplots()
+        sb.histplot(data=mad_vector,
+                    bins=20,
+                    stat="count",
+                    #kde=True,
+                    edgecolor="blue",
+                    linewidth=0.5,
+                    ax=ax)
+        # ax.set_yscale("log")
+        fname = "fap_dist.pdf"
+        fname = os.path.join(self.output, fname)
+        fig.savefig(fname, bbox_inches="tight")
+        print("Plot has been generated.")
+
+
+    #=====================================
     def compute_master_annotation_table(
             self,
             cell_ann_col: Optional[str] = "cell_annotations",
             threshold: Optional[float] = 0.8,
     ):
-        if not os.path.exists(cell_marker_path):
-            print(cell_marker_path)
-            raise ValueError("File does not exists.")
-
-        CA = cell_ann_col
-
-        df_cm = pd.read_csv(cell_marker_path)
-        print("===============================")
-        print("Cell to Marker file")
-        print(df_cm)
-
         #Create the cell to markers dictionary and
         #marker to value dictionary.
         # self.cell_type_to_marker = defaultdict(list)
         self.marker_to_median_and_mad_for_all_cells = {}
-        marker_to_col_idx = {}
+        n_markers = len(self.marker_to_idx_column)
+        print(f"We have {n_markers} markers.")
+        col_idx_vec = []
+        median_vec  = []
+        mad_vec     = []
+        marker_vec  = []
 
-        for marker in self.marker_to_median_value_for_cell_type.keys():
+        for marker, col_idx in self.marker_to_idx_column.items():
 
             x = self.compute_marker_median_and_mad_for_all_cells(
                 marker)
             self.marker_to_median_and_mad_for_all_cells[marker] = x
+            median, mad = x
 
-        for idx, row in self.A.obs.iterrows():
-            for marker, T in self.marker_to_median_and_mad_for_all_cells.items():
-                m = self.A.X[idx, marker]
+            if median < 1e-8:
+                print(marker)
+
+            if mad < 1e-8:
+                print(marker)
+                continue
+
+            col_idx_vec.append(col_idx)
+            median_vec.append(median)
+            mad_vec.append(mad)
+            marker_vec.append(marker)
+
+        col_idx_vec = np.array(col_idx_vec, dtype=int)
+        median_vec = np.array(median_vec)
+        mad_vec = np.array(mad_vec)
+        marker_vec = np.array(marker_vec)
+
+        #Iterate over the (sparse) rows of 
+        #the expression matrix.
+        for sp_row in self.A.X:
+            values = sp_row[col_idx_vec]
+            if sp.issparse(self.A.X):
+                values = values.toarray().squeeze()
+            values -= median_vec
+            values /= mad_vec
+
+            
 
 
                             
