@@ -2348,7 +2348,7 @@ class TooManyCells:
                     continue
 
                 #Here we do not ignore the zeros. The 
-                #reasoning is the same as above. We want
+                #reasoning is the same as above. We want to
                 #have a high degree of confidence that 
                 #these cells are actually of the alleged
                 #cell type. #If we do not ignore the zeros,
