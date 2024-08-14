@@ -1813,9 +1813,8 @@ class TooManyCells:
             nodes = [node]
         else:
             #Make sure these are leaf nodes.
-            x = self.set_of_leaf_nodes.intersection(nodes)
-            nodes = x
-            nodes = list(nodes)
+            nodes = self.set_of_leaf_nodes.intersection(nodes)
+            # nodes = list(nodes)
 
         is_string = False
 
@@ -1985,18 +1984,23 @@ class TooManyCells:
             marker: str,
             cell_type: str,
             cell_ann_col: Optional[str] = "cell_annotations",
+            ignore_zero: Optional[bool] = True,
     ):
 
         CA = cell_ann_col
-        if marker not in self.A.var_names:
-            return None
 
-        col_index = self.A.var.index.get_loc(marker)
+        col_index = self.marker_to_idx_column[marker]
         mask = self.A.obs[CA] == cell_type
         values = self.A.X[mask, col_index]
 
-        if sp.issparse(self.A.X):
-            values = values.toarray().squeeze()
+        if sp.issparse(values):
+            if ignore_zero:
+                values = values.data
+            else:
+                values = values.toarray().squeeze()
+        else:
+            if ignore_zero:
+                values = values[self.eps < values]
 
         return np.median(values)
 
@@ -2027,41 +2031,39 @@ class TooManyCells:
             indices: list,
     ):
 
-        if marker not in self.A.var_names:
-            return None
-
-        col_index = self.A.var.index.get_loc(marker)
+        col_index = self.marker_to_idx_column[marker]
         mask = self.A.obs_names.isin(indices)
-        mean_exp = self.A.X[mask, col_index].mean()
+        #This object could be a single float.
+        vec = self.A.X[mask, col_index]
 
-        return mean_exp
+        if sp.issparse(vec):
+            return vec.mean()
+
+        return np.mean(vec)
 
     #=====================================
     def compute_median_and_mad_exp_from_indices(
             self,
             marker: str,
             indices: list,
-            ignore_minimum: Optional[bool] = True,
+            ignore_zero: Optional[bool] = True,
             only_median: Optional[bool] = False,
     ):
         """
         Aug 13, 2024
         """
 
-        if marker not in self.A.var_names:
-            return None
-
-        col_index = self.A.var.index.get_loc(marker)
+        col_index = self.marker_to_idx_column[marker]
         mask = self.A.obs_names.isin(indices)
         values = self.A.X[mask, col_index]
 
         if sp.issparse(values):
-            if ignore_minimum:
+            if ignore_zero:
                 values = values.data
             else:
                 values = values.toarray().squeeze()
         else:
-            if ignore_minimum:
+            if ignore_zero:
                 values = values[values.min() < values]
 
         median = np.median(values)
@@ -2306,7 +2308,7 @@ class TooManyCells:
     ):
         """
         The cells parameter is a series that contains
-        the cells types as values and the indices 
+        the cell types as values and the indices 
         correspond to the barcodes.
         """
         #This is the question we are trying to
@@ -2333,14 +2335,31 @@ class TooManyCells:
             markers = self.cell_type_to_marker[cell_type]
 
             for marker in markers:
+                #Zeros were ignored during the calculations.
+                # Why? Because this is the 
+                #reference, and we want to make sure that
+                #if something is above the reference, then
+                #it is likely that it is a member of that
+                #cell type.
                 x = self.marker_to_median_value_for_cell_type[marker]
                 marker_value = x
                 if marker_value is None:
                     #Nothing to be done.
                     continue
 
+                #Here we do not ignore the zeros. The 
+                #reasoning is the same as above. We want
+                #have a high degree of confidence that 
+                #these cells are actually of the alleged
+                #cell type. #If we do not ignore the zeros,
+                #it is more likely to produce a smaller 
+                #value, making it harder to exceed the
+                #reference.
                 x=self.compute_median_and_mad_exp_from_indices(
-                    marker, cells.index, only_median=True)
+                    marker, 
+                    cells.index, 
+                    ignore_zero=False,
+                    only_median=True)
                 expression_value = x
                 print("\t", marker, marker_value, x)
                 #Let X be the mean/median expression 
@@ -2434,7 +2453,7 @@ class TooManyCells:
         self.cell_type_to_marker = defaultdict(list)
         self.marker_to_median_value_for_cell_type = {}
         self.marker_to_idx_column = {}
-        self.mtx_column_to_marker = {}
+        self.idx_column_to_marker = {}
 
         for index, row in df_cm.iterrows():
 
@@ -2449,16 +2468,16 @@ class TooManyCells:
             #In case some cell marker is not present
             #in the expression matrix.
             if marker not in self.A.var_names:
-                print(marker)
+                print(f"{marker=} not available.")
                 continue
 
             col_index = self.A.var.index.get_loc(marker)
             self.marker_to_idx_column[marker] = col_index
-            self.mtx_column_to_marker[col_index] = marker
+            self.idx_column_to_marker[col_index] = marker
 
             if marker not in self.marker_to_median_value_for_cell_type:
                 x = self.compute_marker_median_value_for_cell_type(
-                    marker, cell_type)
+                    marker, cell_type, ignore_zero=True)
                 self.marker_to_median_value_for_cell_type[marker] = x
 
         #Eliminate cells that belong to the erase category.
@@ -2582,9 +2601,9 @@ class TooManyCells:
                 #the minority actually belongs to the 
                 #majority or first check if the minority
                 #is indeed a true minority.
-                for minority_group, mr in vc.iloc[1:].items():
+                iter = vc.iloc[1:].items()
+                for minority_group, minority_ratio in iter:
 
-                    minority_ratio = mr
 
                     #These are the cells that belong to one
                     #of the minorities. We label them as
@@ -2730,24 +2749,33 @@ class TooManyCells:
         self.cells_to_be_eliminated = elim_set
 
     #=====================================
-    def compute_distribution(
+    def compute_expression_distribution_for_marker(
             self,
             marker: str,
-            cell_ann_col: Optional[str] = "cell_annotations",
     ):
         """
         """
 
         col_index = self.A.var.index.get_loc(marker)
+        n_nodes = self.G.number_of_nodes()
 
-        n_leaf_nodes = len(self.set_of_leaf_nodes)
-        mean_exp_vec = np.zeros(n_leaf_nodes)
+        if n_nodes == 0:
+            raise ValueError("Empty graph.")
 
-        if len(self.set_of_leaf_nodes) == 0:
-            raise ValueError("Empty leaf node set.")
+        mean_exp_vec = np.zeros(n_nodes)
 
-        for k, node in enumerate(self.set_of_leaf_nodes):
-            nodes = [node]
+        for k, node in enumerate(self.G.nodes()):
+
+            nodes = nx.descendants(self.G, node)
+
+            if len(nodes) == 0:
+                #This is a leaf node.
+                nodes = [node]
+            else:
+                #Make sure these are leaf nodes.
+                nodes = self.set_of_leaf_nodes.intersection(
+                    nodes)
+
             mask = self.A.obs["sp_cluster"].isin(nodes)
             values = self.A.X[mask, col_index]
             if sp.issparse(values):
@@ -2777,11 +2805,11 @@ class TooManyCells:
         print(f"{min_dist=}")
         print(f"{max_exp=}")
         print(f"{max_dist=}")
-        mad_vector = (mean_exp_vec - median_pos) / mad_pos
+        # mad_vector = (mean_exp_vec - median_pos) / mad_pos
 
         fig,ax = plt.subplots()
-        sb.histplot(data=mad_vector,
-                    bins=20,
+        sb.histplot(data=mean_exp_vec,
+                    bins=15,
                     stat="count",
                     #kde=True,
                     edgecolor="blue",
