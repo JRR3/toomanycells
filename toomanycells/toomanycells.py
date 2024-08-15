@@ -2763,6 +2763,7 @@ class TooManyCells:
             raise ValueError("Empty graph.")
 
         mean_exp_vec = np.zeros(n_nodes)
+        node_to_atts = {}
 
         for k, node in enumerate(self.G.nodes()):
 
@@ -2778,15 +2779,12 @@ class TooManyCells:
 
             mask = self.A.obs["sp_cluster"].isin(nodes)
             values = self.A.X[mask, col_index]
-            if sp.issparse(values):
-                values = values.toarray().squeeze()
-            mean_exp = np.mean(values)
+            mean_exp = values.mean()
             mean_exp_vec[k] = mean_exp
+            self.G.nodes[node][marker] = mean_exp
 
         mask = 0 < mean_exp_vec
         mean_exp_vec_pos = mean_exp_vec[mask]
-        n_elem = len(mean_exp_vec_pos)
-        median = np.median(mean_exp_vec)
         median_pos = np.median(mean_exp_vec_pos)
         mad = np.abs(mean_exp_vec - median)
         mad = np.median(mad)
@@ -2796,12 +2794,52 @@ class TooManyCells:
         min_dist = (min_exp-median_pos) / mad_pos
         max_exp = mean_exp_vec_pos.max()
         max_dist = (max_exp-median_pos) / mad_pos
+        
+        mask = mean_exp_vec > min_exp
+        n_above_min = mask.sum()
+        delta = max_dist - min_dist
+        delta /= 15
+
+
+        mad_vec = mean_exp_vec - median_pos
+        mad_vec /= mad_pos
+        mad_vec = np.sort(mad_vec)
+
+        count = 0
+        hist = []
+        bound = min_dist + delta
+        bounds = [min_dist, bound]
+        for x in mad_vec:
+            if x < bound:
+                count += 1
+            else:
+                hist.append(count)
+                count = 1
+                bound += delta
+                bounds.append(bound)
+
+        hist.append(count)
+        hist = np.array(hist)
+        print(f"{hist.sum()=}")
+        bounds = np.array(bounds)
+        print(hist[:,None])
+        print(bounds[:,None])
+
+        remote = [
+        1364, 427, 350, 292, 249, 199, 156, 127, 93, 55,
+        33, 12, 3, 2, 1,]
+        remote = np.array(remote)
+        print(f"{remote.sum()=}")
+
+
         print(f"{n_elem=}")
+        print(f"{delta=}")
         print(f"{median=}")
         print(f"{median_pos=}")
         print(f"{mad=}")
         print(f"{mad_pos=}")
         print(f"{min_exp=}")
+        print(f"{n_above_min=}")
         print(f"{min_dist=}")
         print(f"{max_exp=}")
         print(f"{max_dist=}")
