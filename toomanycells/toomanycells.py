@@ -10,41 +10,41 @@
 #########################################################
 #Questions? Email me at: javier.ruizramirez@uhn.ca
 #########################################################
-from typing import Optional
-from typing import Union
+import os
+import re
+import sys
+import subprocess
+import numpy as np
+import scanpy as sc
+import pandas as pd
+import seaborn as sb
+from tqdm import tqdm
 import networkx as nx
-from scipy import sparse as sp
-from scipy.sparse.linalg import eigsh as Eigen_Hermitian
+import matplotlib as mpl
+from typing import Union
+from typing import Optional
+from os.path import dirname
 from scipy.io import mmread
 from scipy.io import mmwrite
-from time import perf_counter as clock
-import anndata as ad
-from anndata import AnnData
-import numpy as np
-import pandas as pd
-import re
-import seaborn as sb
-from sklearn.decomposition import TruncatedSVD
-from sklearn.metrics import pairwise_distances
-from sklearn.metrics.pairwise import pairwise_kernels
-from sklearn.preprocessing import normalize
-from sklearn.feature_extraction.text import TfidfTransformer
 from collections import deque
-from collections import defaultdict
-import os
-from os.path import dirname
-import subprocess
-from tqdm import tqdm
-import sys
-import scanpy as sc
-import matplotlib as mpl
+from scipy import sparse as sp
 import matplotlib.pyplot as plt
+from collections import defaultdict
+from time import perf_counter as clock
+from sklearn.preprocessing import normalize
+from scipy.stats import median_abs_deviation
+from sklearn.metrics import pairwise_distances
+from sklearn.decomposition import TruncatedSVD
+from sklearn.metrics.pairwise import pairwise_kernels
+from scipy.sparse.linalg import eigsh as Eigen_Hermitian
+from sklearn.feature_extraction.text import TfidfTransformer
 
+#Matplotlib parameters.
+mpl.use("agg")
 mpl.rcParams["figure.dpi"]=600
 mpl.rcParams["pdf.fonttype"]=42
-font = {'weight' : 'normal', 'size'   : 18}
 
-mpl.use("agg")
+font = {'weight' : 'normal', 'size'   : 18}
 mpl.rc("font", **font)
 
 sys.path.insert(0, dirname(__file__))
@@ -85,7 +85,7 @@ class TooManyCells:
     """
     #=================================================
     def __init__(self,
-            input: Union[AnnData, str],
+            input: Union[sc.AnnData, str],
             output: Optional[str] = "",
             input_is_matrix_market: Optional[bool] = False,
             use_full_matrix: Optional[bool] = False,
@@ -124,7 +124,7 @@ class TooManyCells:
             self.source = os.path.abspath(input)
             if self.source.endswith('.h5ad'):
                 self.t0 = clock()
-                self.A = ad.read_h5ad(self.source)
+                self.A = sc.read_h5ad(self.source)
                 self.tf = clock()
                 delta = self.tf - self.t0
                 txt = ('Elapsed time for loading: ' +
@@ -139,7 +139,7 @@ class TooManyCells:
                             fname = os.path.join(
                                 self.source, f)
                             self.t0 = clock()
-                            self.A = ad.read_h5ad(fname)
+                            self.A = sc.read_h5ad(fname)
                             self.tf = clock()
                             delta = self.tf - self.t0
                             txt = ('Elapsed time for ' +
@@ -148,7 +148,7 @@ class TooManyCells:
                             print(txt)
                             break
 
-        elif isinstance(input, AnnData):
+        elif isinstance(input, sc.AnnData):
             self.A = input
         else:
             raise ValueError('Unexpected input type.')
@@ -207,7 +207,7 @@ class TooManyCells:
             else:
                 self.is_sparse = True
                 #Make sure we use a CSR format.
-                self.X = sp.csr_matrix(self.A.X,
+                self.X = sp.csr_array(self.A.X,
                                        dtype=np.float32,
                                        copy=True)
         else:
@@ -279,16 +279,14 @@ class TooManyCells:
         print("Normalizing rows.")
 
 
-        #It's just an alias.
-        mat = self.X
-
-        for i in range(self.n_cells):
-            row = mat.getrow(i)
-            nz = row.data
+        for i, row in enumerate(self.X):
+            data = row.data.copy()
             row_norm  = np.linalg.norm(
-                nz, ord=self.similarity_norm)
-            row = nz / row_norm
-            mat.data[mat.indptr[i]:mat.indptr[i+1]] = row
+                data, ord=self.similarity_norm)
+            data /= row_norm
+            start = self.X.indptr[i]
+            end   = self.X.indptr[i+1]
+            self.X.data[start:end] = data
 
     #=====================================
     def normalize_dense_rows(self):
@@ -647,7 +645,7 @@ class TooManyCells:
             # self.J.append([[],[]])
             # j_index = (1,)
 
-            self.G.nodes[node_id]['Q'] = Q
+            self.G.nodes[node_id]["Q"] = Q
 
             for indices in S:
                 T = (indices, p_node_id)
@@ -731,7 +729,7 @@ class TooManyCells:
 
                     # We only store the modularity of nodes
                     # whose modularity is above threshold.
-                    self.G.nodes[node_id]['Q'] = Q
+                    self.G.nodes[node_id]["Q"] = Q
 
                     # Update the j_index for the newly 
                     # created node. (1,0,1)
@@ -1214,7 +1212,7 @@ class TooManyCells:
                 fname, delimiter='\t', header=None)
         genes = df_genes.loc[:,0].tolist()
 
-        self.A = AnnData(self.A)
+        self.A = sc.AnnData(self.A)
         self.A.obs_names = barcodes
         self.A.var_names = genes
 
@@ -1989,7 +1987,7 @@ class TooManyCells:
 
         CA = cell_ann_col
 
-        col_index = self.marker_to_idx_column[marker]
+        col_index = self.marker_to_column_idx[marker]
         mask = self.A.obs[CA] == cell_type
         values = self.A.X[mask, col_index]
 
@@ -2031,7 +2029,7 @@ class TooManyCells:
             indices: list,
     ):
 
-        col_index = self.marker_to_idx_column[marker]
+        col_index = self.marker_to_column_idx[marker]
         mask = self.A.obs_names.isin(indices)
         #This object could be a single float.
         vec = self.A.X[mask, col_index]
@@ -2053,7 +2051,7 @@ class TooManyCells:
         Aug 13, 2024
         """
 
-        col_index = self.marker_to_idx_column[marker]
+        col_index = self.marker_to_column_idx[marker]
         mask = self.A.obs_names.isin(indices)
         values = self.A.X[mask, col_index]
 
@@ -2448,37 +2446,24 @@ class TooManyCells:
             self.cell_type_to_group[cell_type] = group
             self.group_to_cell_types[group].append(cell_type)
 
-        #Create the cell to markers dictionary and
-        #marker to value dictionary.
-        self.cell_type_to_marker = defaultdict(list)
         self.marker_to_median_value_for_cell_type = {}
-        self.marker_to_idx_column = {}
-        self.idx_column_to_marker = {}
 
-        for index, row in df_cm.iterrows():
+        # Make the connection between the markers and the 
+        # cell types.
+        self.load_marker_and_cell_type_data(cell_marker_path)
 
-            cell_type = row["Cell"]
-            marker = row["Marker"]
-            self.cell_type_to_marker[cell_type].append(marker)
+        for marker, cell_type in self.marker_to_cell_type.items():
 
             #In case some cell types have been erased.
             if cell_type not in self.cell_type_to_group:
                 continue
 
-            #In case some cell marker is not present
-            #in the expression matrix.
-            if marker not in self.A.var_names:
-                print(f"{marker=} not available.")
-                continue
-
-            col_index = self.A.var.index.get_loc(marker)
-            self.marker_to_idx_column[marker] = col_index
-            self.idx_column_to_marker[col_index] = marker
-
-            if marker not in self.marker_to_median_value_for_cell_type:
-                x = self.compute_marker_median_value_for_cell_type(
-                    marker, cell_type, ignore_zero=True)
-                self.marker_to_median_value_for_cell_type[marker] = x
+            #Note that we ignore the zeros for the median.
+            #This is to require higher standards for a cell
+            #to classified as member of a given cell type.
+            x = self.compute_marker_median_value_for_cell_type(
+                marker, cell_type, ignore_zero=True)
+            self.marker_to_median_value_for_cell_type[marker] = x
 
         #Eliminate cells that belong to the erase category.
         if 0 < len(cell_types_to_erase):
@@ -2749,23 +2734,117 @@ class TooManyCells:
         self.cells_to_be_eliminated = elim_set
 
     #=====================================
-    def compute_expression_distribution_for_marker(
+    def count_nodes_above_threshold_for_marker(
             self,
+            threshold: float,
             marker: str,
     ):
         """
+        We traverse the tree using a depth-first approach.
+        If the expression of the given marker at the 
+        parent node is below the threshold, that node is
+        ignored and consequently all its descendants.
+        Otherwise, we count that node and push its 
+        children into the stack.
+
+        Note that previously the expression values at
+        each node should have been computed.
         """
+        S = [0]
+        count = 0
+        while 0 < len(S):
+            node = S.pop()
+            children = self.G.successors(node)
+            exp_value = self.G.nodes[node][marker]
+            if exp_value < threshold:
+                continue
+            count += 1
+            for child in children:
+                S.append(child)
 
-        col_index = self.A.var.index.get_loc(marker)
+        return count
+
+    #=====================================
+    def load_marker_and_cell_type_data(
+            self,
+            cell_marker_path: str,
+    ):
+        """
+        Each marker is associated to a cell type.
+        For a given cell type we generate a list of 
+        potential markers to identify that cell.
+        """
+        if not os.path.exists(cell_marker_path):
+            print(cell_marker_path)
+            raise ValueError("File does not exists.")
+
+        df_cm = pd.read_csv(cell_marker_path)
+        print("===============================")
+        print("Cell to Marker file")
+        print(df_cm)
+
+        #Create the cell to markers dictionary and
+        #marker to value dictionary.
+        self.cell_type_to_marker = defaultdict(list)
+        self.marker_to_cell_type = {}
+        # self.marker_to_median_value_for_cell_type = {}
+        self.marker_to_column_idx = {}
+        self.column_idx_to_marker = {}
+        list_of_markers = []
+        list_of_column_idx = []
+
+        for index, row in df_cm.iterrows():
+
+            cell_type = row["Cell"]
+            marker = row["Marker"]
+
+            #In case some cell marker is not present
+            #in the expression matrix.
+            if marker not in self.A.var_names:
+                print(f"{marker=} not available.")
+                continue
+
+            self.cell_type_to_marker[cell_type].append(marker)
+            self.marker_to_cell_type[marker] = cell_type
+
+            col_index = self.A.var.index.get_loc(marker)
+            self.marker_to_column_idx[marker] = col_index
+            self.column_idx_to_marker[col_index] = marker
+
+            list_of_column_idx.append(col_index)
+            list_of_markers.append(marker)
+
+        self.list_of_column_idx = np.array(
+            list_of_column_idx, dtype=int)
+
+        self.list_of_markers = np.array(list_of_markers)
+
+    #=====================================
+    def populate_tree_with_mean_expression_for_all_markers(
+            self,
+            cell_marker_path: str,
+    ):
+        """
+        """
+        self.load_marker_and_cell_type_data(
+            cell_marker_path)
+
         n_nodes = self.G.number_of_nodes()
-
         if n_nodes == 0:
             raise ValueError("Empty graph.")
 
-        mean_exp_vec = np.zeros(n_nodes)
-        node_to_atts = {}
+        n_markers = len(self.list_of_markers)
+        if n_markers == 0:
+            raise ValueError("Empty list of markers.")
 
-        for k, node in enumerate(self.G.nodes()):
+        self.mean_exp_mtx = np.zeros(
+            (n_nodes, n_markers), dtype=float)
+
+        # print(self.mean_exp_mtx.shape)
+        # print(self.A.X.shape)
+
+        print("Computing mean expression for all markers...")
+        for node in tqdm(self.G.nodes()):
 
             nodes = nx.descendants(self.G, node)
 
@@ -2778,52 +2857,131 @@ class TooManyCells:
                     nodes)
 
             mask = self.A.obs["sp_cluster"].isin(nodes)
-            values = self.A.X[mask, col_index]
-            mean_exp = values.mean()
-            mean_exp_vec[k] = mean_exp
-            self.G.nodes[node][marker] = mean_exp
+            indices = np.ix_(mask, self.list_of_column_idx)
+            values = self.A.X[indices]
+            mean_exp_vec = values.mean(axis=0)
+            self.mean_exp_mtx[node] = mean_exp_vec
 
-        mask = 0 < mean_exp_vec
-        mean_exp_vec_pos = mean_exp_vec[mask]
+            #Assign the mean expression to each node.
+            #Using an iterator.
+            it = zip(self.list_of_markers, mean_exp_vec)
+            for marker, mean_exp in it:
+                self.G.nodes[node][marker] = mean_exp
+        txt = ("Mean expression has been"
+               " computed for all markers.")
+        print(txt)
+
+
+    #=====================================
+    def compute_median_and_mad_from_matrix(
+            self,
+    ):
+        """
+        TODO
+        """
+        n_nodes, n_markers = self.mean_exp_mtx.shape
+        mean_exp_mtx_sp = sp.csc_array(self.mean_exp_mtx)
+
+        indptr = mean_exp_mtx_sp.indptr
+        self.median_for_markers = np.zero(n_markers,
+                                          dtype=float)
+        self.mad_for_markers = np.zero(n_markers,
+                                          dtype=float)
+
+        # for idx, (start, end) in enumerate(zip(indptr[:-1], indptr[1:])):
+        #     data = X.data[start:end]
+        #     nz = n_samples - data.size
+        #     median[f_ind] = _get_median(data, nz)
+
+        for i, row in enumerate(self.X):
+            data = row.data.copy()
+            row_norm  = np.linalg.norm(
+                data, ord=self.similarity_norm)
+            data /= row_norm
+            start = self.X.indptr[i]
+            end   = self.X.indptr[i+1]
+            self.X.data[start:end] = data
+
+
+
+
+
+    #=====================================
+    def compute_median_and_mad_from_vector(
+            self,
+            vec : np.array,
+    ):
+        """
+        We compute the median and the
+        the median absolute deviation of
+        a vector. We compute these quantities
+        for the original vector and a view of
+        the vector with only positive entries.
+
+        The returned values correspond to 
+        the positive view.
+        """
+        nonneg_mask = 0 < vec
+        vec_pos = vec[nonneg_mask]
+        median = np.median(vec)
+        median_pos = np.median(vec_pos)
+        mad = median_abs_deviation(vec)
+        mad_pos = median_abs_deviation(vec_pos)
+        min_exp_all = vec.min()
+        min_exp = vec_pos.min()
+        min_dist = (min_exp-median_pos) / mad_pos
+        max_exp = vec_pos.max()
+        max_dist = (max_exp-median_pos) / mad_pos
+
+        return (median_pos, mad_pos)
+
+
+    #=====================================
+    def compute_expression_distribution_for_marker(
+            self,
+            marker: str,
+    ):
+        """
+        """
+
+        nonneg_mask = 0 < mean_exp_vec
+        mean_exp_vec_pos = mean_exp_vec[nonneg_mask]
+        median = np.median(mean_exp_vec_pos)
         median_pos = np.median(mean_exp_vec_pos)
         mad = np.abs(mean_exp_vec - median)
         mad = np.median(mad)
         mad_pos = np.abs(mean_exp_vec_pos - median_pos)
         mad_pos = np.median(mad_pos)
+        min_exp_all = mean_exp_vec.min()
         min_exp = mean_exp_vec_pos.min()
         min_dist = (min_exp-median_pos) / mad_pos
         max_exp = mean_exp_vec_pos.max()
         max_dist = (max_exp-median_pos) / mad_pos
         
-        mask = mean_exp_vec > min_exp
-        n_above_min = mask.sum()
-        delta = max_dist - min_dist
-        delta /= 15
+        delta_bin = max_dist - min_dist
+        delta_bin /= 15
+
+        print(f"{delta_bin=}")
+        print(f"{median=}")
+        print(f"{median_pos=}")
+        print(f"{mad=}")
+        print(f"{mad_pos=}")
+        print(f"{min_exp_all=}")
+        print(f"{min_exp=}")
+        print(f"{min_dist=}")
+        print(f"{max_exp=}")
+        print(f"{max_dist=}")
+
+        mad_vec = np.arange(min_dist,
+                       max_dist + delta_bin,
+                       delta_bin)
+
+        exp_vec = mad_vec * mad_pos + median_pos
+        
+        # print(rg[:,None])
 
 
-        mad_vec = mean_exp_vec - median_pos
-        mad_vec /= mad_pos
-        mad_vec = np.sort(mad_vec)
 
-        count = 0
-        hist = []
-        bound = min_dist + delta
-        bounds = [min_dist, bound]
-        for x in mad_vec:
-            if x < bound:
-                count += 1
-            else:
-                hist.append(count)
-                count = 1
-                bound += delta
-                bounds.append(bound)
-
-        hist.append(count)
-        hist = np.array(hist)
-        print(f"{hist.sum()=}")
-        bounds = np.array(bounds)
-        print(hist[:,None])
-        print(bounds[:,None])
 
         remote = [
         1364, 427, 350, 292, 249, 199, 156, 127, 93, 55,
@@ -2832,21 +2990,10 @@ class TooManyCells:
         print(f"{remote.sum()=}")
 
 
-        print(f"{n_elem=}")
-        print(f"{delta=}")
-        print(f"{median=}")
-        print(f"{median_pos=}")
-        print(f"{mad=}")
-        print(f"{mad_pos=}")
-        print(f"{min_exp=}")
-        print(f"{n_above_min=}")
-        print(f"{min_dist=}")
-        print(f"{max_exp=}")
-        print(f"{max_dist=}")
         # mad_vector = (mean_exp_vec - median_pos) / mad_pos
 
         fig,ax = plt.subplots()
-        sb.histplot(data=mean_exp_vec,
+        sb.histplot(data=mean_exp_vec_pos,
                     bins=15,
                     stat="count",
                     #kde=True,
@@ -2870,14 +3017,14 @@ class TooManyCells:
         #marker to value dictionary.
         # self.cell_type_to_marker = defaultdict(list)
         self.marker_to_median_and_mad_for_all_cells = {}
-        n_markers = len(self.marker_to_idx_column)
+        n_markers = len(self.marker_to_column_idx)
         print(f"We have {n_markers} markers.")
         col_idx_vec = []
         median_vec  = []
         mad_vec     = []
         marker_vec  = []
 
-        for marker, col_idx in self.marker_to_idx_column.items():
+        for marker, col_idx in self.marker_to_column_idx.items():
 
             x = self.compute_marker_median_and_mad_for_all_cells(
                 marker)
@@ -2912,7 +3059,5 @@ class TooManyCells:
 
             
 
-
-                            
     #====END=OF=CLASS=====================
 
