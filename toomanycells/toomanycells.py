@@ -1984,6 +1984,14 @@ class TooManyCells:
             cell_ann_col: Optional[str] = "cell_annotations",
             ignore_zero: Optional[bool] = True,
     ):
+        """
+            Note that this function takes two variables, the 
+            marker and the cell type. However, under the
+            assumption that a marker only points to a single
+            cell type, the output of this function can be
+            stored as part of a key-value pair
+            (marker, cell type).
+        """
 
         CA = cell_ann_col
 
@@ -2031,13 +2039,9 @@ class TooManyCells:
 
         col_index = self.marker_to_column_idx[marker]
         mask = self.A.obs_names.isin(indices)
-        #This object could be a single float.
         vec = self.A.X[mask, col_index]
 
-        if sp.issparse(vec):
-            return vec.mean()
-
-        return np.mean(vec)
+        return vec.mean()
 
     #=====================================
     def compute_median_and_mad_exp_from_indices(
@@ -2330,6 +2334,7 @@ class TooManyCells:
             if belongs_to_group:
                 break
             print(f"Are they {cell_type}?")
+            print("\t", "Marker ", "Reference ", "Measure ")
             markers = self.cell_type_to_marker[cell_type]
 
             for marker in markers:
@@ -2420,16 +2425,14 @@ class TooManyCells:
         print(df_cg)
         CA = cell_ann_col
 
-        df_cm = pd.read_csv(cell_marker_path)
-        print("===============================")
-        print("Cell to Marker file")
-        print(df_cm)
-
         self.cell_type_to_group = {}
         cell_types_to_erase = []
         self.group_to_cell_types = defaultdict(list)
 
         self.cells_to_be_eliminated = None
+
+        #Cell types
+        self.CT = set(self.A.obs[CA])
 
         #Create the cell to group dictionary and
         #the group to cell dictionary
@@ -2437,11 +2440,16 @@ class TooManyCells:
             cell_type = row["Cell"]
             group = row["Group"]
 
+            if cell_type not in self.CT:
+                print(f"{cell_type=} not in data set.")
+                continue
+
             if pd.isna(group):
                 group = cell_type
             elif group == "0":
                 cell_types_to_erase.append(cell_type)
                 continue
+
 
             self.cell_type_to_group[cell_type] = group
             self.group_to_cell_types[group].append(cell_type)
@@ -2480,7 +2488,11 @@ class TooManyCells:
         #Create a series where the original cell 
         #annotations have been mapped to their 
         #corresponding group.
+
+        #To allow modifications to the series.
+        #Categories cannot be directly modified.
         S = self.A.obs[CA].astype(str)
+
         for cell, group in self.cell_type_to_group.items():
 
             if cell == group:
@@ -2826,8 +2838,7 @@ class TooManyCells:
     ):
         """
         """
-        self.load_marker_and_cell_type_data(
-            cell_marker_path)
+        self.load_marker_and_cell_type_data(cell_marker_path)
 
         n_nodes = self.G.number_of_nodes()
         if n_nodes == 0:
@@ -2892,6 +2903,7 @@ class TooManyCells:
         #     data = X.data[start:end]
         #     nz = n_samples - data.size
         #     median[f_ind] = _get_median(data, nz)
+
 
         for i, row in enumerate(self.X):
             data = row.data.copy()
