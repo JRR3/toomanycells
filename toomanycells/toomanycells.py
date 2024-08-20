@@ -2868,13 +2868,18 @@ class TooManyCells:
                     nodes)
 
             mask = self.A.obs["sp_cluster"].isin(nodes)
+            #Generate indices for cells 
+            #times list of markers.
             indices = np.ix_(mask, self.list_of_column_idx)
             values = self.A.X[indices]
             mean_exp_vec = values.mean(axis=0)
+            #Fill the row of the expression matrix for the
+            #corresponding node.
             self.mean_exp_mtx[node] = mean_exp_vec
 
             #Assign the mean expression to each node.
-            #Using an iterator.
+            #We use an iterator.
+            #Each node stores a dictionary.
             it = zip(self.list_of_markers, mean_exp_vec)
             for marker, mean_exp in it:
                 self.G.nodes[node][marker] = mean_exp
@@ -2884,36 +2889,98 @@ class TooManyCells:
 
 
     #=====================================
-    def compute_median_and_mad_from_matrix(
+    def compute_node_expression_metadata(
             self,
     ):
         """
-        TODO
+        Compute the minimum,
+        maximum, median, and mad after ignoring
+        zeros.
         """
         n_nodes, n_markers = self.mean_exp_mtx.shape
+        #We create a sparse version of the node
+        #expression matrix to eliminate the zeros. 
+        #Note that we use a CSC format, since we 
+        #plan to operate on the columns because they 
+        #represent the genes for all the nodes.
         mean_exp_mtx_sp = sp.csc_array(self.mean_exp_mtx)
 
+        #Vector with the pointers to identify the 
+        #data for each column.
         indptr = mean_exp_mtx_sp.indptr
-        self.median_for_markers = np.zero(n_markers,
-                                          dtype=float)
-        self.mad_for_markers = np.zero(n_markers,
-                                          dtype=float)
+        # self.median_for_markers = np.zeros(n_markers,
+        #                                   dtype=float)
+        # self.mad_for_markers = np.zeros(n_markers,
+        #                                   dtype=float)
+        L = []
+        for marker in self.list_of_markers:
+            txt = marker
+            txt += "_mad_bounds"
+            L.append(txt)
+            txt = marker
+            txt += "_exp_bounds"
+            L.append(txt)
+            txt = marker
+            txt += "_counts"
+            L.append(txt)
 
-        # for idx, (start, end) in enumerate(zip(indptr[:-1], indptr[1:])):
-        #     data = X.data[start:end]
-        #     nz = n_samples - data.size
-        #     median[f_ind] = _get_median(data, nz)
 
+        self.node_mad_dist_df = pd.DataFrame(
+            data = np.zeros((16,n_markers * 3)), 
+            index = None,
+            columns = L)
+        print(self.node_mad_dist_df)
+        print(self.node_mad_dist_df.columns)
 
-        for i, row in enumerate(self.X):
-            data = row.data.copy()
-            row_norm  = np.linalg.norm(
-                data, ord=self.similarity_norm)
-            data /= row_norm
-            start = self.X.indptr[i]
-            end   = self.X.indptr[i+1]
-            self.X.data[start:end] = data
+        self.node_exp_stats_df = pd.DataFrame(
+            np.zeros((n_markers, 7)),
+            index = self.list_of_markers,
+            columns = ["median",
+                       "mad",
+                       "min",
+                       "max",
+                       "min_mad",
+                       "max_mad",
+                       "delta"],
+            )
 
+        self.marker_to_range = {}
+        #We use an iterator.
+        it = enumerate(zip(indptr[:-1], indptr[1:]))
+        #We iterate over the columns.
+        for idx, (start, end) in it:
+            marker = self.list_of_markers[idx]
+            data = mean_exp_mtx_sp.data[start:end]
+            median = np.median(data)
+            min = np.min(data)
+            max = np.max(data)
+            mad = median_abs_deviation(data)
+            min_mad = (min - median) / mad
+            max_mad = (max - median) / mad
+            delta =  (max - min) / mad / 15
+            self.node_exp_stats_df.iloc[idx,0] = median
+            self.node_exp_stats_df.iloc[idx,1] = mad
+            self.node_exp_stats_df.iloc[idx,2] = min
+            self.node_exp_stats_df.iloc[idx,3] = max
+            self.node_exp_stats_df.iloc[idx,4] = min_mad
+            self.node_exp_stats_df.iloc[idx,5] = max_mad
+            self.node_exp_stats_df.iloc[idx,6] = delta
+            madR = np.arange(min_mad,
+                             max_mad + delta/4,
+                             delta)
+            col = marker + "_mad_bounds"
+            print(idx)
+            print(col)
+            print(self.node_mad_dist_df.loc[col].shape)
+
+            expR = madR * mad + median
+            col = marker + "_exp_bounds"
+            self.node_mad_dist_df.loc[:,col] = expR
+
+        print(self.node_exp_stats_df)
+        print(self.node_exp_stats_df.loc["FAP",:])
+        print(self.node_node_mad_dist_df.loc[:,"FAP_mad_bounds"])
+        print(self.node_node_mad_dist_df.loc[:,"FAP_exp_bounds"])
 
 
 
