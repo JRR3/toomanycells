@@ -29,7 +29,7 @@ from scipy.io import mmwrite
 from collections import deque
 from scipy import sparse as sp
 import matplotlib.pyplot as plt
-from collections import defaultdict
+from collections import defaultdict as ddict
 from time import perf_counter as clock
 from sklearn.preprocessing import normalize
 from scipy.stats import median_abs_deviation
@@ -2335,7 +2335,7 @@ class TooManyCells:
                 break
             print(f"Are they {cell_type}?")
             print("\t", "Marker ", "Reference ", "Measure ")
-            markers = self.cell_type_to_marker[cell_type]
+            markers = self.cell_type_to_markers[cell_type]
 
             for marker in markers:
                 #Zeros were ignored during the calculations.
@@ -2344,7 +2344,8 @@ class TooManyCells:
                 #if something is above the reference, then
                 #it is likely that it is a member of that
                 #cell type.
-                x = self.marker_to_median_value_for_cell_type[marker]
+                x = self.marker_to_median_value_for_cell_type[
+                    marker][cell_type]
                 marker_value = x
                 if marker_value is None:
                     #Nothing to be done.
@@ -2419,63 +2420,41 @@ class TooManyCells:
                 print("Homogeneous leafs strategy:")
                 raise ValueError("Strategy is not unique.")
         
-        df_cg = pd.read_csv(cell_group_path)
-        print("===============================")
-        print("Cell to Group file")
-        print(df_cg)
+
         CA = cell_ann_col
 
-        self.cell_type_to_group = {}
-        cell_types_to_erase = []
-        self.group_to_cell_types = defaultdict(list)
+        # Make the connection between the cell groups and the 
+        # cell types.
+        self.load_group_and_cell_type_data(cell_group_path)
 
-        self.cells_to_be_eliminated = None
-
-        #Cell types
-        self.CT = set(self.A.obs[CA])
-
-        #Create the cell to group dictionary and
-        #the group to cell dictionary
-        for index, row in df_cg.iterrows():
-            cell_type = row["Cell"]
-            group = row["Group"]
-
-            if cell_type not in self.CT:
-                print(f"{cell_type=} not in data set.")
-                continue
-
-            if pd.isna(group):
-                group = cell_type
-            elif group == "0":
-                cell_types_to_erase.append(cell_type)
-                continue
-
-
-            self.cell_type_to_group[cell_type] = group
-            self.group_to_cell_types[group].append(cell_type)
-
-        self.marker_to_median_value_for_cell_type = {}
+        self.marker_to_median_value_for_cell_type = ddict(
+            dict)
 
         # Make the connection between the markers and the 
         # cell types.
         self.load_marker_and_cell_type_data(cell_marker_path)
 
-        for marker, cell_type in self.marker_to_cell_type.items():
+        #Define an iterator.
+        it = self.marker_to_cell_types.items()
+        for marker, cell_types in it:
+            for cell_type in cell_types:
+                #In case some cell types have been erased.
+                if cell_type not in self.cell_type_to_group:
+                    continue
 
-            #In case some cell types have been erased.
-            if cell_type not in self.cell_type_to_group:
-                continue
-
-            #Note that we ignore the zeros for the median.
-            #This is to require higher standards for a cell
-            #to classified as member of a given cell type.
-            x = self.compute_marker_median_value_for_cell_type(
-                marker, cell_type, ignore_zero=True)
-            self.marker_to_median_value_for_cell_type[marker] = x
+                #Note that we ignore the zeros for the
+                #median.  This is to require higher standards
+                #for a cell to classified as a member of a
+                #given cell type.
+                x = self.compute_marker_median_value_for_cell_type(
+                    marker, cell_type, ignore_zero=True)
+                self.marker_to_median_value_for_cell_type[
+                    marker][cell_type] = x
 
         #Eliminate cells that belong to the erase category.
-        if 0 < len(cell_types_to_erase):
-            mask = self.A.obs[CA].isin(cell_types_to_erase)
+        if 0 < len(self.cell_types_to_erase):
+            mask = self.A.obs[CA].isin(
+                self.cell_types_to_erase)
             n_cells = mask.sum()
             vc = self.A.obs[CA].loc[mask].value_counts()
             #Take the complement of the cells we 
@@ -2775,6 +2754,54 @@ class TooManyCells:
                 S.append(child)
 
         return count
+    #=====================================
+    def load_group_and_cell_type_data(
+            self,
+            cell_group_path: str,
+            cell_ann_col: Optional[str] = "cell_annotations",
+    ):
+        """
+        Each cell type is associated to a group.
+        For a given group we generate a list of 
+        cell types.
+        """
+        if not os.path.exists(cell_group_path):
+            print(cell_group_path)
+            raise ValueError("File does not exists.")
+
+        df_cg = pd.read_csv(cell_group_path)
+        print("===============================")
+        print("Cell to Group file")
+        print(df_cg)
+        CA = cell_ann_col
+
+        self.cell_type_to_group = {}
+        self.cell_types_to_erase = []
+        self.group_to_cell_types = ddict(list)
+
+        self.cells_to_be_eliminated = None
+
+        #Cell types
+        self.CT = set(self.A.obs[CA])
+
+        #Create the cell to group dictionary and
+        #the group to cell dictionary
+        for index, row in df_cg.iterrows():
+            cell_type = row["Cell"]
+            group = row["Group"]
+
+            if cell_type not in self.CT:
+                print(f"{cell_type=} not in data set.")
+                continue
+
+            if pd.isna(group):
+                group = cell_type
+            elif group == "0":
+                self.cell_types_to_erase.append(cell_type)
+                continue
+
+            self.cell_type_to_group[cell_type] = group
+            self.group_to_cell_types[group].append(cell_type)
 
     #=====================================
     def load_marker_and_cell_type_data(
@@ -2797,9 +2824,8 @@ class TooManyCells:
 
         #Create the cell to markers dictionary and
         #marker to value dictionary.
-        self.cell_type_to_marker = defaultdict(list)
-        self.marker_to_cell_type = {}
-        # self.marker_to_median_value_for_cell_type = {}
+        self.cell_type_to_markers = ddict(list)
+        self.marker_to_cell_types = ddict(list)
         self.marker_to_column_idx = {}
         self.column_idx_to_marker = {}
         list_of_markers = []
@@ -2815,13 +2841,23 @@ class TooManyCells:
             if marker not in self.A.var_names:
                 print(f"{marker=} not available.")
                 continue
+            if cell_type not in self.cell_type_to_group:
+                print(f"{cell_type=} not available.")
+                continue
 
-            self.cell_type_to_marker[cell_type].append(marker)
-            self.marker_to_cell_type[marker] = cell_type
+            self.cell_type_to_markers[cell_type].append(
+                marker)
+            self.marker_to_cell_types[marker].append(
+                cell_type)
 
             col_index = self.A.var.index.get_loc(marker)
-            self.marker_to_column_idx[marker] = col_index
+            #We do the following check to guarantee that 
+            #the list of markers and column indices has 
+            #no repetitions.
+            if col_index in self.column_idx_to_marker:
+                continue
             self.column_idx_to_marker[col_index] = marker
+            self.marker_to_column_idx[marker] = col_index
 
             list_of_column_idx.append(col_index)
             list_of_markers.append(marker)
@@ -2834,10 +2870,12 @@ class TooManyCells:
     #=====================================
     def populate_tree_with_mean_expression_for_all_markers(
             self,
+            cell_group_path: str,
             cell_marker_path: str,
     ):
         """
         """
+        self.load_group_and_cell_type_data(cell_group_path)
         self.load_marker_and_cell_type_data(cell_marker_path)
 
         n_nodes = self.G.number_of_nodes()
@@ -2924,13 +2962,16 @@ class TooManyCells:
             txt += "_counts"
             L.append(txt)
 
-
         self.node_mad_dist_df = pd.DataFrame(
             data = np.zeros((16,n_markers * 3)), 
             index = None,
-            columns = L)
-        print(self.node_mad_dist_df)
-        print(self.node_mad_dist_df.columns)
+            columns = L,
+            dtype=np.float64)
+        unique = self.node_mad_dist_df.columns.unique()
+        n_unique_cols = len(unique)
+        n_cols = len(self.node_mad_dist_df.columns)
+        if n_unique_cols != n_cols:
+            raise ValueError("Columns are not unique.")
 
         self.node_exp_stats_df = pd.DataFrame(
             np.zeros((n_markers, 7)),
@@ -2942,9 +2983,9 @@ class TooManyCells:
                        "min_mad",
                        "max_mad",
                        "delta"],
+            dtype = np.float64,
             )
 
-        self.marker_to_range = {}
         #We use an iterator.
         it = enumerate(zip(indptr[:-1], indptr[1:]))
         #We iterate over the columns.
@@ -2969,21 +3010,16 @@ class TooManyCells:
                              max_mad + delta/4,
                              delta)
             col = marker + "_mad_bounds"
-            print(idx)
-            print(col)
-            print(self.node_mad_dist_df.loc[col].shape)
+            self.node_mad_dist_df.loc[:,col] = madR
 
-            expR = madR * mad + median
             col = marker + "_exp_bounds"
+            expR = madR * mad + median
             self.node_mad_dist_df.loc[:,col] = expR
 
         print(self.node_exp_stats_df)
         print(self.node_exp_stats_df.loc["FAP",:])
-        print(self.node_node_mad_dist_df.loc[:,"FAP_mad_bounds"])
-        print(self.node_node_mad_dist_df.loc[:,"FAP_exp_bounds"])
-
-
-
+        print(self.node_mad_dist_df.loc[:,"FAP_mad_bounds"])
+        print(self.node_mad_dist_df.loc[:,"FAP_exp_bounds"])
 
     #=====================================
     def compute_median_and_mad_from_vector(
@@ -3094,7 +3130,6 @@ class TooManyCells:
     ):
         #Create the cell to markers dictionary and
         #marker to value dictionary.
-        # self.cell_type_to_marker = defaultdict(list)
         self.marker_to_median_and_mad_for_all_cells = {}
         n_markers = len(self.marker_to_column_idx)
         print(f"We have {n_markers} markers.")
