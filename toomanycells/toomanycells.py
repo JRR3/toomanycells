@@ -29,9 +29,9 @@ from scipy.io import mmwrite
 from collections import deque
 from scipy import sparse as sp
 import matplotlib.pyplot as plt
-from collections import defaultdict as ddict
 from time import perf_counter as clock
 from sklearn.preprocessing import normalize
+from collections import defaultdict as ddict
 from scipy.stats import median_abs_deviation
 from sklearn.metrics import pairwise_distances
 from sklearn.decomposition import TruncatedSVD
@@ -183,6 +183,10 @@ class TooManyCells:
         self.delta_clustering = 0
         self.final_n_iter     = 0
 
+        self.FDT = np.float64
+        txt = f"Data will be treated as: {self.FDT}."
+        print(txt)
+
         #Create a copy to avoid direct modifications
         #of the original count matrix X.
         #Note that we are making sure that the 
@@ -200,25 +204,19 @@ class TooManyCells:
                 txt = ("Using a dense representation" 
                        " of the count matrix.")
                 print(txt)
-                txt = ("Values will be converted to" 
-                       " float32.")
-                print(txt)
-                self.X = self.X.astype(np.float32)
+                self.X = self.X.astype(self.FDT)
             else:
                 self.is_sparse = True
-                #Make sure we use a CSR format.
+                #Make sure we use a CSR array format.
                 self.X = sp.csr_array(self.A.X,
-                                       dtype=np.float32,
+                                       dtype=self.FDT,
                                        copy=True)
         else:
             #The matrix is dense.
             print("The matrix is dense.")
             self.is_sparse = False
             self.X = self.A.X.copy()
-            txt = ("Values will be converted to" 
-                   " float32.")
-            print(txt)
-            self.X = self.X.astype(np.float32)
+            self.X = self.X.astype(self.FDT)
 
         self.n_cells, self.n_genes = self.A.shape
 
@@ -234,14 +232,11 @@ class TooManyCells:
 
         self.cells_to_be_eliminated = None
 
-        x = "/home/javier/Documents/repos/too-many-cells-interactive"
-
         # We use a deque to offer the possibility of breadth-
         # versus depth-first. Our current implementation
         # uses depth-first to be consistent with the 
         # numbering scheme of TooManyCellsInteractive.
         self.DQ = deque()
-
 
         #Map a node to the path in the
         #binary tree that connects the
@@ -1737,7 +1732,7 @@ class TooManyCells:
         # Hence, the distance from a child to a parent is 
         # half the modularity.
         modularity_vec = 0.5 * np.array(
-            modularity_vec, dtype=float)
+            modularity_vec, dtype=self.FDT)
         path_vec = np.array(path_vec, dtype=int)
 
         return (path_vec, modularity_vec)
@@ -2868,6 +2863,104 @@ class TooManyCells:
         self.list_of_markers = np.array(list_of_markers)
 
     #=====================================
+    def populate_tree_with_mean_expression_for_all_markers_2(
+            self,
+            cell_group_path: str,
+            cell_marker_path: str,
+    ):
+        """
+        """
+        self.load_group_and_cell_type_data(cell_group_path)
+        self.load_marker_and_cell_type_data(cell_marker_path)
+
+        n_nodes = self.G.number_of_nodes()
+        if n_nodes == 0:
+            raise ValueError("Empty graph.")
+
+        n_markers = len(self.list_of_markers)
+        if n_markers == 0:
+            raise ValueError("Empty list of markers.")
+        
+        marker_sum_vec = np.zeros(n_markers, dtype=self.FDT)
+
+        self.mean_exp_mtx = np.zeros(
+            (n_nodes, n_markers), dtype=self.FDT)
+
+        # print(self.mean_exp_mtx.shape)
+        # print(self.A.X.shape)
+        for node in self.G.nodes():
+            for marker in self.list_of_markers:
+                mk_sum = marker + "_sum"
+                mk_avg = marker + "_avg"
+                self.G.nodes[node][mk_sum] = 0
+                self.G.nodes[node][mk_avg] = 0
+
+        print("Computing mean expression for all markers...")
+        S = [0]
+        visited = set()
+        while 0 < len(S):
+            node = S.pop()
+            children = self.G.successors(node)
+            n_cells = self.G.nodes[node]["size"]
+            if node not in visited:
+                visited.add(node)
+                if 0 < len(list(children)):
+                    S.append(node)
+                    for child in children:
+                        S.append(child)
+                    continue
+
+                #Otherwise, it is a leaf node.
+                nodes = [node]
+                mask = self.A.obs["sp_cluster"].isin(nodes)
+                #Generate indices for cells 
+                #times list of markers.
+                indices = np.ix_(mask,
+                                 self.list_of_column_idx)
+                values = self.X[indices]
+                sum_exp_vec = values.sum(axis=0)
+                mean_exp_vec = sum_exp_vec / n_cells
+                # Fill the row of the expression 
+                # matrix for the corresponding node.
+                self.mean_exp_mtx[node] = mean_exp_vec
+
+                #Assign the mean expression to each node.
+                #We use an iterator.
+                #Each node stores a dictionary.
+                it = zip(self.list_of_markers,
+                        mean_exp_vec,
+                        sum_exp_vec)
+                for marker, mean_exp, sum_exp in it:
+                    mk_sum = marker + "_sum"
+                    mk_avg = marker + "_avg"
+                    self.G.nodes[node][mk_sum] = sum_exp
+                    self.G.nodes[node][mk_avg] = mean_exp
+                continue
+
+            # Already visited this node.
+            marker_sum_vec *= 0
+            it = enumerate(self.list_of_markers)
+            for idx, marker in it:
+                mk_sum = marker + "_sum"
+                mk_avg = marker + "_avg"
+                self.G.nodes[node][mk_sum] = 0
+                exp_sum = 0
+                for child in children:
+                    x = self.G.nodes[child][mk_sum]
+                    self.G.nodes[node][mk_sum] += x
+                    marker_sum_vec[idx] += x
+                    exp_sum += x
+                exp_avg = exp_sum / n_cells
+                self.G.nodes[node][mk_avg] = exp_avg
+            mean_exp_vec = marker_sum_vec / n_cells
+            self.mean_exp_mtx[node] = mean_exp_vec
+
+        txt = ("Mean expression has been"
+               " computed for all markers.")
+        print(txt)
+
+
+    #=====================================
     def populate_tree_with_mean_expression_for_all_markers(
             self,
             cell_group_path: str,
@@ -2887,7 +2980,7 @@ class TooManyCells:
             raise ValueError("Empty list of markers.")
 
         self.mean_exp_mtx = np.zeros(
-            (n_nodes, n_markers), dtype=float)
+            (n_nodes, n_markers), dtype=self.FDT)
 
         # print(self.mean_exp_mtx.shape)
         # print(self.A.X.shape)
@@ -2909,7 +3002,7 @@ class TooManyCells:
             #Generate indices for cells 
             #times list of markers.
             indices = np.ix_(mask, self.list_of_column_idx)
-            values = self.A.X[indices]
+            values = self.X[indices]
             mean_exp_vec = values.mean(axis=0)
             #Fill the row of the expression matrix for the
             #corresponding node.
@@ -2921,6 +3014,7 @@ class TooManyCells:
             it = zip(self.list_of_markers, mean_exp_vec)
             for marker, mean_exp in it:
                 self.G.nodes[node][marker] = mean_exp
+
         txt = ("Mean expression has been"
                " computed for all markers.")
         print(txt)
@@ -2963,10 +3057,10 @@ class TooManyCells:
             L.append(txt)
 
         self.node_mad_dist_df = pd.DataFrame(
-            data = np.zeros((16,n_markers * 3)), 
+            data = np.zeros((15,n_markers * 3)), 
             index = None,
             columns = L,
-            dtype=np.float64)
+            dtype=self.FDT)
         unique = self.node_mad_dist_df.columns.unique()
         n_unique_cols = len(unique)
         n_cols = len(self.node_mad_dist_df.columns)
@@ -2983,12 +3077,13 @@ class TooManyCells:
                        "min_mad",
                        "max_mad",
                        "delta"],
-            dtype = np.float64,
+            dtype = self.FDT,
             )
 
         #We use an iterator.
-        it = enumerate(zip(indptr[:-1], indptr[1:]))
+        it = enumerate(tqdm(zip(indptr[:-1], indptr[1:])))
         #We iterate over the columns.
+        #No zeros.
         for idx, (start, end) in it:
             marker = self.list_of_markers[idx]
             data = mean_exp_mtx_sp.data[start:end]
@@ -2999,6 +3094,7 @@ class TooManyCells:
             min_mad = (min - median) / mad
             max_mad = (max - median) / mad
             delta =  (max - min) / mad / 15
+            #Marker x Stats
             self.node_exp_stats_df.iloc[idx,0] = median
             self.node_exp_stats_df.iloc[idx,1] = mad
             self.node_exp_stats_df.iloc[idx,2] = min
@@ -3007,7 +3103,7 @@ class TooManyCells:
             self.node_exp_stats_df.iloc[idx,5] = max_mad
             self.node_exp_stats_df.iloc[idx,6] = delta
             madR = np.arange(min_mad,
-                             max_mad + delta/4,
+                             max_mad - delta/4,
                              delta)
             col = marker + "_mad_bounds"
             self.node_mad_dist_df.loc[:,col] = madR
@@ -3016,39 +3112,43 @@ class TooManyCells:
             expR = madR * mad + median
             self.node_mad_dist_df.loc[:,col] = expR
 
+            col = marker + "_counts"
+            for b_idx, threshold in enumerate(expR):
+                mask = threshold < data
+                count = mask.sum()
+                self.node_mad_dist_df.loc[b_idx,col] = count
+
+
         print(self.node_exp_stats_df)
         print(self.node_exp_stats_df.loc["FAP",:])
-        print(self.node_mad_dist_df.loc[:,"FAP_mad_bounds"])
-        print(self.node_mad_dist_df.loc[:,"FAP_exp_bounds"])
+        L = ["FAP_mad_bounds", "FAP_counts"]
+        print(self.node_mad_dist_df[L])
 
     #=====================================
-    def compute_median_and_mad_from_vector(
+    def count_nodes_above_bound_for_marker(
             self,
-            vec : np.array,
+            bound: float,
+            marker: str,
     ):
         """
-        We compute the median and the
-        the median absolute deviation of
-        a vector. We compute these quantities
-        for the original vector and a view of
-        the vector with only positive entries.
-
-        The returned values correspond to 
-        the positive view.
         """
-        nonneg_mask = 0 < vec
-        vec_pos = vec[nonneg_mask]
-        median = np.median(vec)
-        median_pos = np.median(vec_pos)
-        mad = median_abs_deviation(vec)
-        mad_pos = median_abs_deviation(vec_pos)
-        min_exp_all = vec.min()
-        min_exp = vec_pos.min()
-        min_dist = (min_exp-median_pos) / mad_pos
-        max_exp = vec_pos.max()
-        max_dist = (max_exp-median_pos) / mad_pos
+        DQ = deque()
+        DQ.append(0)
+        count = 0
 
-        return (median_pos, mad_pos)
+        while 0 < len(DQ):
+            node = DQ.popleft()
+            mean_exp = self.G.nodes[node][marker]
+
+            if mean_exp < bound:
+                continue
+            count += 1
+            children = self.G.successors(node)
+
+            for child in children:
+                DQ.append(child)
+
+        return count
 
 
     #=====================================
@@ -3059,43 +3159,19 @@ class TooManyCells:
         """
         """
 
-        nonneg_mask = 0 < mean_exp_vec
-        mean_exp_vec_pos = mean_exp_vec[nonneg_mask]
-        median = np.median(mean_exp_vec_pos)
-        median_pos = np.median(mean_exp_vec_pos)
-        mad = np.abs(mean_exp_vec - median)
-        mad = np.median(mad)
-        mad_pos = np.abs(mean_exp_vec_pos - median_pos)
-        mad_pos = np.median(mad_pos)
-        min_exp_all = mean_exp_vec.min()
-        min_exp = mean_exp_vec_pos.min()
-        min_dist = (min_exp-median_pos) / mad_pos
-        max_exp = mean_exp_vec_pos.max()
-        max_dist = (max_exp-median_pos) / mad_pos
-        
-        delta_bin = max_dist - min_dist
-        delta_bin /= 15
+        source_col = marker + "_exp_bounds"
+        target_col = marker + "_counts"
+        it = self.node_mad_dist_df[source_col].items()
+        for idx, threshold in it:
+            count = self.count_nodes_above_bound_for_marker(
+                threshold,
+                marker,
+            )
+            self.node_mad_dist_df.loc[idx,target_col] = count
 
-        print(f"{delta_bin=}")
-        print(f"{median=}")
-        print(f"{median_pos=}")
-        print(f"{mad=}")
-        print(f"{mad_pos=}")
-        print(f"{min_exp_all=}")
-        print(f"{min_exp=}")
-        print(f"{min_dist=}")
-        print(f"{max_exp=}")
-        print(f"{max_dist=}")
+        print(self.node_mad_dist_df[target_col])
 
-        mad_vec = np.arange(min_dist,
-                       max_dist + delta_bin,
-                       delta_bin)
-
-        exp_vec = mad_vec * mad_pos + median_pos
-        
-        # print(rg[:,None])
-
-
+        return
 
 
         remote = [
@@ -3104,8 +3180,6 @@ class TooManyCells:
         remote = np.array(remote)
         print(f"{remote.sum()=}")
 
-
-        # mad_vector = (mean_exp_vec - median_pos) / mad_pos
 
         fig,ax = plt.subplots()
         sb.histplot(data=mean_exp_vec_pos,
