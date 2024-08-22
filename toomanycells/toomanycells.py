@@ -17,7 +17,7 @@ import subprocess
 import numpy as np
 import scanpy as sc
 import pandas as pd
-import seaborn as sb
+# import seaborn as sb
 from tqdm import tqdm
 import networkx as nx
 import matplotlib as mpl
@@ -29,6 +29,7 @@ from scipy.io import mmwrite
 from collections import deque
 from scipy import sparse as sp
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from time import perf_counter as clock
 from sklearn.preprocessing import normalize
 from collections import defaultdict as ddict
@@ -1659,7 +1660,7 @@ class TooManyCells:
             create_matrix=False)
 
 
-        m = m.astype(np.float32)
+        m = m.astype(self.FDT)
 
         mtx_path = os.path.join(
             self.tmci_mtx_dir, "matrix.mtx")
@@ -1672,7 +1673,11 @@ class TooManyCells:
             dot_fname: Optional[str]="",
             ):
         """
-        Load the dot file.
+        Load the dot file. Note that when loading the data,
+        the attributes of each node are assumed to be 
+        strings. Hence, we have to convert them to 
+        integers for the case of number of cells, and to
+        float for the case of modularity.
         """
 
         self.t0 = clock()
@@ -1696,10 +1701,14 @@ class TooManyCells:
 
         self.G = nx.relabel_nodes(self.G, D, copy=True)
 
-        # self.G = nx.convert_node_labels_to_integers(self.G)
-        # Changing the labels to integers using the above 
-        # function follows a different numbering scheme to 
-        # that given by the labels of the node.
+        #We convert the number of cells of each node to
+        #integer. We also convert the modularity to float.
+        for node in self.G.nodes():
+            size = self.G.nodes[node]["size"]
+            self.G.nodes[node]["size"] = int(size)
+            if "Q" in self.G.nodes[node]:
+                Q = self.G.nodes[node]["Q"]
+                self.G.nodes[node]["Q"] = self.FDT(Q)
 
         print(self.G)
 
@@ -1866,6 +1875,11 @@ class TooManyCells:
 
         self.set_of_leaf_nodes = set(df["cluster"])
 
+        self.tf = clock()
+        delta = self.tf - self.t0
+        txt = ("Elapsed time to load cluster file: " + 
+                f"{delta:.2f} seconds.")
+
 
     #=====================================
     def plot_expression_from_node_x_to_node_y(
@@ -1877,7 +1891,7 @@ class TooManyCells:
         """
         For a given pair of nodes x and y, we compute the \
             gene expression path along the path connecting\
-            those nodes.
+            those nodes. 
         Make sure that property set_of_leaf_nodes is\
             populated with the correct information.
         """
@@ -2422,12 +2436,13 @@ class TooManyCells:
         # cell types.
         self.load_group_and_cell_type_data(cell_group_path)
 
-        self.marker_to_median_value_for_cell_type = ddict(
-            dict)
-
         # Make the connection between the markers and the 
         # cell types.
         self.load_marker_and_cell_type_data(cell_marker_path)
+
+        self.marker_to_median_value_for_cell_type = ddict(
+            dict)
+
 
         #Define an iterator.
         it = self.marker_to_cell_types.items()
@@ -2760,6 +2775,8 @@ class TooManyCells:
         For a given group we generate a list of 
         cell types.
         """
+        self.t0 = clock()
+
         if not os.path.exists(cell_group_path):
             print(cell_group_path)
             raise ValueError("File does not exists.")
@@ -2798,16 +2815,25 @@ class TooManyCells:
             self.cell_type_to_group[cell_type] = group
             self.group_to_cell_types[group].append(cell_type)
 
+        self.tf = clock()
+        delta = self.tf - self.t0
+        txt = ("Elapsed time to load group and cell data: " + 
+                f"{delta:.2f} seconds.")
+
     #=====================================
     def load_marker_and_cell_type_data(
             self,
             cell_marker_path: str,
+            keep_all_markers: Optional[bool] = False,
     ):
         """
         Each marker is associated to a cell type.
         For a given cell type we generate a list of 
         potential markers to identify that cell.
         """
+
+        self.t0 = clock()
+
         if not os.path.exists(cell_marker_path):
             print(cell_marker_path)
             raise ValueError("File does not exists.")
@@ -2823,8 +2849,9 @@ class TooManyCells:
         self.marker_to_cell_types = ddict(list)
         self.marker_to_column_idx = {}
         self.column_idx_to_marker = {}
-        list_of_markers = []
-        list_of_column_idx = []
+        self.marker_to_rank       = {}
+        list_of_markers           = []
+        list_of_column_idx        = []
 
         for index, row in df_cm.iterrows():
 
@@ -2836,9 +2863,17 @@ class TooManyCells:
             if marker not in self.A.var_names:
                 print(f"{marker=} not available.")
                 continue
+
+            #In case some cell type is not present
+            #in the expression matrix.
             if cell_type not in self.cell_type_to_group:
                 print(f"{cell_type=} not available.")
-                continue
+                if keep_all_markers:
+                    print(f"{cell_type=} will be kept.")
+                    print(f"{marker=} will be kept.")
+                else:
+                    print(f"{marker=} will be ignored.")
+                    continue
 
             self.cell_type_to_markers[cell_type].append(
                 marker)
@@ -2857,10 +2892,18 @@ class TooManyCells:
             list_of_column_idx.append(col_index)
             list_of_markers.append(marker)
 
+        for rank, marker in enumerate(list_of_markers):
+            self.marker_to_rank[marker] = rank
+
         self.list_of_column_idx = np.array(
             list_of_column_idx, dtype=int)
 
         self.list_of_markers = np.array(list_of_markers)
+
+        self.tf = clock()
+        delta = self.tf - self.t0
+        txt = ("Elapsed time to load marker and cell data: " + 
+                f"{delta:.2f} seconds.")
 
     #=====================================
     def populate_tree_with_mean_expression_for_all_markers_2(
@@ -2872,6 +2915,8 @@ class TooManyCells:
         """
         self.load_group_and_cell_type_data(cell_group_path)
         self.load_marker_and_cell_type_data(cell_marker_path)
+
+        self.t0 = clock()
 
         n_nodes = self.G.number_of_nodes()
         if n_nodes == 0:
@@ -2888,23 +2933,23 @@ class TooManyCells:
 
         # print(self.mean_exp_mtx.shape)
         # print(self.A.X.shape)
-        for node in self.G.nodes():
-            for marker in self.list_of_markers:
-                mk_sum = marker + "_sum"
-                mk_avg = marker + "_avg"
-                self.G.nodes[node][mk_sum] = 0
-                self.G.nodes[node][mk_avg] = 0
+        # for node in self.G.nodes():
+        #     for marker in self.list_of_markers:
+        #         mk_sum = marker + "_sum"
+        #         mk_mean = marker + "_mean"
+        #         self.G.nodes[node][mk_sum] = 0
+        #         self.G.nodes[node][mk_mean] = 0
 
         print("Computing mean expression for all markers...")
         S = [0]
         visited = set()
         while 0 < len(S):
             node = S.pop()
-            children = self.G.successors(node)
+            children = list(self.G.successors(node))
             n_cells = self.G.nodes[node]["size"]
             if node not in visited:
                 visited.add(node)
-                if 0 < len(list(children)):
+                if 0 < len(children):
                     S.append(node)
                     for child in children:
                         S.append(child)
@@ -2931,33 +2976,44 @@ class TooManyCells:
                         mean_exp_vec,
                         sum_exp_vec)
                 for marker, mean_exp, sum_exp in it:
-                    mk_sum = marker + "_sum"
-                    mk_avg = marker + "_avg"
-                    self.G.nodes[node][mk_sum] = sum_exp
-                    self.G.nodes[node][mk_avg] = mean_exp
+                    marker_label_sum = marker + "_sum"
+                    marker_label_mean = marker + "_mean"
+                    self.G.nodes[node][
+                        marker_label_sum] = sum_exp
+                    self.G.nodes[node][
+                        marker_label_mean] = mean_exp
                 continue
 
             # Already visited this node.
+            # This means we have already visited 
+            # the children of this node.
             marker_sum_vec *= 0
             it = enumerate(self.list_of_markers)
             for idx, marker in it:
-                mk_sum = marker + "_sum"
-                mk_avg = marker + "_avg"
-                self.G.nodes[node][mk_sum] = 0
-                exp_sum = 0
+                marker_label_sum = marker + "_sum"
+                marker_label_mean = marker + "_mean"
+                self.G.nodes[node][marker_label_sum] = 0
+                marker_sum = 0
                 for child in children:
-                    x = self.G.nodes[child][mk_sum]
-                    self.G.nodes[node][mk_sum] += x
+                    x = self.G.nodes[child][marker_label_sum]
+                    self.G.nodes[node][marker_label_sum] += x
                     marker_sum_vec[idx] += x
-                    exp_sum += x
-                exp_avg = exp_sum / n_cells
-                self.G.nodes[node][mk_avg] = exp_avg
+                    marker_sum += x
+                marker_mean = marker_sum / n_cells
+                self.G.nodes[node][
+                    marker_label_mean] = marker_mean
             mean_exp_vec = marker_sum_vec / n_cells
             self.mean_exp_mtx[node] = mean_exp_vec
+            continue
 
         txt = ("Mean expression has been"
                " computed for all markers.")
         print(txt)
+
+        self.tf = clock()
+        delta = self.tf - self.t0
+        txt = ("Elapsed time to compute node expression: " + 
+                f"{delta:.2f} seconds.")
 
 
     #=====================================
@@ -2968,6 +3024,7 @@ class TooManyCells:
     ):
         """
         """
+        self.t0 = clock()
         self.load_group_and_cell_type_data(cell_group_path)
         self.load_marker_and_cell_type_data(cell_marker_path)
 
@@ -3019,6 +3076,11 @@ class TooManyCells:
                " computed for all markers.")
         print(txt)
 
+        self.tf = clock()
+        delta = self.tf - self.t0
+        txt = ("Elapsed time to compute node expression: " + 
+                f"{delta:.2f} seconds.")
+
 
     #=====================================
     def compute_node_expression_metadata(
@@ -3029,6 +3091,8 @@ class TooManyCells:
         maximum, median, and mad after ignoring
         zeros.
         """
+        self.t0 = clock()
+
         n_nodes, n_markers = self.mean_exp_mtx.shape
         #We create a sparse version of the node
         #expression matrix to eliminate the zeros. 
@@ -3061,6 +3125,7 @@ class TooManyCells:
             index = None,
             columns = L,
             dtype=self.FDT)
+
         unique = self.node_mad_dist_df.columns.unique()
         n_unique_cols = len(unique)
         n_cols = len(self.node_mad_dist_df.columns)
@@ -3081,7 +3146,7 @@ class TooManyCells:
             )
 
         #We use an iterator.
-        it = enumerate(tqdm(zip(indptr[:-1], indptr[1:])))
+        it = enumerate(zip(indptr[:-1], indptr[1:]))
         #We iterate over the columns.
         #No zeros.
         for idx, (start, end) in it:
@@ -3124,11 +3189,16 @@ class TooManyCells:
         L = ["FAP_mad_bounds", "FAP_counts"]
         print(self.node_mad_dist_df[L])
 
+        self.tf = clock()
+        delta = self.tf - self.t0
+        txt = ("Elapsed time to compute node metadata: " + 
+                f"{delta:.2f} seconds.")
+
     #=====================================
-    def count_nodes_above_bound_for_marker(
+    def count_connected_nodes_above_threshold_for_attribute(
             self,
-            bound: float,
-            marker: str,
+            threshold: float,
+            attribute: str,
     ):
         """
         """
@@ -3138,9 +3208,9 @@ class TooManyCells:
 
         while 0 < len(DQ):
             node = DQ.popleft()
-            mean_exp = self.G.nodes[node][marker]
+            value = self.G.nodes[node][attribute]
 
-            if mean_exp < bound:
+            if value < threshold:
                 continue
             count += 1
             children = self.G.successors(node)
@@ -3150,51 +3220,121 @@ class TooManyCells:
 
         return count
 
+    #=====================================
+    def compute_cell_types(
+            self,
+            mad_threshold: Optional[float] = 1.,
+    ):
+        """
+        TODO
+        """
+        df = pd.DataFrame(index=self.A.obs_names)
+        for marker in self.list_of_markers:
+            mad = self.node_exp_stats_df.loc[marker,
+                                             "mad"]
+            median = self.node_exp_stats_df.loc[marker,
+                                                "median"]
+            exp_threshold = median + mad_threshold * mad
+            col_idx = self.marker_to_column_idx[marker]
+            if sp.issparse(self.X):
+                vec = self.X.getcol(col_idx).toarray()
+            else:
+                vec = self.X[:,col_idx]
+            mask = exp_threshold < vec
+            df[marker] = mask
+
+        print(df)
+
 
     #=====================================
-    def compute_expression_distribution_for_marker(
+    def plot_marker_distributions(
             self,
-            marker: str,
     ):
         """
         """
+        fig = go.Figure()
+        n_markers = len(self.list_of_markers)
+        max_markers = n_markes
 
-        source_col = marker + "_exp_bounds"
-        target_col = marker + "_counts"
-        it = self.node_mad_dist_df[source_col].items()
-        for idx, threshold in it:
-            count = self.count_nodes_above_bound_for_marker(
-                threshold,
-                marker,
+        def create_marker_mask(n_markers, idx):
+            L = []
+            for k in range(n_markers):
+                if k == idx:
+                    L.append(True)
+                else:
+                    L.append(False)
+            return L
+
+        list_of_dict = []
+        mask = create_marker_mask(max_markers, -1)
+        D = dict(
+            label="",
+            method="update",
+            args=[{"visible": mask},
+                  {"title": "Gene",
+                   "annotations": []}]
+        )
+        list_of_dict.append(D)
+        for rank, marker in enumerate(self.list_of_markers):
+
+            if rank == max_markers:
+                break
+
+            mask = create_marker_mask(max_markers, rank)
+
+            x_label = marker + "_mad_bounds"
+            y_label = marker + "_counts"
+
+            x_data = self.node_mad_dist_df[x_label]
+            y_data = self.node_mad_dist_df[y_label]
+
+            fig.add_trace(
+                go.Scatter(x=x_data,
+                           y=y_data,
+                           name=marker,
+                           line=dict(color="#0000FF"),
+                           visible=False,
+                           )
             )
-            self.node_mad_dist_df.loc[idx,target_col] = count
 
-        print(self.node_mad_dist_df[target_col])
+            D = dict(
+                label=marker,
+                method="update",
+                args=[{"visible": mask},
+                      {"title": marker,
+                       "annotations": []}]
+            )
 
-        return
+            list_of_dict.append(D)
+        
+        fig.update_layout(
+            updatemenus=[
+                dict(
+                    active=0,
+                    buttons = list_of_dict,
+                )
+            ]
+        )
+
+        title = "Node expression distribution"
+        fig.update_layout(
+            title=title,
+            xaxis_title = "threshold (MADs from the median)",
+            yaxis_title = "Number of nodes above threshold",
+            font=dict(family="monospace", size=18),           
+            hoverlabel=dict(
+                font=dict(family="monospace", size=18)
+                ),
+        )
+        # fig.update_layout(title_text="Node exp. distribution")
+        fname = "distributions.html"
+        fname = os.path.join(self.output, fname)
+        fig.write_html(fname)
 
 
         remote = [
         1364, 427, 350, 292, 249, 199, 156, 127, 93, 55,
         33, 12, 3, 2, 1,]
-        remote = np.array(remote)
-        print(f"{remote.sum()=}")
-
-
-        fig,ax = plt.subplots()
-        sb.histplot(data=mean_exp_vec_pos,
-                    bins=15,
-                    stat="count",
-                    #kde=True,
-                    edgecolor="blue",
-                    linewidth=0.5,
-                    ax=ax)
-        # ax.set_yscale("log")
-        fname = "fap_dist.pdf"
-        fname = os.path.join(self.output, fname)
-        fig.savefig(fname, bbox_inches="tight")
-        print("Plot has been generated.")
-
 
     #=====================================
     def compute_master_annotation_table(
