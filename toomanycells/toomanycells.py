@@ -3264,9 +3264,9 @@ class TooManyCells:
 
 
         # Iterate over cells.
-        for row_idx, row in enumerate(self.X):
-            if row_idx == 10:
-                break
+        for row_idx, row in enumerate(tqdm(self.X)):
+            # if row_idx == 10:
+            #     break
             if sp.issparse(self.X):
                 vec = row.toarray().squeeze()
             else:
@@ -3308,11 +3308,13 @@ class TooManyCells:
 
         tmc_ct = "TMC_cell_type"
         self.A.obs[tmc_ct] = sorted_cell_type_df[1]
-        self.generate_cell_annotation_file(tmc_ct)
+        self.generate_cell_annotation_file(
+            tmc_ct, tag="cell_types")
 
         tmc_marker = "TMC_marker"
         self.A.obs[tmc_marker] = sorted_marker_df[1]
-        self.generate_cell_annotation_file(tmc_marker)
+        self.generate_cell_annotation_file(
+            tmc_marker, tag="cell_markers")
 
 
 
