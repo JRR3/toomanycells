@@ -2852,6 +2852,7 @@ class TooManyCells:
         self.marker_to_rank       = {}
         list_of_markers           = []
         list_of_column_idx        = []
+        list_of_cell_types        = []
 
         for index, row in df_cm.iterrows():
 
@@ -2886,11 +2887,13 @@ class TooManyCells:
             #no repetitions.
             if col_index in self.column_idx_to_marker:
                 continue
+
             self.column_idx_to_marker[col_index] = marker
             self.marker_to_column_idx[marker] = col_index
 
             list_of_column_idx.append(col_index)
             list_of_markers.append(marker)
+            list_of_cell_types.append(cell_type)
 
         for rank, marker in enumerate(list_of_markers):
             self.marker_to_rank[marker] = rank
@@ -2899,6 +2902,9 @@ class TooManyCells:
             list_of_column_idx, dtype=int)
 
         self.list_of_markers = np.array(list_of_markers)
+
+        self.list_of_cell_types = np.array(
+            list_of_cell_types)
 
         self.tf = clock()
         delta = self.tf - self.t0
@@ -3025,8 +3031,12 @@ class TooManyCells:
         """
         """
         self.t0 = clock()
+
         self.load_group_and_cell_type_data(cell_group_path)
-        self.load_marker_and_cell_type_data(cell_marker_path)
+
+        self.load_marker_and_cell_type_data(
+            cell_marker_path,
+            keep_all_markers=True)
 
         n_nodes = self.G.number_of_nodes()
         if n_nodes == 0:
@@ -3228,22 +3238,83 @@ class TooManyCells:
         """
         TODO
         """
-        df = pd.DataFrame(index=self.A.obs_names)
-        for marker in self.list_of_markers:
-            mad = self.node_exp_stats_df.loc[marker,
-                                             "mad"]
-            median = self.node_exp_stats_df.loc[marker,
-                                                "median"]
-            exp_threshold = median + mad_threshold * mad
-            col_idx = self.marker_to_column_idx[marker]
-            if sp.issparse(self.X):
-                vec = self.X.getcol(col_idx).toarray()
-            else:
-                vec = self.X[:,col_idx]
-            mask = exp_threshold < vec
-            df[marker] = mask
+        n_markers = len(self.list_of_markers)
+        mad_exp_df = pd.DataFrame(
+            index=self.A.obs_names,
+            columns=self.list_of_markers,
+            )
+        above_threshold_df = pd.DataFrame(
+            index=self.A.obs_names,
+            columns=self.list_of_markers,
+            )
+        sorted_marker_df = pd.DataFrame(
+            index=self.A.obs_names,
+            columns=np.arange(1,n_markers+1),
+            )
+        sorted_cell_type_df = pd.DataFrame(
+            index=self.A.obs_names,
+            columns=np.arange(1,n_markers+1),
+            )
 
-        print(df)
+        for k, marker in enumerate(self.list_of_markers):
+            mad_exp_df[marker]         = ""
+            above_threshold_df[marker] = ""
+            sorted_marker_df[k+1]      = ""
+            sorted_cell_type_df[k+1]   = ""
+
+
+        # Iterate over cells.
+        for row_idx, row in enumerate(self.X):
+            if row_idx == 10:
+                break
+            if sp.issparse(self.X):
+                vec = row.toarray().squeeze()
+            else:
+                vec = row.copy()
+            m_exp = vec[self.list_of_column_idx]
+            m_exp -= self.node_exp_stats_df.loc[:,"median"]
+            m_exp /= self.node_exp_stats_df.loc[:,"mad"]
+            above_th = mad_threshold < m_exp
+
+            mad_exp_df.iloc[row_idx] = m_exp
+            above_threshold_df.iloc[row_idx] = above_th
+
+            indices = np.argsort(m_exp)
+            indices = indices[::-1]
+
+            sorted_markers = self.list_of_markers[indices]
+            sorted_marker_df.iloc[row_idx] = sorted_markers
+
+            sorted_cell_types = self.list_of_cell_types[
+                indices]
+            x = sorted_cell_types
+            sorted_cell_type_df.iloc[row_idx] = x
+
+        fname = "MAD_exp_values.csv"
+        fname = os.path.join(self.output, fname)
+        mad_exp_df.to_csv(fname, index=True)
+
+        fname = "above_MAD_threshold_status.csv"
+        fname = os.path.join(self.output, fname)
+        above_threshold_df.to_csv(fname, index=True)
+
+        fname = "sorted_markers.csv"
+        fname = os.path.join(self.output, fname)
+        sorted_marker_df.to_csv(fname, index=True)
+
+        fname = "sorted_cell_types.csv"
+        fname = os.path.join(self.output, fname)
+        sorted_cell_type_df.to_csv(fname, index=True)
+
+        tmc_ct = "TMC_cell_type"
+        self.A.obs[tmc_ct] = sorted_cell_type_df[1]
+        self.generate_cell_annotation_file(tmc_ct)
+
+        tmc_marker = "TMC_marker"
+        self.A.obs[tmc_marker] = sorted_marker_df[1]
+        self.generate_cell_annotation_file(tmc_marker)
+
+
 
 
     #=====================================
@@ -3254,7 +3325,7 @@ class TooManyCells:
         """
         fig = go.Figure()
         n_markers = len(self.list_of_markers)
-        max_markers = n_markes
+        max_markers = n_markers
 
         def create_marker_mask(n_markers, idx):
             L = []
