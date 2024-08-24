@@ -10,16 +10,25 @@ powerful suite of tools named
 [too-many-cells](https://github.com/GregorySchwartz/too-many-cells).
 In essence, you can use toomanycells to partition a data set
 in the form of a matrix of integers or floating point numbers
-into clusters. The rows represent observations and the
-columns are the features. Initially, toomanycells will
-partition your data set into two subsets, trying to maximize
+into clusters, where members of a cluster are similar to each
+other. The rows represent observations and the
+columns are the features. However, sometimes just knowing the
+clusters is not sufficient. Often, we are insterested on the
+relationships between the clusters, and this tool can help 
+you visualize the clusters as leaf nodes of a tree, where the
+branches illustrate the trajectories that have to be followed
+to reach a particular cluster. Initially, this tool will
+partition your data set into two subsets (each subset is a 
+node of the tree), trying to maximize
 the differences between the two. Subsequently, it will
-reapply that same criterion to each subset and will continue
-bifurcating until the
+reapply that same criterion to each subset (node) and will 
+continue bifurcating until the
 [modularity](https://en.wikipedia.org/wiki/Modularity_(networks))
-of the parent becomes below threshold ($10^{-9}$ by default),
-implying that the current
-subset is fairly homogeneous, and consequently suggesting
+of the node that is about to be partitioned becomes less 
+than a given threshold value
+($10^{-9}$ by default), implying that the elements belonging
+to the current node are fairly homogeneous, 
+and consequently suggesting
 that further partitioning is not warranted. Thus, when the
 process finishes, you end up with a tree structure of your
 data set, where the leaves represent the clusters. As
