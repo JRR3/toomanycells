@@ -3461,14 +3461,21 @@ class TooManyCells:
             self.G.nodes[node]["D"] = T
             continue
 
+        #Post-processing
         node = start
         children = list(self.G.successors(node))
         Q_current = self.G.nodes[node]["Q"]
         child1 = children[0]
         child2 = children[1]
+
         (Q1, L1) = self.G.nodes[child1]["D"]
         (Q2, L2) = self.G.nodes[child2]["D"]
         Q_total = Q_current + Q1 + Q2
+
+        print(f"Diameter for branch at {node}: {Q_total}")
+        print(f"Maximum attained between nodes: "
+              f"{L1[0]} and {L2[0]}")
+        print("Summary:")
         print(f"Distance from {child1} to {L1[0]}: {Q1}")
         print(f"Distance from {child2} to {L2[0]}: {Q2}")
         print(f"Modularity at {node}: {Q_current}")
@@ -3485,21 +3492,35 @@ class TooManyCells:
     def annotate_with_celltypist(
             self,
             cell_ann_col: Optional[str] = "cell_annotations",
+            model_kind: Optional[str] = "Immune_All_High",
             use_majority_voting: Optional[bool] = False,
     ):
         """
         """
         B = sc.AnnData(self.A.X.copy())
-        B.obs_names = self.A.obs_names
-        B.var_names = self.A.var_names
-        print(B)
+        # if sp.issparse(B.X):
+        #     B.X = sp.csr_array(B)
 
+        # vec = B.X.exp1m().sum(axis=1) - 1e4
+        # vec = np.abs(vec)
+
+        # if 0.01 < np.max(vec):
         sc.pp.normalize_total(B, target_sum=10000)
         sc.pp.log1p(B)
-        model_txt = "Immune_All_High.pkl"
+            # print("Matrix is ready to be used.")
+            
+        B.obs_names = self.A.obs_names
+        B.var_names = self.A.var_names
+
+        model_str = model_kind
+        if model_kind.endswith(".pkl"):
+            pass
+        else:
+            model_str += ".pkl"
+
         CT.models.download_models(force_update=False,
-                                  model = model_txt)
-        ct_model = CT.models.Model.load(model = model_txt)
+                                  model = model_str)
+        ct_model = CT.models.Model.load(model = model_str)
         prediction = CT.annotate(
             B,
             model = ct_model,
