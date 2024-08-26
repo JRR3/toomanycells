@@ -25,8 +25,8 @@ reapply that same criterion to each subset (node) and will
 continue bifurcating until the
 [modularity](https://en.wikipedia.org/wiki/Modularity_(networks))
 of the node that is about to be partitioned becomes less 
-than a given threshold value
-($10^{-9}$ by default), implying that the elements belonging
+than a given threshold value ($10^{-9}$ by default), 
+implying that the elements belonging
 to the current node are fairly homogeneous, 
 and consequently suggesting
 that further partitioning is not warranted. Thus, when the
@@ -218,6 +218,54 @@ To answer that question we have created the following benchmark. We tested the p
 ![Visualization example](https://github.com/JRR3/toomanycells/blob/main/tests/log_linear_time.png)
 ![Visualization example](https://github.com/JRR3/toomanycells/blob/main/tests/log_linear_iter.png)
 As you can see, the program behaves linearly with respect to the size of the input. In other words, the observations fit the model $T = k\cdot N^p$, where $T$ is the time to process the data set, $N$ is the number of cells, $k$ is a constant, and $p$ is the exponent. In our case $p\approx 1$. Nice!
+
+## Cell annotation
+### CellTypist
+When visualizing the tree, we often are interested on
+observing how different cell types distribute across the
+branches of the tree. In case your AnnData object lacks
+a cell annotation column in the ``obs`` data frame, or 
+if you already have one but you want to try a different 
+method, we have created a wrapper function that calls 
+![CellTypist](https://www.celltypist.org/). Simply 
+write
+```
+   tmc_obj.annotate_with_celltypist(
+           column_label_for_cell_annotations,
+   )
+```
+and the ```obs``` data frame of your AnnData object will 
+have a column named like the string stored under the
+```column_label_for_cell_annotations``` variable.
+By default we use the ```Immune_All_High``` celltypist 
+model that contains 32 cell types. If you want to use
+another model, simply write
+```
+   tmc_obj.annotate_with_celltypist(
+           column_label_for_cell_annotations,
+           celltypist_model,
+   )
+```
+where ```celltypist_model``` describes the type of model
+to use by the library. For example, if this 
+variable is equal to ```Immune_All_Low```, then the number 
+of possible cell types increases to 98.
+For a complete list of all the models, see the following
+![list](https://www.celltypist.org/models). Lastly,
+if you want to use the fact that transcriptionally similar
+cells are likely to cluster together, you can assign the cell 
+type labels on a cluster-by-cluster basis
+ rather than a cell-by-cell basis. To activate this 
+ feature, use the call
+```
+   tmc_obj.annotate_with_celltypist(
+           column_label_for_cell_annotations,
+           celltypist_model,
+           use_majority_voting = True,
+   )
+```
+### Median absolute deviation classification
+Work in progress...
 
 ## Similarity functions
 So far we have assumed that the similarity matrix 
