@@ -21,6 +21,7 @@ import pandas as pd
 from tqdm import tqdm
 import networkx as nx
 import matplotlib as mpl
+import celltypist as CT
 from typing import Union
 from typing import Optional
 from os.path import dirname
@@ -2912,7 +2913,7 @@ class TooManyCells:
                 f"{delta:.2f} seconds.")
 
     #=====================================
-    def populate_tree_with_mean_expression_for_all_markers_2(
+    def populate_tree_with_mean_expression_for_all_markers(
             self,
             cell_group_path: str,
             cell_marker_path: str,
@@ -3023,12 +3024,14 @@ class TooManyCells:
 
 
     #=====================================
-    def populate_tree_with_mean_expression_for_all_markers(
+    def populate_tree_with_mean_expression_for_all_markers_s(
             self,
             cell_group_path: str,
             cell_marker_path: str,
     ):
         """
+        This is the slower original version of the function
+        populate_tree_with_mean_expression_for_all_markers()
         """
         self.t0 = clock()
 
@@ -3236,7 +3239,7 @@ class TooManyCells:
             mad_threshold: Optional[float] = 1.,
     ):
         """
-        TODO
+        TODO: Identify questionable cells and doublets.
         """
         n_markers = len(self.list_of_markers)
         mad_exp_df = pd.DataFrame(
@@ -3315,9 +3318,6 @@ class TooManyCells:
         self.A.obs[tmc_marker] = sorted_marker_df[1]
         self.generate_cell_annotation_file(
             tmc_marker, tag="cell_markers")
-
-
-
 
     #=====================================
     def plot_marker_distributions(
@@ -3405,58 +3405,117 @@ class TooManyCells:
         fig.write_html(fname)
 
 
-        remote = [
-        1364, 427, 350, 292, 249, 199, 156, 127, 93, 55,
-        33, 12, 3, 2, 1,]
+        # remote = [
+        # 1364, 427, 350, 292, 249, 199, 156, 127, 93, 55,
+        # 33, 12, 3, 2, 1,]
 
     #=====================================
-    def compute_master_annotation_table(
+    def compute_branch_diameter(
             self,
-            cell_ann_col: Optional[str] = "cell_annotations",
-            threshold: Optional[float] = 0.8,
+            node: int,
     ):
-        #Create the cell to markers dictionary and
-        #marker to value dictionary.
-        self.marker_to_median_and_mad_for_all_cells = {}
-        n_markers = len(self.marker_to_column_idx)
-        print(f"We have {n_markers} markers.")
-        col_idx_vec = []
-        median_vec  = []
-        mad_vec     = []
-        marker_vec  = []
+        """
+        """
+        self.t0 = clock()
 
-        for marker, col_idx in self.marker_to_column_idx.items():
+        n_nodes = self.G.number_of_nodes()
+        if n_nodes == 0:
+            raise ValueError("Empty graph.")
 
-            x = self.compute_marker_median_and_mad_for_all_cells(
-                marker)
-            self.marker_to_median_and_mad_for_all_cells[marker] = x
-            median, mad = x
+        txt = f"Computing the diameter for branch at {node=}"
+        print(txt)
+        S = [node]
+        start = node
+        visited = set()
+        while 0 < len(S):
+            node = S.pop()
+            children = list(self.G.successors(node))
+            n_cells = self.G.nodes[node]["size"]
+            if node not in visited:
+                visited.add(node)
+                if 0 < len(children):
+                    S.append(node)
+                    for child in children:
+                        S.append(child)
+                    continue
 
-            if median < 1e-8:
-                print(marker)
-
-            if mad < 1e-8:
-                print(marker)
+                #Otherwise, it is a leaf node.
+                #It has no modularity.
+                self.G.nodes[node]["D"] = (0,[node])
                 continue
 
-            col_idx_vec.append(col_idx)
-            median_vec.append(median)
-            mad_vec.append(mad)
-            marker_vec.append(marker)
+            # We have already visited this node.
+            # This means we have already processed
+            # the children.
+            (Q1, L1) = self.G.nodes[children[0]]["D"]
+            (Q2, L2) = self.G.nodes[children[1]]["D"]
+            Q_current = self.G.nodes[node]["Q"] / 2
+            if Q2 < Q1:
+                Q_current += Q1
+                L = L1.copy()
+            else:
+                Q_current += Q2
+                L = L2.copy()
+            L.append(node)
+            T = (Q_current,L)
+            self.G.nodes[node]["D"] = T
+            continue
 
-        col_idx_vec = np.array(col_idx_vec, dtype=int)
-        median_vec = np.array(median_vec)
-        mad_vec = np.array(mad_vec)
-        marker_vec = np.array(marker_vec)
+        node = start
+        children = list(self.G.successors(node))
+        Q_current = self.G.nodes[node]["Q"]
+        child1 = children[0]
+        child2 = children[1]
+        (Q1, L1) = self.G.nodes[child1]["D"]
+        (Q2, L2) = self.G.nodes[child2]["D"]
+        Q_total = Q_current + Q1 + Q2
+        print(f"Distance from {child1} to {L1[0]}: {Q1}")
+        print(f"Distance from {child2} to {L2[0]}: {Q2}")
+        print(f"Modularity at {node}: {Q_current}")
+        print(f"Distance from {L1[0]} to {L2[0]}: {Q_total}")
+        print(f"Path from {L1[0]} to {child1}: {L1}")
+        print(f"Path from {L2[0]} to {child2}: {L2}")
 
-        #Iterate over the (sparse) rows of 
-        #the expression matrix.
-        for sp_row in self.A.X:
-            values = sp_row[col_idx_vec]
-            if sp.issparse(self.A.X):
-                values = values.toarray().squeeze()
-            values -= median_vec
-            values /= mad_vec
+        self.tf = clock()
+        delta = self.tf - self.t0
+        txt = ("Elapsed time to compute node expression: " + 
+                f"{delta:.2f} seconds.")
+
+    #=====================================
+    def annotate_with_celltypist(
+            self,
+            cell_ann_col: Optional[str] = "cell_annotations",
+            use_majority_voting: Optional[bool] = False,
+    ):
+        """
+        """
+        B = sc.AnnData(self.A.X.copy())
+        B.obs_names = self.A.obs_names
+        B.var_names = self.A.var_names
+        print(B)
+
+        sc.pp.normalize_total(B, target_sum=10000)
+        sc.pp.log1p(B)
+        model_txt = "Immune_All_High.pkl"
+        CT.models.download_models(force_update=False,
+                                  model = model_txt)
+        ct_model = CT.models.Model.load(model = model_txt)
+        prediction = CT.annotate(
+            B,
+            model = ct_model,
+            majority_voting = use_majority_voting,
+        )
+        col = "predicted_labels"
+        if use_majority_voting:
+            col = "majority_voting"
+        B.obs[cell_ann_col] = prediction.predicted_labels[col]
+        fname = "celltypist_annotations.csv"
+        fname = os.path.join(self.output, fname)
+        B.obs[cell_ann_col].to_csv(fname, index = True)
+        self.A.obs[cell_ann_col] = B.obs[cell_ann_col]
+        print(self.A.obs[cell_ann_col])
+
+
 
             
 
