@@ -326,10 +326,10 @@ However, just relying in modularity could provide a
 misleading interpretation. For example, consider the 
 following scenario where the numbers within the nodes 
 indicate the modularity at that node.
-<br>
+<br/>
 <img src="https://github.com/JRR3/toomanycells/blob/main/tests/counter_node_modularity.svg"
-width="300" height="400">
-<br>
+width="300" height="400"/>
+<br/>
 In this case, scenario A has a larger cumulative modularity, 
 but we note that scenario B is more heterogeneous.
 For that reason we recommend also computing the following
