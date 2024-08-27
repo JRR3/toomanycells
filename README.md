@@ -298,10 +298,11 @@ nodes that belong to each branch.
       color="blue",
       file_format="svg")
 ```
-<br>
+<br/>
+<br/>
 <img src="https://github.com/JRR3/toomanycells/blob/main/tests/branch_A.svg"
 width="500" height="400"/>
-<br>
+<br/>
 And then for branch 2
 ```
    tmc_obj.plot_modularity_distribution(
@@ -312,10 +313,10 @@ And then for branch 2
       color="red",
       file_format="svg")
 ```
-<br>
+<br/>
 <img src="https://github.com/JRR3/toomanycells/blob/main/tests/branch_B.svg"
 width="500" height="400"/>
-<br>
+<br/>
 Note that you can include multiple nodes in the 
 list of branches.
 From this figures we observe that the higher cumulative 
