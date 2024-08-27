@@ -51,10 +51,16 @@ want to use conda, then do the following.
 ```
 conda install anaconda::graphviz
 ```
-Or, if you are using Linux, you can do
+If you are using Linux, you can do
 ```
 sudo apt install libgraphviz-dev
 ```
+And if you are using home-manager with Nix, 
+do not forget to include
+```
+pkgs.graphviz
+```
+in your ```home.packages```
 
 ## Installation
 
@@ -62,7 +68,8 @@ Just type
 ```
 pip install toomanycells
 ```
-in your home environment. If you want to install an updated
+in your home or custom environment. 
+If you want to install an updated
 version, then use the following flag.
 ```
 pip install toomanycells -U
@@ -107,7 +114,9 @@ format](https://math.nist.gov/MatrixMarket/formats.html),
 then you have to specify this information by using the
 following flag
    ```
-   tmc_obj = tmc(input_directory, output_directory, input_is_matrix_market=True)
+   tmc_obj = tmc(input_directory,
+                 output_directory,
+                 input_is_matrix_market=True)
    ```
 Under this scenario, the `input_directory` must contain a
 `.mtx` file, a `barcodes.tsv` file (the observations), and
@@ -266,6 +275,46 @@ type labels on a cluster-by-cluster basis
 ```
 ### Median absolute deviation classification
 Work in progress...
+
+## Heterogeneity quantification
+Imagine you want to compare the heterogeneity of cell 
+populations belonging to different branches of the 
+toomanycells tree. By branch we mean all the nodes that
+derive from a particular node, including the node 
+that defines the branch in question.
+For example, we want to compare branch 1183 against branch 2.
+![heterogeneity](https://github.com/JRR3/toomanycells/blob/main/tests/heterogeneity.svg)
+One way to do this is by comparing the modularity 
+distribution and the cumulative modularity for all the 
+nodes that belong to each branch. However, 
+consider the following scenario.
+![heterogeneity](https://github.com/JRR3/toomanycells/blob/main/tests/counter_node_modularity.svg)
+
+ We can do that 
+using the following calls:
+```
+   tmc_obj.plot_modularity_distribution(
+      list_of_branches=[1183],
+      use_log_y=true,
+      tag="branch_A",
+      show_column_totals=true,
+      color="blue",
+      file_format="svg")
+```
+and
+```
+   tmc_obj.plot_modularity_distribution(
+      list_of_branches=[2],
+      use_log_y=true,
+      tag="branch_B",
+      show_column_totals=true,
+      color="red",
+      file_format="svg")
+```
+to obtain the following outputs
+![Branch_A](https://github.com/JRR3/toomanycells/blob/main/tests/branch_A.svg)
+![Branch_B](https://github.com/JRR3/toomanycells/blob/main/tests/branch_B.svg)
+From this figures we can observe that
 
 ## Similarity functions
 So far we have assumed that the similarity matrix 

@@ -13,6 +13,7 @@
 import os
 import re
 import sys
+import gzip
 import subprocess
 import numpy as np
 import scanpy as sc
@@ -29,6 +30,7 @@ from scipy.io import mmread
 from scipy.io import mmwrite
 from collections import deque
 from scipy import sparse as sp
+from scipy.stats import entropy
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from time import perf_counter as clock
@@ -44,7 +46,8 @@ from sklearn.feature_extraction.text import TfidfTransformer
 #Matplotlib parameters.
 mpl.use("agg")
 mpl.rcParams["figure.dpi"]=600
-mpl.rcParams["pdf.fonttype"]=42
+# mpl.rcParams["pdf.fonttype"]=42
+mpl.rc("pdf", fonttype=42)
 
 font = {'weight' : 'normal', 'size'   : 18}
 mpl.rc("font", **font)
@@ -134,7 +137,10 @@ class TooManyCells:
                 print(txt)
             else:
                 if input_is_matrix_market:
-                    self.convert_mm_from_source_to_anndata()
+                    try:
+                        self.A = sc.read_10x_mtx(self.source)
+                    except:
+                        self.convert_mm_from_source_to_anndata()
                 else:
                     for f in os.listdir(self.source):
                         if f.endswith('.h5ad'):
@@ -1175,18 +1181,24 @@ class TooManyCells:
 
         self.t0 = clock()
 
-        print('Loading data from .mtx file.')
-        print('Note that we assume the format:')
-        print('genes=rows and cells=columns.')
+        print("Loading data from .mtx file.")
+        print("Note that we assume the raw data "
+              "has the following format:")
+        print("genes=rows and cells=columns.")
+        print("The AnnData object will have the format:")
+        print("cells=rows and genes=columns.")
 
         fname = None
         for f in os.listdir(self.source):
-            if f.endswith('.mtx'):
+            opt_1 = f.endswith(".mtx.gz")
+            opt_2 = f.endswith(".mtx")
+            if opt_1 or opt_2:
                 fname = f
                 break
 
         if fname is None:
-            raise ValueError('.mtx file not found.')
+            txt = ".mtx or .mtx.gz file not found."
+            raise ValueError(txt)
 
         fname = os.path.join(self.source, fname)
         mat = mmread(fname)
@@ -1194,29 +1206,51 @@ class TooManyCells:
         #genes for rows and cells for columns.
         #Thus, just transpose.
         self.A = mat.T.tocsr()
-
-        fname = 'barcodes.tsv'
-        print(f'Loading {fname}')
-        fname = os.path.join(self.source, fname)
-        df_barcodes = pd.read_csv(
-                fname, delimiter='\t', header=None)
-        barcodes = df_barcodes.loc[:,0].tolist()
-
-        fname = 'genes.tsv'
-        print(f'Loading {fname}')
-        fname = os.path.join(self.source, fname)
-        df_genes = pd.read_csv(
-                fname, delimiter='\t', header=None)
-        genes = df_genes.loc[:,0].tolist()
-
         self.A = sc.AnnData(self.A)
-        self.A.obs_names = barcodes
-        self.A.var_names = genes
+
+        # ==================== BARCODES ================
+        fname = None
+        for f in os.listdir(self.source):
+            opt_1 = f == "barcodes.tsv"
+            opt_2 = f == "barcodes.tsv.gz"
+            if opt_1 or opt_2:
+                fname = f
+                break
+
+        if fname is not None:
+            fname = os.path.join(self.source, fname)
+            print(f"Loading {fname}")
+            df_barcodes = pd.read_csv(
+                    fname, delimiter="\t", header=None)
+            barcodes = df_barcodes.loc[:,0].tolist()
+
+            self.A.obs_names = barcodes
+
+        # ==================== GENES ================
+        fname = None
+        for f in os.listdir(self.source):
+            opt_1 = f == "genes.tsv"
+            opt_2 = f == "genes.tsv.gz"
+            opt_3 = f == "features.tsv"
+            opt_4 = f == "features.tsv.gz"
+            if opt_1 or opt_2 or opt_3 or opt_4:
+                fname = f
+                break
+
+        if fname is not None:
+            fname = os.path.join(self.source, fname)
+            print(f"Loading {fname}")
+            df_genes = pd.read_csv(
+                    fname, delimiter="\t", header=None)
+            genes = df_genes.loc[:,0].tolist()
+
+            self.A.var_names = genes
 
         self.tf = clock()
         delta = self.tf - self.t0
-        txt = ('Elapsed time for loading: ' + 
-                f'{delta:.2f} seconds.')
+        txt = ("Elapsed time for loading: " + 
+                f"{delta:.2f} seconds.")
+        print(txt)
 
     #=====================================
     def write_cell_assignment_to_csv(self):
@@ -1880,6 +1914,7 @@ class TooManyCells:
         delta = self.tf - self.t0
         txt = ("Elapsed time to load cluster file: " + 
                 f"{delta:.2f} seconds.")
+        print(txt)
 
 
     #=====================================
@@ -2172,6 +2207,7 @@ class TooManyCells:
 
         for node in self.G.nodes:
             if 0 < self.G.out_degree(node):
+                #This is not a leaf node.
                 continue
 
             #Child
@@ -2820,6 +2856,7 @@ class TooManyCells:
         delta = self.tf - self.t0
         txt = ("Elapsed time to load group and cell data: " + 
                 f"{delta:.2f} seconds.")
+        print(txt)
 
     #=====================================
     def load_marker_and_cell_type_data(
@@ -2911,6 +2948,7 @@ class TooManyCells:
         delta = self.tf - self.t0
         txt = ("Elapsed time to load marker and cell data: " + 
                 f"{delta:.2f} seconds.")
+        print(txt)
 
     #=====================================
     def populate_tree_with_mean_expression_for_all_markers(
@@ -3021,6 +3059,7 @@ class TooManyCells:
         delta = self.tf - self.t0
         txt = ("Elapsed time to compute node expression: " + 
                 f"{delta:.2f} seconds.")
+        print(txt)
 
 
     #=====================================
@@ -3093,6 +3132,7 @@ class TooManyCells:
         delta = self.tf - self.t0
         txt = ("Elapsed time to compute node expression: " + 
                 f"{delta:.2f} seconds.")
+        print(txt)
 
 
     #=====================================
@@ -3206,6 +3246,7 @@ class TooManyCells:
         delta = self.tf - self.t0
         txt = ("Elapsed time to compute node metadata: " + 
                 f"{delta:.2f} seconds.")
+        print(txt)
 
     #=====================================
     def count_connected_nodes_above_threshold_for_attribute(
@@ -3472,9 +3513,11 @@ class TooManyCells:
         (Q2, L2) = self.G.nodes[child2]["D"]
         Q_total = Q_current + Q1 + Q2
 
+        print(f"======================================")
         print(f"Diameter for branch at {node}: {Q_total}")
         print(f"Maximum attained between nodes: "
               f"{L1[0]} and {L2[0]}")
+        print(f"======================================")
         print("Summary:")
         print(f"Distance from {child1} to {L1[0]}: {Q1}")
         print(f"Distance from {child2} to {L2[0]}: {Q2}")
@@ -3487,6 +3530,7 @@ class TooManyCells:
         delta = self.tf - self.t0
         txt = ("Elapsed time to compute node expression: " + 
                 f"{delta:.2f} seconds.")
+        print(txt)
 
     #=====================================
     def annotate_with_celltypist(
@@ -3498,16 +3542,16 @@ class TooManyCells:
         """
         """
         B = sc.AnnData(self.A.X.copy())
-        # if sp.issparse(B.X):
-        #     B.X = sp.csr_array(B)
 
-        # vec = B.X.exp1m().sum(axis=1) - 1e4
-        # vec = np.abs(vec)
+        vec = B.X.expm1().sum(axis=1) - 1e4
+        vec = np.abs(vec)
 
-        # if 0.01 < np.max(vec):
-        sc.pp.normalize_total(B, target_sum=10000)
-        sc.pp.log1p(B)
-            # print("Matrix is ready to be used.")
+        if 0.01 < np.max(vec):
+            print("Pre-processing matrix.")
+            sc.pp.normalize_total(B, target_sum=1e4)
+            sc.pp.log1p(B)
+
+        print("Matrix is ready.")
             
         B.obs_names = self.A.obs_names
         B.var_names = self.A.var_names
@@ -3535,6 +3579,121 @@ class TooManyCells:
         B.obs[cell_ann_col].to_csv(fname, index = True)
         self.A.obs[cell_ann_col] = B.obs[cell_ann_col]
         print(self.A.obs[cell_ann_col])
+
+    #=====================================
+    def plot_modularity_distribution(
+            self,
+            list_of_branches: Optional[list] = [0],
+            tag: Optional[str] = "modularity_distribution",
+            file_format: Optional[str] = "pdf",
+            show_column_totals: Optional[bool] = False,
+            use_log_y: Optional[bool] = False,
+            color = "blue",
+    ):
+        """
+        This function plots the modularity distribution 
+        for all the nodes that belong to the branches 
+        specified in the list of branches.
+        """
+
+        if 0 == len(list_of_branches):
+            print("Nothing to be done.")
+            return
+
+        nodes = set()
+        total_n_cells = 0
+        for branch in list_of_branches:
+            nodes.add(branch)
+            nodes.update(
+                list(nx.descendants(self.G, branch))
+            )
+            # total_n_cells += self.G.nodes[branch]["size"]
+        
+        list_of_Q     = []
+        list_of_nodes = []
+        vec_cells     = []
+
+        for node in nodes:
+            if 0 < self.G.out_degree(node):
+                #This is not a leaf node.
+                Q = self.G.nodes[node]["Q"]
+                list_of_nodes.append(node)
+                list_of_Q.append(Q)
+            else:
+                #This is a leaf node.
+                n_cells = self.G.nodes[node]["size"]
+                vec_cells.append(n_cells)
+                total_n_cells += n_cells
+
+        print(f"Total # of cells: {total_n_cells}")
+        
+        # ============== Diversity ==============
+        vec_cells  = np.array(vec_cells, dtype=self.FDT)
+        vec_cells /= total_n_cells
+
+        # q = 0 ==> Total number of species
+        n_species = len(vec_cells)
+
+        # q = 1 ==> Shannon's diversity index
+        shannon = np.exp(entropy(vec_cells))
+
+        # q = 2 ==> Simpson's diversity index
+        simpson = 1 / np.sum(vec_cells**2)
+
+        # q = infty ==> Max
+        max_p = 1 / np.max(vec_cells)
+
+        indices = ["Richness",
+                   "Shannon",
+                   "Simpson",
+                   "MaxProp"]
+        exponents = [0, 1, 2, np.inf]
+
+        results = [n_species, shannon, simpson, max_p]
+
+        data = np.vstack((results, exponents))
+        data = data.T
+
+        df = pd.DataFrame(data,
+                          index=indices,
+                          columns = ["value","exponent"])
+
+        print(df)
+        fname = "diversity_indices.csv"
+        fname = os.path.join(self.output, fname)
+        df.to_csv(fname, index=True)
+
+
+        # ============== Modularity ==============
+        df = pd.DataFrame(list_of_Q,
+                          index = list_of_nodes,
+                          columns = ["modularity"] )
+        df.index.name = "node"
+
+        fname = "modularity_distribution.csv"
+        fname = os.path.join(self.output, fname)
+        df.to_csv(fname, index=True)
+
+        Q_total = df["modularity"].sum()
+
+        # ============== Distributions ==============
+        fig,ax = plt.subplots()
+        counts, edges, bars = ax.hist(list_of_Q, color=color)
+        if show_column_totals:
+            plt.bar_label(bars)
+        ax.set_xlabel("Modularity (Q)")
+        ax.set_ylabel("# of nodes")
+        txt = f"Cumulative modularity: {Q_total:.2E}"
+        ax.set_title(txt)
+        plt.ticklabel_format(style="sci",
+                             axis="x",
+                             scilimits=(0,0))
+        if use_log_y:
+            plt.yscale("log")
+        fname = tag + "." + file_format
+        fname = os.path.join(self.output, fname)
+        fig.savefig(fname, bbox_inches="tight")
+
 
 
 
