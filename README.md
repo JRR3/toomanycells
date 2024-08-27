@@ -236,7 +236,7 @@ branches of the tree. In case your AnnData object lacks
 a cell annotation column in the ``obs`` data frame, or 
 if you already have one but you want to try a different 
 method, we have created a wrapper function that calls 
-![CellTypist](https://www.celltypist.org/). Simply 
+[CellTypist](https://www.celltypist.org/). Simply 
 write
 ```
    tmc_obj.annotate_with_celltypist(
@@ -260,7 +260,7 @@ to use by the library. For example, if this
 variable is equal to ```Immune_All_Low```, then the number 
 of possible cell types increases to 98.
 For a complete list of all the models, see the following
-![list](https://www.celltypist.org/models). Lastly,
+[list](https://www.celltypist.org/models). Lastly,
 if you want to use the fact that transcriptionally similar
 cells are likely to cluster together, you can assign the cell 
 type labels on a cluster-by-cluster basis
@@ -288,7 +288,9 @@ One way to do this is by comparing the modularity
 distribution and the cumulative modularity for all the 
 nodes that belong to each branch. However, 
 consider the following scenario.
-![heterogeneity](https://github.com/JRR3/toomanycells/blob/main/tests/counter_node_modularity.svg)
+![heterogeneity](https://github.com/JRR3/toomanycells/blob/main/tests/counter_node_modularity.svg | width=300)
+<img src="https://github.com/JRR3/toomanycells/blob/main/tests/counter_node_modularity.svg"
+width="300" height="400">
 
  We can do that 
 using the following calls:
