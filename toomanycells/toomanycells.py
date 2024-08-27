@@ -3581,7 +3581,7 @@ class TooManyCells:
         print(self.A.obs[cell_ann_col])
 
     #=====================================
-    def plot_modularity_distribution(
+    def quantify_heterogeneity(
             self,
             list_of_branches: Optional[list] = [0],
             tag: Optional[str] = "modularity_distribution",

@@ -290,7 +290,7 @@ nodes that belong to each branch.
  We can do that using the following calls. First for 
  branch 1183
 ```
-   tmc_obj.plot_modularity_distribution(
+   tmc_obj.quantify_heterogeneity(
       list_of_branches=[1183],
       use_log_y=true,
       tag="branch_A",
@@ -299,13 +299,13 @@ nodes that belong to each branch.
       file_format="svg")
 ```
 <br/>
-<br/>
 <img src="https://github.com/JRR3/toomanycells/blob/main/tests/branch_A.svg"
-width="500" height="400"/>
+width="500" height="420"/>
 <br/>
 And then for branch 2
+
 ```
-   tmc_obj.plot_modularity_distribution(
+   tmc_obj.quantify_heterogeneity(
       list_of_branches=[2],
       use_log_y=true,
       tag="branch_B",
@@ -315,7 +315,7 @@ And then for branch 2
 ```
 <br/>
 <img src="https://github.com/JRR3/toomanycells/blob/main/tests/branch_B.svg"
-width="500" height="400"/>
+width="500" height="420"/>
 <br/>
 Note that you can include multiple nodes in the 
 list of branches.
@@ -332,9 +332,21 @@ width="300" height="400"/>
 <br/>
 In this case, scenario A has a larger cumulative modularity, 
 but we note that scenario B is more heterogeneous.
-For that reason we recommend also computing the following
-diversity measures:
-$$D^q = \left( \sum_{i=1}^{n} p_i ^ q \right) ^ {\frac{1}{1-q}}$$
+For that reason we recommend also computing additional
+diversity measures. First, we need some notation. 
+For all the branches belonging to the list of branches in the
+above function
+
+`quantify_heterogeneity`, let $C$ be
+the set of leaf nodes that belong to those branches.
+For $c_i \in C$, let $\#(c_i)$ be the number of cells in
+$c_i$ and $\#(C)$ the total number of cells contained 
+in the given branches.
+in the $i$-th leaf node belonging to the branches contained
+in the list of branches. 
+
+$$D^q = \left(\sum_{i=1}^{n} p_i^q \right)^{\frac{1}{1-q}}$$
+
 
 ## Similarity functions
 So far we have assumed that the similarity matrix 
