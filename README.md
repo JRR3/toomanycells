@@ -286,14 +286,9 @@ For example, we want to compare branch 1183 against branch 2.
 ![heterogeneity](https://github.com/JRR3/toomanycells/blob/main/tests/heterogeneity.svg)
 One way to do this is by comparing the modularity 
 distribution and the cumulative modularity for all the 
-nodes that belong to each branch. However, 
-consider the following scenario.
-![heterogeneity](https://github.com/JRR3/toomanycells/blob/main/tests/counter_node_modularity.svg | width=300)
-<img src="https://github.com/JRR3/toomanycells/blob/main/tests/counter_node_modularity.svg"
-width="300" height="400">
-
- We can do that 
-using the following calls:
+nodes that belong to each branch. 
+ We can do that using the following calls. First for 
+ branch 1183
 ```
    tmc_obj.plot_modularity_distribution(
       list_of_branches=[1183],
@@ -303,7 +298,9 @@ using the following calls:
       color="blue",
       file_format="svg")
 ```
-and
+<img src="https://github.com/JRR3/toomanycells/blob/main/tests/branch_A.svg"
+width="300" height="400">
+And then for branch 2
 ```
    tmc_obj.plot_modularity_distribution(
       list_of_branches=[2],
@@ -313,10 +310,25 @@ and
       color="red",
       file_format="svg")
 ```
+<img src="https://github.com/JRR3/toomanycells/blob/main/tests/branch_B.svg"
+width="300" height="400">
 to obtain the following outputs
-![Branch_A](https://github.com/JRR3/toomanycells/blob/main/tests/branch_A.svg)
-![Branch_B](https://github.com/JRR3/toomanycells/blob/main/tests/branch_B.svg)
-From this figures we can observe that
+From this figures we observe that the higher cumulative 
+modularity of branch 1183 with respect to branch 2 suggests 
+that the former has a higher degree of heterogeneity.
+However, just relying in modularity could provide a 
+misleading interpretation. For example, consider the 
+following scenario where the numbers within the nodes 
+indicate the modularity at that node.
+<img src="https://github.com/JRR3/toomanycells/blob/main/tests/counter_node_modularity.svg"
+width="300" height="400">
+In this case, scenario A has a larger cumulative modularity, 
+but we note that scenario B is more heterogeneous.
+For that reason we recommend also computing the following
+diversity measures:
+$$
+D^q = \left( \sum_{i=1}^{n} p_i ^ q \right) ^ {\frac{1}{1-q}}
+$$
 
 ## Similarity functions
 So far we have assumed that the similarity matrix 
