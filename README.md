@@ -300,7 +300,7 @@ nodes that belong to each branch.
 ```
 <br>
 <img src="https://github.com/JRR3/toomanycells/blob/main/tests/branch_A.svg"
-width="300" height="400"/>
+width="500" height="400"/>
 <br>
 And then for branch 2
 ```
@@ -314,8 +314,10 @@ And then for branch 2
 ```
 <br>
 <img src="https://github.com/JRR3/toomanycells/blob/main/tests/branch_B.svg"
-width="300" height="400"/>
+width="500" height="400"/>
 <br>
+Note that you can include multiple nodes in the 
+list of branches.
 From this figures we observe that the higher cumulative 
 modularity of branch 1183 with respect to branch 2 suggests 
 that the former has a higher degree of heterogeneity.
@@ -331,9 +333,7 @@ In this case, scenario A has a larger cumulative modularity,
 but we note that scenario B is more heterogeneous.
 For that reason we recommend also computing the following
 diversity measures:
-$$
-D^q = \left( \sum_{i=1}^{n} p_i ^ q \right) ^ {\frac{1}{1-q}}
-$$
+$$D^q = \left( \sum_{i=1}^{n} p_i ^ q \right) ^ {\frac{1}{1-q}}$$
 
 ## Similarity functions
 So far we have assumed that the similarity matrix 
