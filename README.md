@@ -298,8 +298,10 @@ nodes that belong to each branch.
       color="blue",
       file_format="svg")
 ```
+<br>
 <img src="https://github.com/JRR3/toomanycells/blob/main/tests/branch_A.svg"
-width="300" height="400">
+width="300" height="400"/>
+<br>
 And then for branch 2
 ```
    tmc_obj.plot_modularity_distribution(
@@ -310,9 +312,10 @@ And then for branch 2
       color="red",
       file_format="svg")
 ```
+<br>
 <img src="https://github.com/JRR3/toomanycells/blob/main/tests/branch_B.svg"
-width="300" height="400">
-to obtain the following outputs
+width="300" height="400"/>
+<br>
 From this figures we observe that the higher cumulative 
 modularity of branch 1183 with respect to branch 2 suggests 
 that the former has a higher degree of heterogeneity.
@@ -320,8 +323,10 @@ However, just relying in modularity could provide a
 misleading interpretation. For example, consider the 
 following scenario where the numbers within the nodes 
 indicate the modularity at that node.
+<br>
 <img src="https://github.com/JRR3/toomanycells/blob/main/tests/counter_node_modularity.svg"
 width="300" height="400">
+<br>
 In this case, scenario A has a larger cumulative modularity, 
 but we note that scenario B is more heterogeneous.
 For that reason we recommend also computing the following
