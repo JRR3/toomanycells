@@ -3633,30 +3633,36 @@ class TooManyCells:
 
         # q = 0 ==> Total number of species
         n_species = len(vec_cells)
+        q_0 = n_species
 
         # q = 1 ==> Shannon's diversity index
-        shannon = np.exp(entropy(vec_cells))
+        shannon = entropy(vec_cells)
+        q_1 = np.exp(shannon)
 
         # q = 2 ==> Simpson's diversity index
-        simpson = 1 / np.sum(vec_cells**2)
+        simpson = np.sum(vec_cells**2)
+        q_2 = 1 / simpson
 
         # q = infty ==> Max
-        max_p = 1 / np.max(vec_cells)
+        max_p = np.max(vec_cells)
+        q_inf = 1 / np.max(vec_cells)
 
         indices = ["Richness",
                    "Shannon",
                    "Simpson",
-                   "MaxProp"]
-        exponents = [0, 1, 2, np.inf]
+                   "MaxProp",
+                   "q = 0",
+                   "q = 1",
+                   "q = 2",
+                   "q = inf",
+                   ]
 
-        results = [n_species, shannon, simpson, max_p]
+        results = [n_species, shannon, simpson, max_p,
+                   q_0, q_1, q_2, q_inf]
 
-        data = np.vstack((results, exponents))
-        data = data.T
-
-        df = pd.DataFrame(data,
+        df = pd.DataFrame(results,
                           index=indices,
-                          columns = ["value","exponent"])
+                          columns = ["value"])
 
         print(df)
         fname = "diversity_indices.csv"
