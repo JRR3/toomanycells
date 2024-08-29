@@ -335,17 +335,19 @@ but we note that scenario B is more heterogeneous.
 For that reason we recommend also computing additional
 diversity measures. First, we need some notation. 
 For all the branches belonging to the list of branches in the
-above function
+above function 
 
 `quantify_heterogeneity`, let $C$ be
 the set of leaf nodes that belong to those branches. 
 We consider each leaf node as a separate species, and we 
 call the whole collection of cells an ecosystem.
-For $c_i \in C$, let $\#(c_i)$ be the number of cells in
-$c_i$ and $\#(C) = \sum_i \#(c_i)$ the total number 
-of cells contained in the given branches. If we 
-let $p_i = \frac{\#(c_i)}{\#(C)}$, then we define
-the following diversity measure
+For $c_i \in C$, let $|c_i|$ be the number of cells in
+$c_i$ and $|C| = \sum_i |c_i|$ the total number 
+of cells contained in the given branches. If we let
+
+$$p_i = \dfrac{|c_i|}{|C|},$$
+
+then we define the following diversity measure
 
 $$D(q) = \left(\sum_{i=1}^{n} p_i^q \right)^{\frac{1}{1-q}}.
 $$
