@@ -338,15 +338,65 @@ For all the branches belonging to the list of branches in the
 above function
 
 `quantify_heterogeneity`, let $C$ be
-the set of leaf nodes that belong to those branches.
+the set of leaf nodes that belong to those branches. 
+We consider each leaf node as a separate species, and we 
+call the whole collection of cells an ecosystem.
 For $c_i \in C$, let $\#(c_i)$ be the number of cells in
-$c_i$ and $\#(C)$ the total number of cells contained 
-in the given branches.
-in the $i$-th leaf node belonging to the branches contained
-in the list of branches. 
+$c_i$ and $\#(C) = \sum_i \#(c_i)$ the total number 
+of cells contained in the given branches. If we 
+let $p_i = \frac{\#(c_i)}{\#(C)}$, then we define
+the following diversity measure
 
-$$D^q = \left(\sum_{i=1}^{n} p_i^q \right)^{\frac{1}{1-q}}$$
+$$D(q) = \left(\sum_{i=1}^{n} p_i^q \right)^{\frac{1}{1-q}}.
+$$
 
+In general, the larger the value of $D(q)$, the more diverse
+is the collection of species. Note that $D(q=0)$ 
+describes the total number of species. We 
+call this quantity the richness of the ecosystem. 
+When $q=1$, $D$ is the exponential of the Shannon entropy
+
+$$H = -\sum_{i=1}^{n}p_i \ln(p_i).$$
+
+When $q=2$, $D$ is 
+the inverse of the Simpson's index
+
+$$S = \sum_{i=1}^{n} (p_i)^2,$$
+
+which represents the
+probability that two cells picked at random belong
+to the same species. Hence, the higher the Simpson's
+index, the less diverse is the ecosystem. 
+Lastly, when $q=\infty$, $D$ is the inverse of
+the largest proportion $\max\{p_i\}$.
+
+In the above example, for branch 1183 we obtain
+```
+               value
+Richness  460.000000
+Shannon     5.887544
+Simpson     0.003361
+MaxProp     0.010369
+q = 0     460.000000
+q = 1     360.518784
+q = 2     297.562094
+q = inf    96.442786
+```
+and for branch 2 we obtain
+```
+               value
+Richness  280.000000
+Shannon     5.500414
+Simpson     0.004519
+MaxProp     0.010750
+q = 0     280.000000
+q = 1     244.793371
+q = 2     221.270778
+q = inf    93.021531
+```
+After comparing the results using two different measures,
+namely, modularity and diversity, we conclude that branch
+1183 is more heterogeneous than branch 2.
 
 ## Similarity functions
 So far we have assumed that the similarity matrix 
@@ -357,10 +407,13 @@ matrix of observations is $B$ ($m\times n$), the $i$-th row
 of $B$ is $x = B(i,:)$, and the $j$-th row of $B$ 
 is $y=B(j,:)$, then the similarity between $x$ and
 $y$ is
+
 $$S(x,y)=\frac{x\cdot y}{||x||_2\cdot ||y||_2}.$$
+
 However, this is not the only way to compute
 a similarity matrix. We will list all the available
 similarity functions and how to call them.
+
 ### Cosine (sparse)
 If your matrix is sparse, i.e., the number of nonzero
 entries is proportional to the number of samples ($m$),
@@ -386,6 +439,7 @@ If that is the case,
 the convergence to a solution could be extremely slow.
 However, if you use the non-sparse version of this
 function, we provide a reasonable solution to this problem.
+
 ### Cosine
 If your matrix is dense, 
 and you want to use the cosine similarity, then use the
@@ -417,12 +471,14 @@ tmc_obj.run_spectral_clustering(
 ```
 Note that since the range of the cosine similarity
 is $[-1,1]$, the shifted range for $s=1$ becomes $[0,2]$.
-The shift transformation can also be applied to any of the subsequent
-similarity matrices.
+The shift transformation can also be applied to any of 
+the subsequent similarity matrices.
 
 ### Laplacian
 The similarity matrix is
+
 $$S(x,y)=\exp(-\gamma\cdot ||x-y||_1)$$
+
 This is an example:
 ```
 tmc_obj.run_spectral_clustering(
@@ -436,7 +492,9 @@ a smaller value for $\gamma$.
 
 ### Gaussian
 The similarity matrix is
+
 $$S(x,y)=\exp(-\gamma\cdot ||x-y||_2^2)$$
+
 This is an example:
 ```
 tmc_obj.run_spectral_clustering(
@@ -450,7 +508,9 @@ quantities.
 
 ### Divide by the sum
 The similarity matrix is 
+
 $$S(x,y)=1-\frac{||x-y||_p}{||x||_p+||y||_p},$$
+
 where $p =1$ or $p=2$. The rows 
 of the matrix are normalized (unit norm)
 before computing the similarity.
@@ -509,10 +569,13 @@ running toomanycells.
 Further, assume that the colors denote different classes
 satisfying specific properties.  We want to know how the
 expression of two genes, for instance, `Gene S` and `Gene T`,
-fluctuates as we move from node $X$ (lower left side of the tree), which is rich
-in `Class B`, to node $Y$ (upper left side of the tree), which is rich in `Class
+fluctuates as we move from node $X$ 
+(lower left side of the tree), which is rich
+in `Class B`, to node $Y$ (upper left side of the tree), 
+which is rich in `Class
 C`. To compute such quantities, we first need to define the
 distance between nodes. 
+
 ### Distance between nodes
 Assume we have a (parent) node $P$ with
 two children nodes $C_1$ and $C_2$. Recall that the modularity of 
@@ -522,13 +585,15 @@ A large the modularity indicates strong connections,
 i.e., high similarity, within each cluster $C_i$,
 and also implies weak connections, i.e., low similarity, between 
 $C_1$ and $C_2$. If the modularity at $P$ is $Q(P)$, we define
-the distance between $C_1$ and $C_2$ as $$d(C_1,C_2) = Q(P).$$
+the distance between $C_1$ and $C_2$ as 
+
+$$d(C_1,C_2) = Q(P).$$
+
 We also define $d(C_i,P) = Q(P)/2$. Note that with 
 those definitions we have that 
-```math
-d(C_1,C_2)=d(C_1,P)
-+d(P,C_2)=Q(P)/2+Q(P)/2=Q(P),
-```
+
+$$d(C_1,C_2)=d(C_1,P) +d(P,C_2)=Q(P)/2+Q(P)/2=Q(P),$$
+
 as expected. Now that we know how to calculate the
 distance between a node and its parent or child, let 
 $X$ and $Y$ be two distinct nodes, and let

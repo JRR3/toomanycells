@@ -3602,7 +3602,9 @@ class TooManyCells:
 
         nodes = set()
         total_n_cells = 0
+        print("Working with branches:")
         for branch in list_of_branches:
+            print(branch)
             nodes.add(branch)
             nodes.update(
                 list(nx.descendants(self.G, branch))
