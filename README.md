@@ -319,7 +319,7 @@ width="500" height="420"/>
 <br/>
 Note that you can include multiple nodes in the 
 list of branches.
-From this figures we observe that the higher cumulative 
+From these figures we observe that the higher cumulative 
 modularity of branch 1183 with respect to branch 2 suggests 
 that the former has a higher degree of heterogeneity.
 However, just relying in modularity could provide a 
@@ -370,7 +370,7 @@ probability that two cells picked at random belong
 to the same species. Hence, the higher the Simpson's
 index, the less diverse is the ecosystem. 
 Lastly, when $q=\infty$, $D$ is the inverse of
-the largest proportion $\max\{p_i\}$.
+the largest proportion $\max_i(p_i)$.
 
 In the above example, for branch 1183 we obtain
 ```

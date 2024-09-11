@@ -2923,6 +2923,11 @@ class TooManyCells:
             #We do the following check to guarantee that 
             #the list of markers and column indices has 
             #no repetitions.
+
+            # #Note that the list of cell types will be 
+            # populated with the cell type that was
+            # observed the first time we saw a given marker.
+
             if col_index in self.column_idx_to_marker:
                 continue
 
@@ -3299,40 +3304,106 @@ class TooManyCells:
             index=self.A.obs_names,
             columns=np.arange(1,n_markers+1),
             )
+        sorted_groups_df = pd.DataFrame(
+            index=self.A.obs_names,
+            columns=np.arange(1,n_markers+1),
+            )
 
         for k, marker in enumerate(self.list_of_markers):
             mad_exp_df[marker]         = ""
             above_threshold_df[marker] = ""
             sorted_marker_df[k+1]      = ""
             sorted_cell_type_df[k+1]   = ""
+            sorted_groups_df[k+1]   = ""
 
+
+        list_of_groups = []
+        for cell_type in self.list_of_cell_types:
+            group = self.cell_type_to_group[cell_type]
+            list_of_groups.append(group)
+
+        self.list_of_groups = np.array(list_of_groups)
+
+
+        list_of_status = []
+        groups = []
 
         # Iterate over cells.
-        for row_idx, row in enumerate(tqdm(self.X)):
+        n_cells = self.X.shape[0]
+        for row_idx, row in enumerate(tqdm(self.X,
+                                           total=n_cells)):
+
             # if row_idx == 10:
             #     break
+
+            #Normal status
+            status = "Normal"
+
             if sp.issparse(self.X):
                 vec = row.toarray().squeeze()
             else:
                 vec = row.copy()
+
             m_exp = vec[self.list_of_column_idx]
             m_exp -= self.node_exp_stats_df.loc[:,"median"]
             m_exp /= self.node_exp_stats_df.loc[:,"mad"]
+
+            #Compute who is above the MAD threshold.
             above_th = mad_threshold < m_exp
 
             mad_exp_df.iloc[row_idx] = m_exp
             above_threshold_df.iloc[row_idx] = above_th
 
+            # Get the indices going 
+            # from the highest to the lowest
+            # deviation from the median.
             indices = np.argsort(m_exp)
             indices = indices[::-1]
 
             sorted_markers = self.list_of_markers[indices]
             sorted_marker_df.iloc[row_idx] = sorted_markers
 
+            # Note that by construction, for each marker
+            # we have a (most likely) unique cell type
+            # present in the list self.list_of_cell_types.
+
             sorted_cell_types = self.list_of_cell_types[
                 indices]
             x = sorted_cell_types
             sorted_cell_type_df.iloc[row_idx] = x
+
+            sorted_groups = self.list_of_groups[indices]
+            x = sorted_groups
+            sorted_groups_df.iloc[row_idx] = x
+
+            # Here we check if a cell belongs to 
+            # two different cell groups. By definitions,
+            # this groups are disjoint. For example,
+            # we do not expect a cell to belong to
+            # the Fibroblast category and the Lymphocyte
+            # category.
+
+            #Sort the above threshold candidates
+            above_th = above_th[indices]
+            if above_th.any():
+                pass
+            else:
+                #This cell is low for all markers.
+                status = "AllLow"
+                list_of_status.append(status)
+                continue
+
+            # Filter for those groups that are above
+            # threshold.
+
+            filtered_groups = sorted_groups[above_th]
+            unique_groups = np.unique(filtered_groups)
+
+            if 1 < len(unique_groups):
+                status = "MultipleGroups"
+
+            list_of_status.append(status)
+
 
         fname = "MAD_exp_values.csv"
         fname = os.path.join(self.output, fname)
@@ -3350,6 +3421,10 @@ class TooManyCells:
         fname = os.path.join(self.output, fname)
         sorted_cell_type_df.to_csv(fname, index=True)
 
+        fname = "sorted_groups.csv"
+        fname = os.path.join(self.output, fname)
+        sorted_groups_df.to_csv(fname, index=True)
+
         tmc_ct = "TMC_cell_type"
         self.A.obs[tmc_ct] = sorted_cell_type_df[1]
         self.generate_cell_annotation_file(
@@ -3359,6 +3434,16 @@ class TooManyCells:
         self.A.obs[tmc_marker] = sorted_marker_df[1]
         self.generate_cell_annotation_file(
             tmc_marker, tag="cell_markers")
+
+        tmc_group = "TMC_group"
+        self.A.obs[tmc_group] = sorted_groups_df[1]
+        self.generate_cell_annotation_file(
+            tmc_group, tag="cell_groups")
+
+        status_str = "Status"
+        self.A.obs[tmc_group] = list_of_status
+        self.generate_cell_annotation_file(
+            status_str, tag="group_status")
 
     #=====================================
     def plot_marker_distributions(
