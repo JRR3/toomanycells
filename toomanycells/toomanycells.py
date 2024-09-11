@@ -380,7 +380,7 @@ class TooManyCells:
         This function computes the partitions of the \
                 initial cell population and continues \
                 until the modularity of the newly \
-                created partitions is nonpositive.
+                created partitions is below threshold.
         """
 
         svd_algorithms = ["randomized","arpack"]
@@ -948,8 +948,9 @@ class TooManyCells:
         return (Q, partition)
 
     #=====================================
-    def compute_partition_for_gen(self, rows: np.ndarray
-    ) -> tuple:
+    def compute_partition_for_gen(self, 
+                                  rows: np.ndarray,
+        ) -> tuple:
     #) -> tuple[float, np.ndarray]:
         """
         Compute the partition of the given set\
@@ -986,6 +987,10 @@ class TooManyCells:
         has_zero_row_sums = zero_row_sums_mask.any()
         has_neg_row_sums = (row_sums < -self.eps).any() 
 
+        if has_neg_row_sums:
+            print("The similarity matrix "
+                  "has negative row sums")
+
         if has_zero_row_sums:
             print("We have zero row sums.")
             row_sums[zero_row_sums_mask] = 0
@@ -1020,6 +1025,7 @@ class TooManyCells:
         else:
             #Nonnegative row sums.
             try:
+                print("Using the eigsh function.")
                 E_obj = Eigen_Hermitian(laplacian_mtx,
                                         k=2,
                                         M=row_sums_mtx,
@@ -1036,6 +1042,7 @@ class TooManyCells:
                 W = eigen_vectors[:,idx]
 
             except:
+                print("Using the eig function.")
                 #This is a very expensive operation
                 #since it computes all the eigenvectors.
                 if 5000 < n_rows:
