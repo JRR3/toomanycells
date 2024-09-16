@@ -366,6 +366,8 @@ class TooManyCells:
     def run_spectral_clustering(
             self,
             shift_similarity_matrix:Optional[float] = 0,
+            shift_until_nonnegative:Optional[bool] = False,
+            store_similarity_matrix:Optional[bool] = False,
             normalize_rows:Optional[bool] = False,
             similarity_function:Optional[str]="cosine_sparse",
             similarity_norm: Optional[float] = 2,
@@ -582,12 +584,29 @@ class TooManyCells:
             self.X *= -0.5
             self.X += 1
 
+
         if similarity_function != "cosine_sparse":
 
-            if shift_similarity_matrix != 0:
+
+            if shift_until_nonnegative:
+                min_value = self.X.min()
+                if min_value < 0:
+                    shift_similarity_matrix = -min_value
+                    print(f"Similarity matrix will be shifted.")
+                    print(f"Shift: {shift_similarity_matrix}.")
+                    self.X += shift_similarity_matrix
+
+            elif shift_similarity_matrix != 0:
                 print(f"Similarity matrix will be shifted.")
                 print(f"Shift: {shift_similarity_matrix}.")
                 self.X += shift_similarity_matrix
+
+            if store_similarity_matrix:
+                matrix_fname = "similarity_matrix.npy"
+                matrix_fname = os.path.join(self.output,
+                                            matrix_fname)
+                np.save(matrix_fname, self.X)
+
             
             print("Similarity matrix has been built.")
             tf = clock()
