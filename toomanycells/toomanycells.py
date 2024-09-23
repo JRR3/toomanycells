@@ -54,6 +54,7 @@ mpl.rc("font", **font)
 
 sys.path.insert(0, dirname(__file__))
 from common import MultiIndexList
+from tmcHaskell import TMCHaskell
 
 #=====================================================
 class TooManyCells:
@@ -90,7 +91,7 @@ class TooManyCells:
     """
     #=================================================
     def __init__(self,
-            input: Union[sc.AnnData, str],
+            input: Optional[Union[sc.AnnData, str]] = None,
             output: Optional[str] = "",
             input_is_matrix_market: Optional[bool] = False,
             use_full_matrix: Optional[bool] = False,
@@ -117,7 +118,11 @@ class TooManyCells:
 
         self.set_of_leaf_nodes = set()
 
-        if isinstance(input, TooManyCells):
+        if input is None:
+            matrix = np.array([[]])
+            self.A = sc.AnnData(matrix)
+
+        elif isinstance(input, TooManyCells):
 
             #Clone the given TooManyCells object.
             self.A = input.A.copy()
@@ -168,8 +173,7 @@ class TooManyCells:
             output = os.path.join(output, "tmc_outputs")
             print(f"Outputs will be saved in: {output}")
 
-        if not os.path.exists(output):
-            os.makedirs(output)
+        os.makedirs(output, exist_ok=True)
 
         self.output = os.path.abspath(output)
 
@@ -228,8 +232,10 @@ class TooManyCells:
 
         self.n_cells, self.n_genes = self.A.shape
 
+        self.too_few_observations = False
         if self.n_cells < 3:
-            raise ValueError("Too few observations (cells).")
+            print("Warning: Too few observations (cells).")
+            self.too_few_observations = True
 
         print(self.A)
 
@@ -384,6 +390,9 @@ class TooManyCells:
                 until the modularity of the newly \
                 created partitions is below threshold.
         """
+
+        if self.too_few_observations:
+            raise ValueError("Too few observations (cells).")
 
         svd_algorithms = ["randomized","arpack"]
         if svd_algorithm not in svd_algorithms:
@@ -3814,8 +3823,50 @@ class TooManyCells:
         fig.savefig(fname, bbox_inches="tight")
 
 
+    #=====================================
+    def plot_with_tmc_a_la_haskell(
+            self,
+            tmc_tree_path: str,
+            matrix_path: Optional[str] = "",
+            list_of_genes: Optional[list] = [],
+            use_threshold: Optional[bool] = False,
+            high_low_colors: Optional[list] = ["purple",
+                                               "red",
+                                               "blue",
+                                               "aqua"],
+            gene_colors: Optional[list] = [],
+            annotation_colors: Optional[list] = [],
+            method: Optional[str] = "MadMedian",
+            tree_file_name: Optional[str] = "tree.svg",
+            threshold: Optional[float] = 1.5,
+            saturation: Optional[float] = 1.5,
+            output_folder: Optional[str] = "tmc_haskell",
+            feature_column: Optional[str] = "1",
+            draw_modularity: Optional[bool] = False,
+            path_to_cell_annotations: Optional[str] = "",
+            draw_node_numbers: Optional[bool] = False,
+                                   ):
+        haskell = TMCHaskell(
+            self.output,
+            tmc_tree_path,
+            matrix_path,
+            list_of_genes,
+            use_threshold,
+            high_low_colors,
+            gene_colors,
+            annotation_colors,
+            method,
+            tree_file_name,
+            threshold,
+            saturation,
+            output_folder,
+            feature_column,
+            draw_modularity,
+            path_to_cell_annotations,
+            draw_node_numbers,
+        )
 
-
+        haskell.run()
             
 
     #====END=OF=CLASS=====================
