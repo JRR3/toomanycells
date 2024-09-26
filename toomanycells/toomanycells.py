@@ -4046,7 +4046,22 @@ class TooManyCells:
             S.append(T)
 
         while 0 < len(S):
+
             p_node_id, node_id = S.pop()
+            cluster_size = self.G.nodes[node_id]["size"]
+
+            nodes = nx.descendants(self.G, node_id)
+            mask = self.A.obs["sp_cluster"].isin(nodes)
+            n_viable_cells = mask.sum()
+
+            # if cluster_size == n_viable_cells:
+                # print(f"Cluster {node_id} has to be eliminated.")
+                # continue
+
+            if node_id == 6534:
+                print(f"Cluster {node_id} has to be eliminated.")
+                continue
+
             j_index = self.node_to_j_index[p_node_id]
             n_stored_blocks = len(self.J[j_index])
             self.J[j_index].append([])
@@ -4055,7 +4070,6 @@ class TooManyCells:
             #stored, then the new j_index is (1,0).
             #Otherwise, it is (1,1).
             j_index += (n_stored_blocks,)
-
 
             if 0 < self.G.out_degree(node_id):
                 #This is not a leaf node.
@@ -4077,6 +4091,7 @@ class TooManyCells:
             else:
                 #Leaf node
                 if node_id in self.set_of_red_clusters:
+                    # print(f">>>Eliminating a red cluster.")
                     L = self.cells_to_json([])
                     self.J[j_index].append(L)
                     self.J[j_index].append([])
