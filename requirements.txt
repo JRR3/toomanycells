@@ -6,6 +6,5 @@ networkx
 tqdm
 scikit-learn
 matplotlib
-pygraphviz
 plotly
 celltypist

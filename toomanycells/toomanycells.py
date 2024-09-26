@@ -14,6 +14,7 @@ import os
 import re
 import sys
 import gzip
+import json
 import subprocess
 import numpy as np
 import scanpy as sc
@@ -273,7 +274,7 @@ class TooManyCells:
         #of cells.
         self.eps = 1e-9
 
-        self.use_twopi_cmd   = True
+        # self.use_twopi_cmd   = True
         self.verbose_mode    = False
 
     #=====================================
@@ -715,7 +716,7 @@ class TooManyCells:
                 # the deque.
 
                 # We need to know the modularity to 
-                # determine if the node will 
+                # determine if the node will be partitioned.
                 if similarity_function == "cosine_sparse":
                     Q,S = self.compute_partition_for_sp(rows)
                 else:
@@ -727,7 +728,7 @@ class TooManyCells:
 
                 #Update path for the new node
                 new_path = current_path 
-                new_path += '/' + str(node_id) 
+                new_path += "/" + str(node_id) 
                 self.node_to_path[node_id]=new_path
 
                 # If the parent node is 0, then j_index is
@@ -1123,7 +1124,6 @@ class TooManyCells:
     def store_outputs(
             self,
             cell_ann_col: Optional[str] = "cell_annotations",
-            store_tree_svg: Optional[bool] = True,
             ):
         """
         Store the outputs and plot the branching tree.
@@ -1148,11 +1148,15 @@ class TooManyCells:
         self.t0 = clock()
 
 
-        fname = 'graph.dot'
-        dot_fname = os.path.join(self.output, fname)
+        # Write graph "self.G" to JSON file.
+        nld = nx.node_link_data(self.G)
+        fname = "graph.json"
+        fname = os.path.join(self.output, fname)
+        with open(fname, "w", encoding="utf-8") as f:
+            json.dump(nld, f, ensure_ascii=False, indent=4)
 
-        if store_tree_svg:
-            nx.nx_agraph.write_dot(self.G, dot_fname)
+        # nx.drawing.nx_pydot.write_dot(self.G, dot_fname)
+        # nx.nx_agraph.write_dot(self.G, dot_fname)
 
         #Write cell to node data frame.
         self.write_cell_assignment_to_csv()
@@ -1179,26 +1183,27 @@ class TooManyCells:
 
         for node, attr in self.G.nodes(data=True):
             node_list.append(node)
-            size_list.append(attr['size'])
-            if 'Q' in attr:
-                Q_list.append(attr['Q'])
+            size_list.append(attr["size"])
+            if "Q" in attr:
+                Q_list.append(attr["Q"])
             else:
                 Q_list.append(np.nan)
 
         #Write node information to CSV
-        D = {'node': node_list, 'size':size_list, 'Q':Q_list}
+        D = {"node": node_list, "size":size_list, "Q":Q_list}
         df = pd.DataFrame(D)
-        fname = 'node_info.csv'
+        fname = "node_info.csv"
         fname = os.path.join(self.output, fname)
         df.to_csv(fname, index=False)
 
-        if self.use_twopi_cmd and store_tree_svg:
-            self.plot_radial_tree_from_dot_file()
+        # Eliminate dependencies with GraphViz
+        # if self.use_twopi_cmd and store_tree_svg:
+        #     self.plot_radial_tree_from_dot_file()
 
         self.tf = clock()
         delta = self.tf - self.t0
-        txt = ('Elapsed time for storing outputs: ' +
-                f'{delta:.2f} seconds.')
+        txt = ("Elapsed time for storing outputs: " +
+                f"{delta:.2f} seconds.")
         print(txt)
 
 
@@ -1337,12 +1342,12 @@ class TooManyCells:
             master_list.append([main_dict, list_of_nodes])
 
         s = str(master_list)
-        replace_dict = {' ':'', "'":'"'}
-        pattern = '|'.join(replace_dict.keys())
+        replace_dict = {" ":"", "'":'"'}
+        pattern = "|".join(replace_dict.keys())
         regexp  = re.compile(pattern)
         fun = lambda x: replace_dict[x.group(0)] 
         obj = regexp.sub(fun, s)
-        with open(fname, 'w') as output_file:
+        with open(fname, "w") as output_file:
             output_file.write(obj)
 
 
@@ -1360,12 +1365,12 @@ class TooManyCells:
         fname = "cluster_tree.json"
         fname = os.path.join(self.output, fname)
         s = str(self.J)
-        replace_dict = {' ':'', 'None':'null', "'":'"'}
-        pattern = '|'.join(replace_dict.keys())
+        replace_dict = {" ":"", "None":"null", "'":'"'}
+        pattern = "|".join(replace_dict.keys())
         regexp  = re.compile(pattern)
         fun = lambda x: replace_dict[x.group(0)] 
         obj = regexp.sub(fun, s)
-        with open(fname, 'w') as output_file:
+        with open(fname, "w") as output_file:
             output_file.write(obj)
 
     #=====================================
@@ -1740,7 +1745,7 @@ class TooManyCells:
     #=====================================
     def load_graph(
             self,
-            dot_fname: Optional[str]="",
+            json_fname: Optional[str]="",
             ):
         """
         Load the dot file. Note that when loading the data,
@@ -1753,15 +1758,26 @@ class TooManyCells:
         self.t0 = clock()
 
 
-        if len(dot_fname) == 0:
-            fname = 'graph.dot'
-            dot_fname = os.path.join(self.output, fname)
+        if len(json_fname) == 0:
+            fname = "graph.json"
+            json_fname = os.path.join(self.output, fname)
 
-        if not os.path.exists(dot_fname):
+        if not os.path.exists(json_fname):
             raise ValueError("File does not exists.")
 
-        self.G = nx.nx_agraph.read_dot(dot_fname)
-        self.G = nx.DiGraph(self.G)
+        # Avoid dependencies with GraphViz
+        # dot_fname = "graph.dot"
+        # dot_fname = os.path.join(self.output, dot_fname)
+        # self.G = nx.nx_agraph.read_dot(dot_fname)
+
+        print("Reading JSON file ...")
+
+        with open(json_fname, encoding="utf-8") as f:
+            json_graph = json.load(f)
+        self.G = nx.node_link_graph(json_graph)
+        
+        print("Finished reading JSON file.")
+
         n_nodes = self.G.number_of_nodes()
 
         # Change string labels to integers.
@@ -1778,6 +1794,7 @@ class TooManyCells:
             self.G.nodes[node]["size"] = int(size)
             if "Q" in self.G.nodes[node]:
                 Q = self.G.nodes[node]["Q"]
+                # Q = Q.strip('\"')
                 self.G.nodes[node]["Q"] = self.FDT(Q)
 
         print(self.G)
@@ -2017,6 +2034,12 @@ class TooManyCells:
             self,
             dot_fname: Optional[str] = "",
     ):
+        """
+        This function is no longer supported since 
+        we want to avoid the dependency on GraphViz.
+        Use TooManyCells interactive to visualize 
+        your tree instead.
+        """
         if len(dot_fname) == 0:
             fname = 'graph.dot'
             dot_fname = os.path.join(self.output, fname)
@@ -2353,8 +2376,12 @@ class TooManyCells:
         list_of_regexp = []
         replace_dict = {}
 
-        for k, barcode in enumerate(
-            self.cells_to_be_eliminated):
+        print(f"Creating regular expressions...")
+        n_cells_to_eliminate = len(
+            self.cells_to_be_eliminated)
+        for k, barcode in enumerate(tqdm(
+            self.cells_to_be_eliminated,
+            total=n_cells_to_eliminate)):
 
             txt = '[{][^{]+[{][a-zA-Z":]+[ ]?["]'
             # txt += "(?P<barcode>"
@@ -2364,13 +2391,18 @@ class TooManyCells:
             list_of_regexp.append(txt)
             replace_dict[barcode] = ""
 
+        print(f"Modifying JSON file.")
         pattern = "|".join(list_of_regexp)
         regexp = re.compile(pattern)
         fun = lambda x: ""
         obj = regexp.sub(fun, source)
+        print(f"Finished eliminating barcodes in the file.")
 
+        print(f"Writing modified JSON file.")
         with open(target_fname, "w") as output_file:
             output_file.write(obj)
+
+        print(f"Finished writing modified JSON file.")
 
         if modify_anndata:
             #This will eliminate all the
@@ -2997,6 +3029,10 @@ class TooManyCells:
             cell_marker_path: str,
     ):
         """
+        This function uses a depth-first approach, where 
+        we move from the leaf nodes up to the root. We
+        use this traversal to make the computation of
+        the mean expression at a node more efficient.
         """
         self.load_group_and_cell_type_data(cell_group_path)
         self.load_marker_and_cell_type_data(cell_marker_path)
@@ -3295,6 +3331,10 @@ class TooManyCells:
             attribute: str,
     ):
         """
+        This function will proceed using a breadth-first
+        approach. Everytime a node has the attribute 
+        above the threshold, we increase the count by one
+        and add the children to the deque.
         """
         DQ = deque()
         DQ.append(0)
@@ -3349,7 +3389,7 @@ class TooManyCells:
             above_threshold_df[marker] = ""
             sorted_marker_df[k+1]      = ""
             sorted_cell_type_df[k+1]   = ""
-            sorted_groups_df[k+1]   = ""
+            sorted_groups_df[k+1]      = ""
 
 
         list_of_groups = []
@@ -3867,7 +3907,189 @@ class TooManyCells:
         )
 
         haskell.run()
-            
+
+    #=====================================
+    def eliminate_cell_type_outliers(
+            self,
+            cell_ann_col: Optional[str] = "cell_annotations",
+            clean_threshold: Optional[float] = 0.8,
+            no_mixtures: Optional[bool] = True,
+    ):
+        """
+        Eliminate all cells that do not belong to the
+        majority.
+        """
+        CA =cell_ann_col
+        node = 0
+        parent_majority = None
+        parent_ratio = None
+        # We use a deque to do a breadth-first traversal.
+        DQ = deque()
+
+        T = (node, parent_majority, parent_ratio)
+        DQ.append(T)
+
+        iteration = 0
+
+        # Elimination container
+        elim_set = set()
+        self.set_of_red_clusters = set()
+
+        while 0 < len(DQ):
+            print("===============================")
+            T = DQ.popleft()
+            node, parent_majority, parent_ratio = T
+            children = self.G.successors(node)
+            nodes = nx.descendants(self.G, node)
+            is_leaf_node = False
+            if len(nodes) == 0:
+                is_leaf_node = True
+                nodes = [node]
+            else:
+                x = self.set_of_leaf_nodes.intersection(
+                    nodes)
+                nodes = list(x)
+
+            mask = self.A.obs["sp_cluster"].isin(nodes)
+            S = self.A.obs[CA].loc[mask]
+            node_size = mask.sum()
+            print(f"Working with {node=}")
+            print(f"Size of {node=}: {node_size}")
+            vc = S.value_counts(normalize=True)
+            print("===============================")
+            print(vc)
+
+            majority_group = vc.index[0]
+            majority_ratio = vc.iloc[0]
+
+            if majority_ratio == 1:
+                #The cluster is homogeneous.
+                #Nothing to do here.
+                continue
+
+
+            if majority_ratio < clean_threshold:
+                #We are below clean_threshold, so we add 
+                #these nodes to the deque for 
+                #further processing.
+                print("===============================")
+                for child in children:
+                    print(f"Adding node {child} to DQ.")
+                    T = (child,
+                         majority_group,
+                         majority_ratio)
+                    DQ.append(T)
+            else:
+                #We are above the cleaning threshold. 
+                #Hence, we can star cleaning this node.
+                print("===============================")
+                print(f"Cleaning {node=}.")
+                print(f"{majority_group=}.")
+                print(f"{majority_ratio=}.")
+
+                if no_mixtures:
+                    #We do not allow minorities.
+                    mask = S != majority_group
+                    Q = S.loc[mask]
+                    elim_set.update(Q.index)
+                    continue
+
+        print(f"Cells to eliminate: {len(elim_set)}")
+        self.cells_to_be_eliminated = elim_set
+        L = list(elim_set)
+
+        cell_labels = self.A.obs[CA].loc[L]
+        batch_labels = self.A.obs["sample_id"].loc[L]
+        cluster_labels = self.A.obs["sp_cluster"].loc[L]
+        cell_vc = cell_labels.value_counts()
+        batch_vc = batch_labels.value_counts()
+        cluster_vc = cluster_labels.value_counts()
+        cluster_full_vc = self.A.obs["sp_cluster"].value_counts()
+        print(cell_vc)
+        print(batch_vc)
+        print(cluster_vc)
+        df = pd.merge(cluster_full_vc, cluster_vc,
+                      left_index=True, right_index=True,
+                      how="inner")
+        df["status"] = df.count_x == df.count_y
+        red_clusters = df.index[df["status"]]
+        self.set_of_red_clusters = set(red_clusters)
+        self.A = self.A[~self.A.obs.index.isin(elim_set)].copy()
+    #=====================================
+    def rebuild_tree(
+            self,
+    ):
+        """
+        """
+
+        S      = []
+        self.J = MultiIndexList()
+        node_id= 0
+
+        self.node_to_j_index = {}
+        self.node_to_j_index[node_id] = (1,)
+
+        Q = self.G.nodes[node_id]["Q"]
+        D = self.modularity_to_json(Q)
+
+        self.J.append(D)
+        self.J.append([])
+
+        children = self.G.successors(node_id)
+
+        # The largest index goes first so that 
+        # when we pop an element, we get the smallest
+        # of the two that were inserted.
+        children = sorted(children, reverse=True)
+        for child in children:
+            T = (node_id, child)
+            S.append(T)
+
+        while 0 < len(S):
+            p_node_id, node_id = S.pop()
+            j_index = self.node_to_j_index[p_node_id]
+            n_stored_blocks = len(self.J[j_index])
+            self.J[j_index].append([])
+            #Update the j_index. For example, if
+            #j_index = (1,) and no blocks have been
+            #stored, then the new j_index is (1,0).
+            #Otherwise, it is (1,1).
+            j_index += (n_stored_blocks,)
+
+
+            if 0 < self.G.out_degree(node_id):
+                #This is not a leaf node.
+                Q = self.G.nodes[node_id]["Q"]
+                D = self.modularity_to_json(Q)
+                self.J[j_index].append(D)
+                self.J[j_index].append([])
+                j_index += (1,)
+                self.node_to_j_index[node_id] = j_index
+                children = self.G.successors(node_id)
+                children = sorted(children, reverse=True)
+                for child in children:
+
+                    # if child in self.set_of_red_clusters:
+                    #     continue
+
+                    T = (node_id, child)
+                    S.append(T)
+            else:
+                #Leaf node
+                if node_id in self.set_of_red_clusters:
+                    L = self.cells_to_json([])
+                    self.J[j_index].append(L)
+                    self.J[j_index].append([])
+                    continue
+
+                mask = self.A.obs["sp_cluster"] == node_id
+                rows = np.nonzero(mask)[0]
+                L = self.cells_to_json(rows)
+                self.J[j_index].append(L)
+                self.J[j_index].append([])
+
+        print(self.J)
+        self.convert_graph_to_json()
 
     #====END=OF=CLASS=====================
 
