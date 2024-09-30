@@ -4044,7 +4044,7 @@ class TooManyCells:
 
         #Create a new AnnData object after eliminating 
         #the cells.
-        self.B = self.A[~ids_to_erase].copy()
+        self.A = self.A[~ids_to_erase].copy()
 
     #=====================================
     def rebuild_tree(
@@ -4084,8 +4084,7 @@ class TooManyCells:
             is_leaf_node = not not_leaf_node
 
             nodes = nx.descendants(self.G, node_id)
-            #Note that B is the modified AnnData object.
-            mask = self.B.obs["sp_cluster"].isin(nodes)
+            mask = self.A.obs["sp_cluster"].isin(nodes)
             n_viable_cells = mask.sum()
 
             # Non-leaf nodes with zero viable cells
@@ -4123,23 +4122,6 @@ class TooManyCells:
                     S.append(T)
             else:
                 #Leaf node
-                if node_id in self.set_of_red_clusters:
-                    #================================
-                    # In theory this block should never
-                    # be executed since we eliminated
-                    # the node earlier.
-                    #================================
-                    raise ValueError("XXX")
-                    #================================
-                    # If a leaf node is a red cluster
-                    # then we simply add a dictionary
-                    # with an empty list.
-                    print("Leaf node is a red cluster.")
-                    L = self.cells_to_json([])
-                    self.J[j_index].append(L)
-                    self.J[j_index].append([])
-                    continue
-
                 mask = self.A.obs["sp_cluster"] == node_id
                 rows = np.nonzero(mask)[0]
                 L = self.cells_to_json(rows)
