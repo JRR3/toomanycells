@@ -45,28 +45,32 @@ paper](https://www.nature.com/articles/s41592-020-0748-5).**
 
 ## Dependencies
 
-Make sure you have installed the graph visualization library
-[Graphviz](https://www.graphviz.org). For example, if you
-want to use conda, then do the following.
+Version 1.0.40 no longer requires Graphviz. Thus,
+no dependencies!
+
+## Virtual environments
+To have control of your working environment 
+you can use a python virtual environment, which 
+can help you keep only the packages you need in 
+one location. In bash or zsh you can simply
+type
 ```
-conda install anaconda::graphviz
+python -m venv /path/to/new/virtual/environment
 ```
-If you are using Linux, you can do
+To activate it you simply need
 ```
-sudo apt install libgraphviz-dev
+source pathToTheVirtualEnvironment/bin/activate
 ```
-And if you are using home-manager with Nix, 
-do not forget to include
+To deactivate the environment use the intuitive
 ```
-pkgs.graphviz
+deactivate
 ```
-in your ```home.packages```
 
 ## Installation
 
 Just type
 ```
-pip install toomanycells
+pip install toomanycells==1.0.40
 ```
 in your home or custom environment. 
 If you want to install an updated
@@ -143,36 +147,20 @@ computer. ![Progress bar example](https://github.com/JRR3/toomanycells/blob/main
    ```
    tmc_obj.store_outputs()
    ```
-This call will generate a graphical representation of the 
-tree (`output_graph.svg`), a DOT file
-containing the nodes and edges of the graph (`graph.dot`), 
+This call will generate JSON file
+containing the nodes and edges of the graph (`graph.json`), 
 one CSV file that describes the cluster
 information (`clusters.csv`), another CSV file containing 
 the information of each node (`node_info.csv`), and two 
 JSON files.  One relates cells to clusters 
 (`cluster_list.json`), and the other has the 
 full tree structure (`cluster_tree.json`). You need this
-last file for TMCI.
+last file for too-many-cells interactive (TMCI).
 
-For those who may have problems installing `pygraphviz`,
-you can still store the main outputs using the call
+8. If you already have the `graph.json` file you can 
+load it with
    ```
-   tmc_obj.store_outputs(store_tree_svg=False)
-   ```
-Note that in this case you will not be able to 
-generate the `output_graph.svg` and `graph.dot`
-files. However, the `cluster_tree.json` file, which is the 
-most important file, will still be generated, and
-you can continue working with this tutorial.
-
-8. If you already have a DOT file you can load it with
-   ```
-   tmc_obj.load_graph(dot_fname="some_path")
-   ```
-or plot it with
-   ```
-   tmc_obj.plot_radial_tree_from_dot_file(
-      dot_fname="some_path")
+   tmc_obj.load_graph(json_fname="some_path")
    ```
 9. If you want to visualize your results in a dynamic
 platform, I strongly recommend the tool
@@ -180,13 +168,14 @@ platform, I strongly recommend the tool
 To use it, first make sure that you have Docker Compose and
 Docker. One simple way of getting the two is by installing
 [Docker Desktop](https://docs.docker.com/compose/install/).
+Note that with MacOS the instructions are slightly different.
 If you use [Nix](https://search.nixos.org/packages), simply
 add the packages `pkgs.docker` and `pkgs.docker-compose` to
 your configuration or `home.nix` file and run
 ```
 home-manager switch
 ```
-10. If you installed Docker Desktop you probably don't need to
+10.  If you installed Docker Desktop you probably don't need to
 follow this step. However, under some distributions the
 following two commands have proven to be essential. Use
 ```
@@ -198,7 +187,7 @@ sudo chmod 666 /var/run/docker.sock
 ```
 to let Docker read and write to that location.
 
-11. Now clone the repository 
+11.  Now clone the repository 
    ```
    git clone https://github.com/schwartzlab-methods/too-many-cells-interactive.git
    ```
