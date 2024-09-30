@@ -3996,25 +3996,56 @@ class TooManyCells:
 
         print(f"Cells to eliminate: {len(elim_set)}")
         self.cells_to_be_eliminated = elim_set
-        L = list(elim_set)
 
-        cell_labels = self.A.obs[CA].loc[L]
-        batch_labels = self.A.obs["sample_id"].loc[L]
-        cluster_labels = self.A.obs["sp_cluster"].loc[L]
+        #List of cell ids to be eliminated.
+        ES = list(elim_set)
+
+        #Cell types of cells to be eliminated.
+        cell_labels = self.A.obs[CA].loc[ES]
+
+        #Batches containing cells to be eliminated.
+        batch_labels = self.A.obs["sample_id"].loc[ES]
+
+        #Clusters containing cells to be eliminated.
+        cluster_labels = self.A.obs["sp_cluster"].loc[ES]
+
+        #Cell type quatification.
         cell_vc = cell_labels.value_counts()
+
+        #Batch origin quantification.
         batch_vc = batch_labels.value_counts()
+
+        #Cluster quantification.
         cluster_vc = cluster_labels.value_counts()
-        cluster_full_vc = self.A.obs["sp_cluster"].value_counts()
+
+        # We then compare against the original number
+        # of cells in each cluster.
+        cluster_ref = self.A.obs["sp_cluster"].value_counts()
+
         print(cell_vc)
         print(batch_vc)
         print(cluster_vc)
-        df = pd.merge(cluster_full_vc, cluster_vc,
+
+        #Compare side-by-side the cells to be eliminated
+        #for each cluster with the total number of cells
+        #for that cluster.
+        df = pd.merge(cluster_ref, cluster_vc,
                       left_index=True, right_index=True,
                       how="inner")
+
         df["status"] = df.count_x == df.count_y
+
+        #Clusters to be eliminated
         red_clusters = df.index[df["status"]]
+
         self.set_of_red_clusters = set(red_clusters)
-        self.A = self.A[~self.A.obs.index.isin(elim_set)].copy()
+
+        ids_to_erase = self.A.obs.index.isin(elim_set)
+
+        #Create a new AnnData object after eliminating 
+        #the cells.
+        self.B = self.A[~ids_to_erase].copy()
+
     #=====================================
     def rebuild_tree(
             self,
@@ -4049,17 +4080,22 @@ class TooManyCells:
 
             p_node_id, node_id = S.pop()
             cluster_size = self.G.nodes[node_id]["size"]
+            not_leaf_node = 0 < self.G.out_degree(node_id)
+            is_leaf_node = not not_leaf_node
 
             nodes = nx.descendants(self.G, node_id)
-            mask = self.A.obs["sp_cluster"].isin(nodes)
+            #Note that B is the modified AnnData object.
+            mask = self.B.obs["sp_cluster"].isin(nodes)
             n_viable_cells = mask.sum()
 
-            # if cluster_size == n_viable_cells:
-                # print(f"Cluster {node_id} has to be eliminated.")
-                # continue
+            # Non-leaf nodes with zero viable cells
+            # are eliminated.
+            if not_leaf_node and n_viable_cells == 0:
+                # print(f"Cluster {node_id} has to "
+                #       "be eliminated.")
+                continue
 
-            if node_id == 6534:
-                print(f"Cluster {node_id} has to be eliminated.")
+            if node_id in self.set_of_red_clusters:
                 continue
 
             j_index = self.node_to_j_index[p_node_id]
@@ -4071,7 +4107,7 @@ class TooManyCells:
             #Otherwise, it is (1,1).
             j_index += (n_stored_blocks,)
 
-            if 0 < self.G.out_degree(node_id):
+            if not_leaf_node:
                 #This is not a leaf node.
                 Q = self.G.nodes[node_id]["Q"]
                 D = self.modularity_to_json(Q)
@@ -4083,15 +4119,22 @@ class TooManyCells:
                 children = sorted(children, reverse=True)
                 for child in children:
 
-                    # if child in self.set_of_red_clusters:
-                    #     continue
-
                     T = (node_id, child)
                     S.append(T)
             else:
                 #Leaf node
                 if node_id in self.set_of_red_clusters:
-                    # print(f">>>Eliminating a red cluster.")
+                    #================================
+                    # In theory this block should never
+                    # be executed since we eliminated
+                    # the node earlier.
+                    #================================
+                    raise ValueError("XXX")
+                    #================================
+                    # If a leaf node is a red cluster
+                    # then we simply add a dictionary
+                    # with an empty list.
+                    print("Leaf node is a red cluster.")
                     L = self.cells_to_json([])
                     self.J[j_index].append(L)
                     self.J[j_index].append([])
@@ -4103,7 +4146,7 @@ class TooManyCells:
                 self.J[j_index].append(L)
                 self.J[j_index].append([])
 
-        print(self.J)
+        # print(self.J)
         self.convert_graph_to_json()
 
     #====END=OF=CLASS=====================
