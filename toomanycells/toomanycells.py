@@ -1746,7 +1746,7 @@ class TooManyCells:
     def load_graph(
             self,
             json_fname: Optional[str]="",
-            ):
+        ):
         """
         Load the dot file. Note that when loading the data,
         the attributes of each node are assumed to be 
@@ -3908,143 +3908,8 @@ class TooManyCells:
 
         haskell.run()
 
-    #=====================================
-    def eliminate_cell_type_outliers(
-            self,
-            cell_ann_col: Optional[str] = "cell_annotations",
-            clean_threshold: Optional[float] = 0.8,
-            no_mixtures: Optional[bool] = True,
-    ):
-        """
-        Eliminate all cells that do not belong to the
-        majority.
-        """
-        CA =cell_ann_col
-        node = 0
-        parent_majority = None
-        parent_ratio = None
-        # We use a deque to do a breadth-first traversal.
-        DQ = deque()
-
-        T = (node, parent_majority, parent_ratio)
-        DQ.append(T)
-
-        iteration = 0
-
-        # Elimination container
-        elim_set = set()
-        self.set_of_red_clusters = set()
-
-        while 0 < len(DQ):
-            print("===============================")
-            T = DQ.popleft()
-            node, parent_majority, parent_ratio = T
-            children = self.G.successors(node)
-            nodes = nx.descendants(self.G, node)
-            is_leaf_node = False
-            if len(nodes) == 0:
-                is_leaf_node = True
-                nodes = [node]
-            else:
-                x = self.set_of_leaf_nodes.intersection(
-                    nodes)
-                nodes = list(x)
-
-            mask = self.A.obs["sp_cluster"].isin(nodes)
-            S = self.A.obs[CA].loc[mask]
-            node_size = mask.sum()
-            print(f"Working with {node=}")
-            print(f"Size of {node=}: {node_size}")
-            vc = S.value_counts(normalize=True)
-            print("===============================")
-            print(vc)
-
-            majority_group = vc.index[0]
-            majority_ratio = vc.iloc[0]
-
-            if majority_ratio == 1:
-                #The cluster is homogeneous.
-                #Nothing to do here.
-                continue
 
 
-            if majority_ratio < clean_threshold:
-                #We are below clean_threshold, so we add 
-                #these nodes to the deque for 
-                #further processing.
-                print("===============================")
-                for child in children:
-                    print(f"Adding node {child} to DQ.")
-                    T = (child,
-                         majority_group,
-                         majority_ratio)
-                    DQ.append(T)
-            else:
-                #We are above the cleaning threshold. 
-                #Hence, we can star cleaning this node.
-                print("===============================")
-                print(f"Cleaning {node=}.")
-                print(f"{majority_group=}.")
-                print(f"{majority_ratio=}.")
-
-                if no_mixtures:
-                    #We do not allow minorities.
-                    mask = S != majority_group
-                    Q = S.loc[mask]
-                    elim_set.update(Q.index)
-                    continue
-
-        print(f"Cells to eliminate: {len(elim_set)}")
-        self.cells_to_be_eliminated = elim_set
-
-        #List of cell ids to be eliminated.
-        ES = list(elim_set)
-
-        #Cell types of cells to be eliminated.
-        cell_labels = self.A.obs[CA].loc[ES]
-
-        #Batches containing cells to be eliminated.
-        batch_labels = self.A.obs["sample_id"].loc[ES]
-
-        #Clusters containing cells to be eliminated.
-        cluster_labels = self.A.obs["sp_cluster"].loc[ES]
-
-        #Cell type quatification.
-        cell_vc = cell_labels.value_counts()
-
-        #Batch origin quantification.
-        batch_vc = batch_labels.value_counts()
-
-        #Cluster quantification.
-        cluster_vc = cluster_labels.value_counts()
-
-        # We then compare against the original number
-        # of cells in each cluster.
-        cluster_ref = self.A.obs["sp_cluster"].value_counts()
-
-        print(cell_vc)
-        print(batch_vc)
-        print(cluster_vc)
-
-        #Compare side-by-side the cells to be eliminated
-        #for each cluster with the total number of cells
-        #for that cluster.
-        df = pd.merge(cluster_ref, cluster_vc,
-                      left_index=True, right_index=True,
-                      how="inner")
-
-        df["status"] = df.count_x == df.count_y
-
-        #Clusters to be eliminated
-        red_clusters = df.index[df["status"]]
-
-        self.set_of_red_clusters = set(red_clusters)
-
-        ids_to_erase = self.A.obs.index.isin(elim_set)
-
-        #Create a new AnnData object after eliminating 
-        #the cells.
-        self.A = self.A[~ids_to_erase].copy()
 
     #=====================================
     def rebuild_tree(
@@ -4130,6 +3995,94 @@ class TooManyCells:
 
         # print(self.J)
         self.convert_graph_to_json()
+
+    #=====================================
+    def rebuild_tree_from_graph(
+            self,
+    ):
+        """
+        """
+
+        S      = []
+        self.J = MultiIndexList()
+        node_id= 0
+
+        self.node_to_j_index = {}
+        self.node_to_j_index[node_id] = (1,)
+
+        Q = self.G.nodes[node_id]["Q"]
+        D = self.modularity_to_json(Q)
+
+        self.J.append(D)
+        self.J.append([])
+
+        children = self.G.successors(node_id)
+
+        # The largest index goes first so that 
+        # when we pop an element, we get the smallest
+        # of the two that were inserted.
+        children = sorted(children, reverse=True)
+        for child in children:
+            T = (node_id, child)
+            S.append(T)
+
+        while 0 < len(S):
+
+            p_node_id, node_id = S.pop()
+            cluster_size = self.G.nodes[node_id]["size"]
+            not_leaf_node = 0 < self.G.out_degree(node_id)
+            is_leaf_node = not not_leaf_node
+
+            nodes = nx.descendants(self.G, node_id)
+            mask = self.A.obs["sp_cluster"].isin(nodes)
+            n_viable_cells = mask.sum()
+
+            # Non-leaf nodes with zero viable cells
+            # are eliminated.
+            if not_leaf_node and n_viable_cells == 0:
+                print(f"Cluster {node_id} has to "
+                      "be eliminated.")
+                continue
+
+            if node_id in self.set_of_red_clusters:
+                print(f"Red cluster {node_id} has to "
+                      "be eliminated.")
+                continue
+
+            j_index = self.node_to_j_index[p_node_id]
+            n_stored_blocks = len(self.J[j_index])
+            self.J[j_index].append([])
+            #Update the j_index. For example, if
+            #j_index = (1,) and no blocks have been
+            #stored, then the new j_index is (1,0).
+            #Otherwise, it is (1,1).
+            j_index += (n_stored_blocks,)
+
+            if not_leaf_node:
+                #This is not a leaf node.
+                Q = self.G.nodes[node_id]["Q"]
+                D = self.modularity_to_json(Q)
+                self.J[j_index].append(D)
+                self.J[j_index].append([])
+                j_index += (1,)
+                self.node_to_j_index[node_id] = j_index
+                children = self.G.successors(node_id)
+                children = sorted(children, reverse=True)
+                for child in children:
+
+                    T = (node_id, child)
+                    S.append(T)
+            else:
+                #Leaf node
+                mask = self.A.obs["sp_cluster"] == node_id
+                rows = np.nonzero(mask)[0]
+                L = self.cells_to_json(rows)
+                self.J[j_index].append(L)
+                self.J[j_index].append([])
+
+        # print(self.J)
+        self.convert_graph_to_json()
+
 
     #====END=OF=CLASS=====================
 
