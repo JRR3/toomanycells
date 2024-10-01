@@ -56,6 +56,7 @@ mpl.rc("font", **font)
 sys.path.insert(0, dirname(__file__))
 from common import MultiIndexList
 from tmcHaskell import TMCHaskell
+from tmcGraph import TMCGraph
 
 #=====================================================
 class TooManyCells:
@@ -128,6 +129,10 @@ class TooManyCells:
             #Clone the given TooManyCells object.
             self.A = input.A.copy()
             self.G = input.G.copy()
+            self.output = input.output
+            self.tmcGraph = TMCGraph(graph=self.G,
+                                     adata=self.A,
+                                     output=self.output)
             S = input.set_of_leaf_nodes.copy()
             self.set_of_leaf_nodes = S
 
@@ -256,18 +261,23 @@ class TooManyCells:
         #Map a node to the path in the
         #binary tree that connects the
         #root node to the given node.
-        self.node_to_path = {}
+        # self.tmcGraph.node_to_path = {}
 
         #Map a node to a list of indices
         #that provide access to the JSON
         #structure.
-        self.node_to_j_index = {}
+        # self.tmcGraph.node_to_j_index = {}
+
+        # self.tmcGraph.node_counter = 0
 
         #the JSON structure representation
         #of the tree.
-        self.J = MultiIndexList()
+        # self.tmcGraph.J = MultiIndexList()
 
-        self.node_counter = 0
+        self.tmcGraph = TMCGraph(graph=self.G,
+                                 adata=self.A,
+                                 output= self.output)
+
 
         #The threshold for modularity to 
         #accept a given partition of a set
@@ -312,27 +322,27 @@ class TooManyCells:
             row /= np.linalg.norm(row,
                                   ord=self.similarity_norm)
 
-    #=====================================
-    def modularity_to_json(self,Q):
-        return {'_item': None,
-                '_significance': None,
-                '_distance': Q}
+    # #=====================================
+    # def modularity_to_json(self, Q:float):
+    #     return {'_item': None,
+    #             '_significance': None,
+    #             '_distance': Q}
 
-    #=====================================
-    def cell_to_json(self, cell_name, cell_number):
-        return {'_barcode': {'unCell': cell_name},
-                '_cellRow': {'unRow': cell_number}}
+    # #=====================================
+    # def cell_to_json(self, cell_name, cell_number):
+    #     return {'_barcode': {'unCell': cell_name},
+    #             '_cellRow': {'unRow': cell_number}}
 
-    #=====================================
-    def cells_to_json(self,rows):
-        L = []
-        for row in rows:
-            cell_id = self.A.obs.index[row]
-            D = self.cell_to_json(cell_id, row)
-            L.append(D)
-        return {'_item': L,
-                '_significance': None,
-                '_distance': None}
+    # #=====================================
+    # def cells_to_json(self,rows):
+    #     L = []
+    #     for row in rows:
+    #         cell_id = self.A.obs.index[row]
+    #         D = self.cell_to_json(cell_id, row)
+    #         L.append(D)
+    #     return {'_item': L,
+    #             '_significance': None,
+    #             '_distance': None}
 
     #=====================================
     def estimate_n_of_iterations(self) -> int:
@@ -634,7 +644,7 @@ class TooManyCells:
         #===========================================
         #=============Main=Loop=====================
         #===========================================
-        node_id = self.node_counter
+        node_id = self.tmcGraph.node_counter
 
         #Initialize the array of cells to partition
         rows = np.array(range(self.X.shape[0]))
@@ -647,13 +657,13 @@ class TooManyCells:
         self.G.add_node(node_id, size=len(rows))
 
         #Path to reach root node.
-        self.node_to_path[node_id] = str(node_id)
+        self.tmcGraph.node_to_path[node_id] = str(node_id)
 
         #Indices to reach root node.
-        self.node_to_j_index[node_id] = (1,)
+        self.tmcGraph.node_to_j_index[node_id] = (1,)
 
         #Update the node counter
-        self.node_counter += 1
+        self.tmcGraph.node_counter += 1
 
         #============STEP=1================Cluster(0)
 
@@ -669,12 +679,12 @@ class TooManyCells:
             #thus each partition will be 
             #inserted into the deque.
 
-            D = self.modularity_to_json(Q)
+            D = self.tmcGraph.modularity_to_json(Q)
 
             #Update json index
-            self.J.append(D)
-            self.J.append([])
-            # self.J.append([[],[]])
+            self.tmcGraph.J.append(D)
+            self.tmcGraph.J.append([])
+            # self.tmcGraph.J.append([[],[]])
             # j_index = (1,)
 
             self.G.nodes[node_id]["Q"] = Q
@@ -724,19 +734,19 @@ class TooManyCells:
 
                 # If the parent node is 0, then the path is
                 # "0".
-                current_path = self.node_to_path[p_node_id]
+                current_path = self.tmcGraph.node_to_path[p_node_id]
 
                 #Update path for the new node
                 new_path = current_path 
                 new_path += "/" + str(node_id) 
-                self.node_to_path[node_id]=new_path
+                self.tmcGraph.node_to_path[node_id]=new_path
 
                 # If the parent node is 0, then j_index is
                 # (1,)
-                j_index = self.node_to_j_index[p_node_id]
+                j_index = self.tmcGraph.node_to_j_index[p_node_id]
 
-                n_stored_blocks = len(self.J[j_index])
-                self.J[j_index].append([])
+                n_stored_blocks = len(self.tmcGraph.J[j_index])
+                self.tmcGraph.J[j_index].append([])
                 #Update the j_index. For example, if
                 #j_index = (1,) and no blocks have been
                 #stored, then the new j_index is (1,0).
@@ -754,9 +764,9 @@ class TooManyCells:
                     #thus each partition will be 
                     #inserted into the deque.
 
-                    D = self.modularity_to_json(Q)
-                    self.J[j_index].append(D)
-                    self.J[j_index].append([])
+                    D = self.tmcGraph.modularity_to_json(Q)
+                    self.tmcGraph.J[j_index].append(D)
+                    self.tmcGraph.J[j_index].append([])
                     j_index += (1,)
 
                     # We only store the modularity of nodes
@@ -765,7 +775,7 @@ class TooManyCells:
 
                     # Update the j_index for the newly 
                     # created node. (1,0,1)
-                    self.node_to_j_index[node_id] = j_index
+                    self.tmcGraph.node_to_j_index[node_id] = j_index
 
                     # Append each partition to the deque.
                     for indices in S:
@@ -792,9 +802,9 @@ class TooManyCells:
 
                     #Update the JSON structure for 
                     #a leaf node.
-                    L = self.cells_to_json(rows)
-                    self.J[j_index].append(L)
-                    self.J[j_index].append([])
+                    L = self.tmcGraph.cells_to_json(rows)
+                    self.tmcGraph.J[j_index].append(L)
+                    self.tmcGraph.J[j_index].append([])
 
                 pbar.update()
 
@@ -1351,27 +1361,6 @@ class TooManyCells:
             output_file.write(obj)
 
 
-    #=====================================
-    def convert_graph_to_json(self):
-        """
-        The graph structure stored in the attribute\
-            self.J has to be formatted into a \
-            JSON file. This function takes care\
-            of that task. The output file is \
-            named 'cluster_tree.json' and is\
-            equivalent to the 'cluster_tree.json'\
-            file produced by too-many-cells.
-        """
-        fname = "cluster_tree.json"
-        fname = os.path.join(self.output, fname)
-        s = str(self.J)
-        replace_dict = {" ":"", "None":"null", "'":'"'}
-        pattern = "|".join(replace_dict.keys())
-        regexp  = re.compile(pattern)
-        fun = lambda x: replace_dict[x.group(0)] 
-        obj = regexp.sub(fun, s)
-        with open(fname, "w") as output_file:
-            output_file.write(obj)
 
     #=====================================
     def generate_cell_annotation_file(self,
@@ -1790,6 +1779,13 @@ class TooManyCells:
         #We convert the number of cells of each node to
         #integer. We also convert the modularity to float.
         for node in self.G.nodes():
+
+            not_leaf_node = 0 < self.G.out_degree(node)
+            is_leaf_node = not not_leaf_node
+
+            if is_leaf_node:
+                self.set_of_leaf_nodes.add(node)
+
             size = self.G.nodes[node]["size"]
             self.G.nodes[node]["size"] = int(size)
             if "Q" in self.G.nodes[node]:
@@ -1797,6 +1793,7 @@ class TooManyCells:
                 # Q = Q.strip('\"')
                 self.G.nodes[node]["Q"] = self.FDT(Q)
 
+        self.tmcGraph = TMCGraph(graph=self.G, adata=self.A)
         print(self.G)
 
     #=====================================
@@ -3910,178 +3907,20 @@ class TooManyCells:
 
 
 
-
     #=====================================
-    def rebuild_tree(
+    def clean_tree(
             self,
+            cell_ann_col: str,
     ):
         """
         """
 
-        S      = []
-        self.J = MultiIndexList()
-        node_id= 0
+        self.tmcGraph.eliminate_cell_type_outliers(cell_ann_col)
+        self.tmcGraph.rebuild_graph_after_removing_cells()
+        self.tmcGraph.rebuild_tree_from_graph()
 
-        self.node_to_j_index = {}
-        self.node_to_j_index[node_id] = (1,)
-
-        Q = self.G.nodes[node_id]["Q"]
-        D = self.modularity_to_json(Q)
-
-        self.J.append(D)
-        self.J.append([])
-
-        children = self.G.successors(node_id)
-
-        # The largest index goes first so that 
-        # when we pop an element, we get the smallest
-        # of the two that were inserted.
-        children = sorted(children, reverse=True)
-        for child in children:
-            T = (node_id, child)
-            S.append(T)
-
-        while 0 < len(S):
-
-            p_node_id, node_id = S.pop()
-            cluster_size = self.G.nodes[node_id]["size"]
-            not_leaf_node = 0 < self.G.out_degree(node_id)
-            is_leaf_node = not not_leaf_node
-
-            nodes = nx.descendants(self.G, node_id)
-            mask = self.A.obs["sp_cluster"].isin(nodes)
-            n_viable_cells = mask.sum()
-
-            # Non-leaf nodes with zero viable cells
-            # are eliminated.
-            if not_leaf_node and n_viable_cells == 0:
-                # print(f"Cluster {node_id} has to "
-                #       "be eliminated.")
-                continue
-
-            if node_id in self.set_of_red_clusters:
-                continue
-
-            j_index = self.node_to_j_index[p_node_id]
-            n_stored_blocks = len(self.J[j_index])
-            self.J[j_index].append([])
-            #Update the j_index. For example, if
-            #j_index = (1,) and no blocks have been
-            #stored, then the new j_index is (1,0).
-            #Otherwise, it is (1,1).
-            j_index += (n_stored_blocks,)
-
-            if not_leaf_node:
-                #This is not a leaf node.
-                Q = self.G.nodes[node_id]["Q"]
-                D = self.modularity_to_json(Q)
-                self.J[j_index].append(D)
-                self.J[j_index].append([])
-                j_index += (1,)
-                self.node_to_j_index[node_id] = j_index
-                children = self.G.successors(node_id)
-                children = sorted(children, reverse=True)
-                for child in children:
-
-                    T = (node_id, child)
-                    S.append(T)
-            else:
-                #Leaf node
-                mask = self.A.obs["sp_cluster"] == node_id
-                rows = np.nonzero(mask)[0]
-                L = self.cells_to_json(rows)
-                self.J[j_index].append(L)
-                self.J[j_index].append([])
-
-        # print(self.J)
         self.convert_graph_to_json()
 
-    #=====================================
-    def rebuild_tree_from_graph(
-            self,
-    ):
-        """
-        """
-
-        S      = []
-        self.J = MultiIndexList()
-        node_id= 0
-
-        self.node_to_j_index = {}
-        self.node_to_j_index[node_id] = (1,)
-
-        Q = self.G.nodes[node_id]["Q"]
-        D = self.modularity_to_json(Q)
-
-        self.J.append(D)
-        self.J.append([])
-
-        children = self.G.successors(node_id)
-
-        # The largest index goes first so that 
-        # when we pop an element, we get the smallest
-        # of the two that were inserted.
-        children = sorted(children, reverse=True)
-        for child in children:
-            T = (node_id, child)
-            S.append(T)
-
-        while 0 < len(S):
-
-            p_node_id, node_id = S.pop()
-            cluster_size = self.G.nodes[node_id]["size"]
-            not_leaf_node = 0 < self.G.out_degree(node_id)
-            is_leaf_node = not not_leaf_node
-
-            nodes = nx.descendants(self.G, node_id)
-            mask = self.A.obs["sp_cluster"].isin(nodes)
-            n_viable_cells = mask.sum()
-
-            # Non-leaf nodes with zero viable cells
-            # are eliminated.
-            if not_leaf_node and n_viable_cells == 0:
-                print(f"Cluster {node_id} has to "
-                      "be eliminated.")
-                continue
-
-            if node_id in self.set_of_red_clusters:
-                print(f"Red cluster {node_id} has to "
-                      "be eliminated.")
-                continue
-
-            j_index = self.node_to_j_index[p_node_id]
-            n_stored_blocks = len(self.J[j_index])
-            self.J[j_index].append([])
-            #Update the j_index. For example, if
-            #j_index = (1,) and no blocks have been
-            #stored, then the new j_index is (1,0).
-            #Otherwise, it is (1,1).
-            j_index += (n_stored_blocks,)
-
-            if not_leaf_node:
-                #This is not a leaf node.
-                Q = self.G.nodes[node_id]["Q"]
-                D = self.modularity_to_json(Q)
-                self.J[j_index].append(D)
-                self.J[j_index].append([])
-                j_index += (1,)
-                self.node_to_j_index[node_id] = j_index
-                children = self.G.successors(node_id)
-                children = sorted(children, reverse=True)
-                for child in children:
-
-                    T = (node_id, child)
-                    S.append(T)
-            else:
-                #Leaf node
-                mask = self.A.obs["sp_cluster"] == node_id
-                rows = np.nonzero(mask)[0]
-                L = self.cells_to_json(rows)
-                self.J[j_index].append(L)
-                self.J[j_index].append([])
-
-        # print(self.J)
-        self.convert_graph_to_json()
 
 
     #====END=OF=CLASS=====================

@@ -11,21 +11,60 @@
 #Questions? Email me at: javier.ruizramirez@uhn.ca
 #########################################################
 import os
+import re
+import sys
+import json
+import numpy as np
 import pandas as pd
 import scanpy as sc
 import networkx as nx
 from typing import Union
+from os.path import dirname
 from typing import Optional
 from collections import deque
+
+sys.path.insert(0, dirname(__file__))
+from common import MultiIndexList
 
 class TMCGraph:
     #=====================================
     def __init__(self,
                  graph: nx.DiGraph,
                  adata: sc.AnnData,
+                 output: str,
         ) -> None:
+
         self.G = graph
         self.A = adata
+        self.output = output
+
+        self.J = MultiIndexList()
+
+        #Map a node to the path in the
+        #binary tree that connects the
+        #root node to the given node.
+        self.node_to_path = {}
+
+        #Map a node to a list of indices
+        #that provide access to the JSON
+        #structure.
+        self.node_to_j_index = {}
+
+        self.node_counter = 0
+
+
+    #=====================================
+    def find_leaf_nodes(self):
+
+        self.set_of_leaf_nodes = set()
+
+        for node in self.G.nodes():
+
+            not_leaf_node = 0 < self.G.out_degree(node)
+            is_leaf_node = not not_leaf_node
+
+            if is_leaf_node:
+                self.set_of_leaf_nodes.add(node)
 
     #=====================================
     def eliminate_cell_type_outliers(
@@ -38,6 +77,9 @@ class TMCGraph:
         Eliminate all cells that do not belong to the
         majority.
         """
+
+        self.find_leaf_nodes()
+
         CA =cell_ann_col
         node = 0
         parent_majority = None
@@ -58,18 +100,21 @@ class TMCGraph:
             print("===============================")
             T = DQ.popleft()
             node, parent_majority, parent_ratio = T
+
+            not_leaf_node = 0 < self.G.out_degree(node)
+            is_leaf_node = not not_leaf_node
+
             children = self.G.successors(node)
-            nodes = nx.descendants(self.G, node)
-            is_leaf_node = False
-            if len(nodes) == 0:
-                is_leaf_node = True
+
+            if is_leaf_node:
                 nodes = [node]
             else:
+                nodes = nx.descendants(self.G, node)
                 x = self.set_of_leaf_nodes.intersection(
                     nodes)
-                nodes = list(x)
+                # nodes = list(x)
 
-            mask = self.A.obs["sp_cluster"].isin(nodes)
+            mask = self.A.obs["sp_cluster"].isin(x)
             S = self.A.obs[CA].loc[mask]
             node_size = mask.sum()
             print(f"Working with {node=}")
@@ -166,13 +211,15 @@ class TMCGraph:
         self.A = self.A[~ids_to_erase].copy()
 
     #=====================================
-    def rebuild_graph(
+    def rebuild_graph_after_removing_cells(
             self,
     ):
         """
         """
+
         DQ = deque()
         DQ.append(0)
+
         while 0 < len(DQ):
 
             # (gp_node_id, p_node_id,
@@ -198,24 +245,9 @@ class TMCGraph:
             s_node_id = self.get_sibling_node(node_id)
             
             if flag_to_erase:
+
                 #Connect the grandpa node to the sibling node
                 self.G.add_edge(gp_node_id, s_node_id)
-
-                #The parent of the sibling node
-                #becomes the grandpa node
-                self.G.nodes[s_node_id]["parent"] = gp_node_id
-
-                #The parent of the grandpa node becomes 
-                #the new grandpa of the sibling node.
-                print(node_id, s_node_id, p_node_id, gp_node_id)
-                # print(self.G.nodes[gp_node_id])
-                new_gp = self.G.nodes[gp_node_id]["parent"]
-                self.G.nodes[s_node_id]["grandpa"] = new_gp
-
-                #The new sibling of the sibling node is the
-                #sibling of the parent node.
-                new_s = self.G.nodes[p_node_id]["sibling"]
-                self.G.nodes[s_node_id]["sibling"] = new_s
 
                 #Remove the edge between the parent node
                 #and the sibling node.
@@ -236,17 +268,8 @@ class TMCGraph:
 
             #No elimination took place.
             children = self.G.successors(node_id)
-            ch = list(children)
-
-            self.G.nodes[ch[0]]["parent"] = node_id
-            self.G.nodes[ch[0]]["grandpa"] = p_node_id
-            self.G.nodes[ch[0]]["sibling"] = ch[1]
-            DQ.append(ch[0])
-
-            self.G.nodes[ch[1]]["parent"] = node_id
-            self.G.nodes[ch[1]]["grandpa"] = p_node_id
-            self.G.nodes[ch[1]]["sibling"] = ch[0]
-            DQ.append(ch[1])
+            for child in children:
+                DQ.append(child)
 
     #=====================================
     def get_parent_node(self, node: int) -> int:
@@ -292,3 +315,204 @@ class TMCGraph:
                 return child
 
         return None
+
+    #=====================================
+    def rebuild_tree_from_graph(
+            self,
+    ):
+        """
+        """
+        S      = []
+        self.J = MultiIndexList()
+        node_id= 0
+
+        self.node_to_j_index = {}
+        self.node_to_j_index[node_id] = (1,)
+
+        Q = self.G.nodes[node_id]["Q"]
+        D = self.modularity_to_json(Q)
+
+        self.J.append(D)
+        self.J.append([])
+
+        children = self.G.successors(node_id)
+
+        # The largest index goes first so that 
+        # when we pop an element, we get the smallest
+        # of the two that were inserted.
+        children = sorted(children, reverse=True)
+        for child in children:
+            T = (node_id, child)
+            S.append(T)
+
+        while 0 < len(S):
+
+            p_node_id, node_id = S.pop()
+            cluster_size = self.G.nodes[node_id]["size"]
+            not_leaf_node = 0 < self.G.out_degree(node_id)
+            is_leaf_node = not not_leaf_node
+
+            nodes = nx.descendants(self.G, node_id)
+            mask = self.A.obs["sp_cluster"].isin(nodes)
+            n_viable_cells = mask.sum()
+
+            j_index = self.node_to_j_index[p_node_id]
+            n_stored_blocks = len(self.J[j_index])
+            self.J[j_index].append([])
+            #Update the j_index. For example, if
+            #j_index = (1,) and no blocks have been
+            #stored, then the new j_index is (1,0).
+            #Otherwise, it is (1,1).
+            j_index += (n_stored_blocks,)
+
+            if not_leaf_node:
+                #This is not a leaf node.
+                Q = self.G.nodes[node_id]["Q"]
+                D = self.modularity_to_json(Q)
+                self.J[j_index].append(D)
+                self.J[j_index].append([])
+                j_index += (1,)
+                self.node_to_j_index[node_id] = j_index
+                children = self.G.successors(node_id)
+                children = sorted(children, reverse=True)
+                for child in children:
+
+                    T = (node_id, child)
+                    S.append(T)
+            else:
+                #Leaf node
+                mask = self.A.obs["sp_cluster"] == node_id
+                rows = np.nonzero(mask)[0]
+                L = self.cells_to_json(rows)
+                self.J[j_index].append(L)
+                self.J[j_index].append([])
+
+    #=====================================
+    def rebuild_tree_without_rearrangements(
+            self,
+    ):
+        """
+        To show the stubs you need to modify the
+        """
+
+        S      = []
+        self.J = MultiIndexList()
+        node_id= 0
+
+        self.node_to_j_index = {}
+        self.node_to_j_index[node_id] = (1,)
+
+        Q = self.G.nodes[node_id]["Q"]
+        D = self.modularity_to_json(Q)
+
+        self.J.append(D)
+        self.J.append([])
+
+        children = self.G.successors(node_id)
+
+        # The largest index goes first so that 
+        # when we pop an element, we get the smallest
+        # of the two that were inserted.
+        children = sorted(children, reverse=True)
+        for child in children:
+            T = (node_id, child)
+            S.append(T)
+
+        while 0 < len(S):
+
+            p_node_id, node_id = S.pop()
+            cluster_size = self.G.nodes[node_id]["size"]
+            not_leaf_node = 0 < self.G.out_degree(node_id)
+            is_leaf_node = not not_leaf_node
+
+            nodes = nx.descendants(self.G, node_id)
+            mask = self.A.obs["sp_cluster"].isin(nodes)
+            n_viable_cells = mask.sum()
+
+            # Non-leaf nodes with zero viable cells
+            # are eliminated.
+            if not_leaf_node and n_viable_cells == 0:
+                # print(f"Cluster {node_id} has to "
+                #       "be eliminated.")
+                continue
+
+            if node_id in self.set_of_red_clusters:
+                continue
+
+            j_index = self.node_to_j_index[p_node_id]
+            n_stored_blocks = len(self.J[j_index])
+            self.J[j_index].append([])
+            #Update the j_index. For example, if
+            #j_index = (1,) and no blocks have been
+            #stored, then the new j_index is (1,0).
+            #Otherwise, it is (1,1).
+            j_index += (n_stored_blocks,)
+
+            if not_leaf_node:
+                #This is not a leaf node.
+                Q = self.G.nodes[node_id]["Q"]
+                D = self.modularity_to_json(Q)
+                self.J[j_index].append(D)
+                self.J[j_index].append([])
+                j_index += (1,)
+                self.node_to_j_index[node_id] = j_index
+                children = self.G.successors(node_id)
+                children = sorted(children, reverse=True)
+                for child in children:
+
+                    T = (node_id, child)
+                    S.append(T)
+            else:
+                #Leaf node
+                mask = self.A.obs["sp_cluster"] == node_id
+                rows = np.nonzero(mask)[0]
+                L = self.cells_to_json(rows)
+                self.J[j_index].append(L)
+                self.J[j_index].append([])
+
+    #=====================================
+    def modularity_to_json(self,Q):
+        return {'_item': None,
+                '_significance': None,
+                '_distance': Q}
+
+    #=====================================
+    def cell_to_json(self, cell_name, cell_number):
+        return {'_barcode': {'unCell': cell_name},
+                '_cellRow': {'unRow': cell_number}}
+
+    #=====================================
+    def cells_to_json(self,rows):
+        L = []
+        for row in rows:
+            cell_id = self.A.obs.index[row]
+            D = self.cell_to_json(cell_id, row)
+            L.append(D)
+        return {'_item': L,
+                '_significance': None,
+                '_distance': None}
+
+    #=====================================
+    def convert_graph_to_json(self):
+        """
+        The graph structure stored in the attribute\
+            self.tmcGraph.J has to be formatted into a \
+            JSON file. This function takes care\
+            of that task. The output file is \
+            named 'cluster_tree.json' and is\
+            equivalent to the 'cluster_tree.json'\
+            file produced by too-many-cells.
+        """
+        fname = "cluster_tree.json"
+        fname = os.path.join(self.output, fname)
+        s = str(self.J)
+        replace_dict = {" ":"", "None":"null", "'":'"'}
+        pattern = "|".join(replace_dict.keys())
+        regexp  = re.compile(pattern)
+        fun = lambda x: replace_dict[x.group(0)] 
+        obj = regexp.sub(fun, s)
+        print("Writing graph to JSON...")
+        with open(fname, "w", encoding="utf-8") as output_file:
+            output_file.write(obj)
+        print("Graph to JSON is complete.")
+
