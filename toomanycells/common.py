@@ -1,6 +1,8 @@
-from typing import Union
-import pandas as pd
 import os
+import json
+import numpy as np
+import pandas as pd
+from typing import Union
 #=====================================================
 class MultiIndexList(list):
     """
@@ -35,6 +37,19 @@ class MultiIndexList(list):
             #method of the parent class.
             return super().__getitem__(indices)
 
+#=====================================================
+class JEncoder(json.JSONEncoder):
+    def default(self, x):
+        if isinstance(x, np.bool_):
+            return bool(x)
+        elif isinstance(x, np.integer):
+            return int(x)
+        elif isinstance(x, np.floating):
+            return float(x)
+        elif isinstance(x, np.ndarray):
+            return x.tolist()
+        else:
+            return super().default(x)
 
 #=====================================
 def load_metadata_for_demo()-> pd.DataFrame:

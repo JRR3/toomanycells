@@ -1670,70 +1670,6 @@ class TooManyCells:
 
         mmwrite(mtx_path, sp.coo_matrix(m))
 
-    #=====================================
-    def load_graph(
-            self,
-            json_fname: Optional[str]="",
-        ):
-        """
-        Load the dot file. Note that when loading the data,
-        the attributes of each node are assumed to be 
-        strings. Hence, we have to convert them to 
-        integers for the case of number of cells, and to
-        float for the case of modularity.
-        """
-
-        self.t0 = clock()
-
-
-        if len(json_fname) == 0:
-            fname = "graph.json"
-            json_fname = os.path.join(self.output, fname)
-
-        if not os.path.exists(json_fname):
-            raise ValueError("File does not exists.")
-
-        # Avoid dependencies with GraphViz
-        # dot_fname = "graph.dot"
-        # dot_fname = os.path.join(self.output, dot_fname)
-        # self.G = nx.nx_agraph.read_dot(dot_fname)
-
-        print("Reading JSON file ...")
-
-        with open(json_fname, encoding="utf-8") as f:
-            json_graph = json.load(f)
-        self.G = nx.node_link_graph(json_graph)
-        
-        print("Finished reading JSON file.")
-
-        n_nodes = self.G.number_of_nodes()
-
-        # Change string labels to integers.
-        D = {}
-        for k in range(n_nodes):
-            D[str(k)] = k
-
-        self.G = nx.relabel_nodes(self.G, D, copy=True)
-
-        #We convert the number of cells of each node to
-        #integer. We also convert the modularity to float.
-        for node in self.G.nodes():
-
-            not_leaf_node = 0 < self.G.out_degree(node)
-            is_leaf_node = not not_leaf_node
-
-            if is_leaf_node:
-                self.set_of_leaf_nodes.add(node)
-
-            size = self.G.nodes[node]["size"]
-            self.G.nodes[node]["size"] = int(size)
-            if "Q" in self.G.nodes[node]:
-                Q = self.G.nodes[node]["Q"]
-                # Q = Q.strip('\"')
-                self.G.nodes[node]["Q"] = self.FDT(Q)
-
-        self.tmcGraph = TMCGraph(graph=self.G, adata=self.A)
-        print(self.G)
 
     #=====================================
     def get_path_from_root_to_node(
@@ -3849,16 +3785,16 @@ class TooManyCells:
     #=====================================
     def clean_tree(
             self,
-            cell_ann_col: str,
+            cell_ann_col: str = "cell_annotations",
     ):
         """
         """
 
-        self.tmcGraph.eliminate_cell_type_outliers(cell_ann_col)
+        self.tmcGraph.eliminate_cell_type_outliers(
+            cell_ann_col)
         self.tmcGraph.rebuild_graph_after_removing_cells()
         self.tmcGraph.rebuild_tree_from_graph()
-        # self.convert_graph_to_json()
-
+        self.tmcGraph.store_outputs()
 
 
     #====END=OF=CLASS=====================

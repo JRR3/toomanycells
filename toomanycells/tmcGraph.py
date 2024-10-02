@@ -25,6 +25,7 @@ from collections import deque
 
 sys.path.insert(0, dirname(__file__))
 from common import MultiIndexList
+from common import JEncoder
 
 class TMCGraph:
     #=====================================
@@ -505,23 +506,8 @@ class TMCGraph:
             file produced by too-many-cells.
         """
 
-        s = str(self.J)
-
-        fname = "cluster_tree_as_json.json"
+        fname = "cluster_tree.json"
         fname = os.path.join(self.output, fname)
-
-        class JEncoder(json.JSONEncoder):
-            def default(self, x):
-                if isinstance(x, np.bool_):
-                    return bool(x)
-                elif isinstance(x, np.integer):
-                    return int(x)
-                elif isinstance(x, np.floating):
-                    return float(x)
-                elif isinstance(x, np.ndarray):
-                    return x.tolist()
-                else:
-                    return super().default(x)
 
         with open(fname,"w",encoding="utf-8") as output_file:
             json.dump(
@@ -531,19 +517,6 @@ class TMCGraph:
                 ensure_ascii=False,
                 separators=(",", ":"),
                 )
-
-        replace_dict = {" ":"", "None":"null", "'":'"'}
-        pattern = "|".join(replace_dict.keys())
-        regexp  = re.compile(pattern)
-        fun = lambda x: replace_dict[x.group(0)] 
-        obj = regexp.sub(fun, s)
-        print("Writing graph to JSON...")
-
-        fname = "cluster_tree_with_encoding.json"
-        fname = os.path.join(self.output, fname)
-        with open(fname,"w",encoding="utf-8") as output_file:
-            output_file.write(obj)
-
 
     #=====================================
     def write_cell_assignment_to_csv(self):
@@ -571,8 +544,6 @@ class TMCGraph:
             the assignment of each cell to a specific \
             cluster. 
         """
-        fname = 'cluster_list.json'
-        fname = os.path.join(self.output, fname)
         master_list = []
         relevant_cols = ["sp_cluster", "sp_path"]
         df = self.A.obs[relevant_cols]
@@ -594,14 +565,25 @@ class TMCGraph:
             
             master_list.append([main_dict, list_of_nodes])
 
-        s = str(master_list)
-        replace_dict = {" ":"", "'":'"'}
-        pattern = "|".join(replace_dict.keys())
-        regexp  = re.compile(pattern)
-        fun = lambda x: replace_dict[x.group(0)] 
-        obj = regexp.sub(fun, s)
-        with open(fname, "w") as output_file:
-            output_file.write(obj)
+        fname = "cluster_list.json"
+        fname = os.path.join(self.output, fname)
+        with open(fname,"w",encoding="utf-8") as output_file:
+            json.dump(
+                master_list,
+                output_file,
+                cls=JEncoder,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                )
+
+        # s = str(master_list)
+        # replace_dict = {" ":"", "'":'"'}
+        # pattern = "|".join(replace_dict.keys())
+        # regexp  = re.compile(pattern)
+        # fun = lambda x: replace_dict[x.group(0)] 
+        # obj = regexp.sub(fun, s)
+        # with open(fname, "w") as output_file:
+        #     output_file.write(obj)
 
     #=====================================
     def convert_graph_to_json(self):
@@ -624,6 +606,68 @@ class TMCGraph:
         self.convert_graph_to_json()
         self.write_cluster_list_to_tmc_json()
 
+    #=====================================
+    def load_graph(
+            self,
+            json_fname: Optional[str]="",
+        ):
+        """
+        Load the dot file. Note that when loading the data,
+        the attributes of each node are assumed to be 
+        strings. Hence, we have to convert them to 
+        integers for the case of number of cells, and to
+        float for the case of modularity.
+        """
+
+        self.t0 = clock()
 
 
+        if len(json_fname) == 0:
+            fname = "graph.json"
+            json_fname = os.path.join(self.output, fname)
 
+        if not os.path.exists(json_fname):
+            raise ValueError("File does not exists.")
+
+        # Avoid dependencies with GraphViz
+        # dot_fname = "graph.dot"
+        # dot_fname = os.path.join(self.output, dot_fname)
+        # self.G = nx.nx_agraph.read_dot(dot_fname)
+
+        print("Reading JSON file ...")
+
+        with open(json_fname, encoding="utf-8") as f:
+            json_graph = json.load(f)
+        self.G = nx.node_link_graph(json_graph)
+        
+        print("Finished reading JSON file.")
+
+        n_nodes = self.G.number_of_nodes()
+
+        # Change string labels to integers.
+        D = {}
+        for k in range(n_nodes):
+            D[str(k)] = k
+
+        self.G = nx.relabel_nodes(self.G, D, copy=True)
+
+        #We convert the number of cells of each node to
+        #integer. We also convert the modularity to float.
+        for node in self.G.nodes():
+
+            not_leaf_node = 0 < self.G.out_degree(node)
+            is_leaf_node = not not_leaf_node
+
+            if is_leaf_node:
+                self.set_of_leaf_nodes.add(node)
+
+            size = self.G.nodes[node]["size"]
+            self.G.nodes[node]["size"] = int(size)
+            if "Q" in self.G.nodes[node]:
+                Q = self.G.nodes[node]["Q"]
+                # Q = Q.strip('\"')
+                self.G.nodes[node]["Q"] = self.FDT(Q)
+
+        print(self.G)
+
+    #====END=OF=CLASS=====================
