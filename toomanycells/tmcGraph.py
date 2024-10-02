@@ -54,6 +54,8 @@ class TMCGraph:
 
         self.node_counter = 0
 
+        self.set_of_leaf_nodes = set()
+
 
     #=====================================
     def find_leaf_nodes(self):
@@ -74,6 +76,7 @@ class TMCGraph:
             cell_ann_col: Optional[str] = "cell_annotations",
             clean_threshold: Optional[float] = 0.8,
             no_mixtures: Optional[bool] = True,
+            batch_ann_col: Optional[str] = "",
     ):
         """
         Eliminate all cells that do not belong to the
@@ -170,7 +173,14 @@ class TMCGraph:
         cell_labels = self.A.obs[CA].loc[ES]
 
         #Batches containing cells to be eliminated.
-        batch_labels = self.A.obs["sample_id"].loc[ES]
+        if 0 < len(batch_ann_col):
+            batch_labels = self.A.obs[
+                batch_ann_col
+            ].loc[ES]
+
+            #Batch origin quantification.
+            batch_vc = batch_labels.value_counts()
+            print(batch_vc)
 
         #Clusters containing cells to be eliminated.
         cluster_labels = self.A.obs["sp_cluster"].loc[ES]
@@ -178,8 +188,6 @@ class TMCGraph:
         #Cell type quatification.
         cell_vc = cell_labels.value_counts()
 
-        #Batch origin quantification.
-        batch_vc = batch_labels.value_counts()
 
         #Cluster quantification.
         cluster_vc = cluster_labels.value_counts()
@@ -189,7 +197,6 @@ class TMCGraph:
         cluster_ref = self.A.obs["sp_cluster"].value_counts()
 
         print(cell_vc)
-        print(batch_vc)
         print(cluster_vc)
 
         #Compare side-by-side the cells to be eliminated
@@ -498,7 +505,7 @@ class TMCGraph:
     def convert_graph_to_tmc_json(self):
         """
         The graph structure stored in the attribute\
-            self.tmcGraph.J has to be formatted into a \
+            self.J has to be formatted into a \
             JSON file. This function takes care\
             of that task. The output file is \
             named 'cluster_tree.json' and is\
@@ -612,15 +619,12 @@ class TMCGraph:
             json_fname: Optional[str]="",
         ):
         """
-        Load the dot file. Note that when loading the data,
+        Load the JSON file. Note that when loading the data,
         the attributes of each node are assumed to be 
-        strings. Hence, we have to convert them to 
-        integers for the case of number of cells, and to
-        float for the case of modularity.
+        strings. Hence, we have to convert them.
+        We use int(x) for the number of cells, and float(x) 
+        for the modularity.
         """
-
-        self.t0 = clock()
-
 
         if len(json_fname) == 0:
             fname = "graph.json"
@@ -665,8 +669,7 @@ class TMCGraph:
             self.G.nodes[node]["size"] = int(size)
             if "Q" in self.G.nodes[node]:
                 Q = self.G.nodes[node]["Q"]
-                # Q = Q.strip('\"')
-                self.G.nodes[node]["Q"] = self.FDT(Q)
+                self.G.nodes[node]["Q"] = float(Q)
 
         print(self.G)
 

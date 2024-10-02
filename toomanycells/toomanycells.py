@@ -3780,8 +3780,6 @@ class TooManyCells:
 
         haskell.run()
 
-
-
     #=====================================
     def clean_tree(
             self,
@@ -3792,10 +3790,32 @@ class TooManyCells:
 
         self.tmcGraph.eliminate_cell_type_outliers(
             cell_ann_col)
+        self.A = self.tmcGraph.A
         self.tmcGraph.rebuild_graph_after_removing_cells()
         self.tmcGraph.rebuild_tree_from_graph()
         self.tmcGraph.store_outputs()
 
+    #=====================================
+    def load_graph(
+            self,
+            json_fname: Optional[str]="",
+        ):
+
+        self.tmcGraph.load_graph(json_fname)
+        self.G = self.tmcGraph.G
+
+        x = self.tmcGraph.set_of_leaf_nodes
+        self.set_of_leaf_nodes = x
+    #=====================================
+    def redefine_output_folder(
+            self,
+            path: str,
+            ):
+        """
+        """
+        os.makedirs(path, exist_ok = True)
+        self.output = path
+        self.tmcGraph.output = path
 
     #====END=OF=CLASS=====================
 
