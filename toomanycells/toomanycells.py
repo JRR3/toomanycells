@@ -116,7 +116,7 @@ class TooManyCells:
 
         #We use a directed graph to enforce the parent
         #to child relation.
-        # self.G = nx.DiGraph()
+        self.G = nx.DiGraph()
 
         self.set_of_leaf_nodes = set()
 
@@ -128,8 +128,13 @@ class TooManyCells:
 
             #Clone the given TooManyCells object.
             self.A = input.A.copy()
+            self.G = input.G.copy()
             self.output = input.output
-            self.tmcGraph = input.tmcGraph
+            self.tmcGraph = TMCGraph(
+                graph = self.G,
+                adata = self.A,
+                output= self.output,
+            )
 
             S = input.set_of_leaf_nodes.copy()
             self.set_of_leaf_nodes = S
@@ -732,7 +737,8 @@ class TooManyCells:
 
                 # If the parent node is 0, then the path is
                 # "0".
-                current_path = self.tmcGraph.node_to_path[p_node_id]
+                current_path = self.tmcGraph.node_to_path[
+                    p_node_id]
 
                 #Update path for the new node
                 new_path = current_path 
@@ -741,9 +747,12 @@ class TooManyCells:
 
                 # If the parent node is 0, then j_index is
                 # (1,)
-                j_index = self.tmcGraph.node_to_j_index[p_node_id]
+                j_index = self.tmcGraph.node_to_j_index[
+                    p_node_id]
 
-                n_stored_blocks = len(self.tmcGraph.J[j_index])
+                n_stored_blocks = len(
+                    self.tmcGraph.J[j_index])
+
                 self.tmcGraph.J[j_index].append([])
                 #Update the j_index. For example, if
                 #j_index = (1,) and no blocks have been
@@ -773,7 +782,8 @@ class TooManyCells:
 
                     # Update the j_index for the newly 
                     # created node. (1,0,1)
-                    self.tmcGraph.node_to_j_index[node_id] = j_index
+                    self.tmcGraph.node_to_j_index[
+                        node_id] = j_index
 
                     # Append each partition to the deque.
                     for indices in S:
@@ -1155,21 +1165,11 @@ class TooManyCells:
 
         self.t0 = clock()
 
-
-        # Write graph "self.G" to JSON file.
-        nld = nx.node_link_data(self.G)
-        fname = "graph.json"
-        fname = os.path.join(self.output, fname)
-        with open(fname, "w", encoding="utf-8") as f:
-            json.dump(nld, f, ensure_ascii=False, indent=4)
-
         # nx.drawing.nx_pydot.write_dot(self.G, dot_fname)
         # nx.nx_agraph.write_dot(self.G, dot_fname)
 
-        #Write cell to node data frame.
-        self.write_cell_assignment_to_csv()
-        self.convert_graph_to_json()
-        self.write_cluster_list_to_json()
+        #Write graph data to file.
+        self.tmcGraph.store_outputs()
 
         #Store the cell annotations in the output folder.
         if 0 < len(cell_ann_col):
@@ -1299,65 +1299,6 @@ class TooManyCells:
         txt = ("Elapsed time for loading: " + 
                 f"{delta:.2f} seconds.")
         print(txt)
-
-    #=====================================
-    def write_cell_assignment_to_csv(self):
-        """
-        This function creates a CSV file that indicates \
-            the assignment of each cell to a specific \
-            cluster. The first column is the cell id, \
-            the second column is the cluster id, and \
-            the third column is the path from the root \
-            node to the given node.
-        """
-        fname = 'clusters.csv'
-        fname = os.path.join(self.output, fname)
-        labels = ['sp_cluster','sp_path']
-        df = self.A.obs[labels]
-        df.index.names = ['cell']
-        df = df.rename(columns={'sp_cluster':'cluster',
-                                'sp_path':'path'})
-        df.to_csv(fname, index=True)
-
-    #=====================================
-    def write_cluster_list_to_json(self):
-        """
-        This function creates a JSON file that indicates \
-            the assignment of each cell to a specific \
-            cluster. 
-        """
-        fname = 'cluster_list.json'
-        fname = os.path.join(self.output, fname)
-        master_list = []
-        relevant_cols = ["sp_cluster", "sp_path"]
-        df = self.A.obs[relevant_cols]
-        df = df.reset_index(names="cell")
-        df = df.sort_values(["sp_cluster","cell"])
-        for idx, row in df.iterrows():
-            cluster = row["sp_cluster"]
-            path_str= row["sp_path"]
-            cell    = row["cell"]
-            nodes = path_str.split("/")
-            list_of_nodes = []
-            sub_dict_1 = {"unCell":cell}
-            sub_dict_2 = {"unRow":idx}
-            main_dict = {"_barcode":sub_dict_1,
-                         "_cellRow":sub_dict_2}
-            for node in nodes:
-                d = {"unCluster":int(node)}
-                list_of_nodes.append(d)
-            
-            master_list.append([main_dict, list_of_nodes])
-
-        s = str(master_list)
-        replace_dict = {" ":"", "'":'"'}
-        pattern = "|".join(replace_dict.keys())
-        regexp  = re.compile(pattern)
-        fun = lambda x: replace_dict[x.group(0)] 
-        obj = regexp.sub(fun, s)
-        with open(fname, "w") as output_file:
-            output_file.write(obj)
-
 
 
     #=====================================
@@ -3916,8 +3857,7 @@ class TooManyCells:
         self.tmcGraph.eliminate_cell_type_outliers(cell_ann_col)
         self.tmcGraph.rebuild_graph_after_removing_cells()
         self.tmcGraph.rebuild_tree_from_graph()
-
-        self.convert_graph_to_json()
+        # self.convert_graph_to_json()
 
 
 

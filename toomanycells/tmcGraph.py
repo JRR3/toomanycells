@@ -29,18 +29,14 @@ from common import MultiIndexList
 class TMCGraph:
     #=====================================
     def __init__(self,
+                 graph: nx.DiGraph,
                  adata: sc.AnnData,
                  output: str,
-                 graph: Optional[nx.DiGraph] = None,
         ) -> None:
 
+        self.G = graph
         self.A = adata
         self.output = output
-
-        if graph is not None:
-            self.G = graph
-        else:
-            self.G = nx.DiGraph()
 
 
         self.J = MultiIndexList()
@@ -498,7 +494,7 @@ class TMCGraph:
                 '_distance': None}
 
     #=====================================
-    def convert_graph_to_json(self):
+    def convert_graph_to_tmc_json(self):
         """
         The graph structure stored in the attribute\
             self.tmcGraph.J has to be formatted into a \
@@ -508,16 +504,126 @@ class TMCGraph:
             equivalent to the 'cluster_tree.json'\
             file produced by too-many-cells.
         """
-        fname = "cluster_tree.json"
-        fname = os.path.join(self.output, fname)
+
         s = str(self.J)
+
+        fname = "cluster_tree_as_json.json"
+        fname = os.path.join(self.output, fname)
+
+        class JEncoder(json.JSONEncoder):
+            def default(self, x):
+                if isinstance(x, np.bool_):
+                    return bool(x)
+                elif isinstance(x, np.integer):
+                    return int(x)
+                elif isinstance(x, np.floating):
+                    return float(x)
+                elif isinstance(x, np.ndarray):
+                    return x.tolist()
+                else:
+                    return super().default(x)
+
+        with open(fname,"w",encoding="utf-8") as output_file:
+            json.dump(
+                self.J,
+                output_file,
+                cls=JEncoder,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                )
+
         replace_dict = {" ":"", "None":"null", "'":'"'}
         pattern = "|".join(replace_dict.keys())
         regexp  = re.compile(pattern)
         fun = lambda x: replace_dict[x.group(0)] 
         obj = regexp.sub(fun, s)
         print("Writing graph to JSON...")
-        with open(fname, "w", encoding="utf-8") as output_file:
+
+        fname = "cluster_tree_with_encoding.json"
+        fname = os.path.join(self.output, fname)
+        with open(fname,"w",encoding="utf-8") as output_file:
             output_file.write(obj)
-        print("Graph to JSON is complete.")
+
+
+    #=====================================
+    def write_cell_assignment_to_csv(self):
+        """
+        This function creates a CSV file that indicates \
+            the assignment of each cell to a specific \
+            cluster. The first column is the cell id, \
+            the second column is the cluster id, and \
+            the third column is the path from the root \
+            node to the given node.
+        """
+        fname = 'clusters.csv'
+        fname = os.path.join(self.output, fname)
+        labels = ['sp_cluster','sp_path']
+        df = self.A.obs[labels]
+        df.index.names = ['cell']
+        df = df.rename(columns={'sp_cluster':'cluster',
+                                'sp_path':'path'})
+        df.to_csv(fname, index=True)
+
+    #=====================================
+    def write_cluster_list_to_tmc_json(self):
+        """
+        This function creates a JSON file that indicates \
+            the assignment of each cell to a specific \
+            cluster. 
+        """
+        fname = 'cluster_list.json'
+        fname = os.path.join(self.output, fname)
+        master_list = []
+        relevant_cols = ["sp_cluster", "sp_path"]
+        df = self.A.obs[relevant_cols]
+        df = df.reset_index(names="cell")
+        df = df.sort_values(["sp_cluster","cell"])
+        for idx, row in df.iterrows():
+            cluster = row["sp_cluster"]
+            path_str= row["sp_path"]
+            cell    = row["cell"]
+            nodes = path_str.split("/")
+            list_of_nodes = []
+            sub_dict_1 = {"unCell":cell}
+            sub_dict_2 = {"unRow":idx}
+            main_dict = {"_barcode":sub_dict_1,
+                         "_cellRow":sub_dict_2}
+            for node in nodes:
+                d = {"unCluster":int(node)}
+                list_of_nodes.append(d)
+            
+            master_list.append([main_dict, list_of_nodes])
+
+        s = str(master_list)
+        replace_dict = {" ":"", "'":'"'}
+        pattern = "|".join(replace_dict.keys())
+        regexp  = re.compile(pattern)
+        fun = lambda x: replace_dict[x.group(0)] 
+        obj = regexp.sub(fun, s)
+        with open(fname, "w") as output_file:
+            output_file.write(obj)
+
+    #=====================================
+    def convert_graph_to_json(self):
+        """
+        The graph is stored in the JSON format.
+        """
+        # Write graph "self.G" to JSON file.
+        nld = nx.node_link_data(self.G)
+        fname = "graph.json"
+        fname = os.path.join(self.output, fname)
+        with open(fname, "w", encoding="utf-8") as f:
+            json.dump(nld, f, ensure_ascii=False, indent=4)
+
+    #=====================================
+    def store_outputs(self):
+        """
+        """
+        self.write_cell_assignment_to_csv()
+        self.convert_graph_to_tmc_json()
+        self.convert_graph_to_json()
+        self.write_cluster_list_to_tmc_json()
+
+
+
 
