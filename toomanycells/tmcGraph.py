@@ -29,14 +29,19 @@ from common import MultiIndexList
 class TMCGraph:
     #=====================================
     def __init__(self,
-                 graph: nx.DiGraph,
                  adata: sc.AnnData,
                  output: str,
+                 graph: Optional[nx.DiGraph] = None,
         ) -> None:
 
-        self.G = graph
         self.A = adata
         self.output = output
+
+        if graph is not None:
+            self.G = graph
+        else:
+            self.G = nx.DiGraph()
+
 
         self.J = MultiIndexList()
 

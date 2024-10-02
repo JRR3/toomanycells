@@ -116,7 +116,7 @@ class TooManyCells:
 
         #We use a directed graph to enforce the parent
         #to child relation.
-        self.G = nx.DiGraph()
+        # self.G = nx.DiGraph()
 
         self.set_of_leaf_nodes = set()
 
@@ -128,11 +128,9 @@ class TooManyCells:
 
             #Clone the given TooManyCells object.
             self.A = input.A.copy()
-            self.G = input.G.copy()
             self.output = input.output
-            self.tmcGraph = TMCGraph(graph=self.G,
-                                     adata=self.A,
-                                     output=self.output)
+            self.tmcGraph = input.tmcGraph
+
             S = input.set_of_leaf_nodes.copy()
             self.set_of_leaf_nodes = S
 
