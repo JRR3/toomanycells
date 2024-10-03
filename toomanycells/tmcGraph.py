@@ -673,4 +673,33 @@ class TMCGraph:
 
         print(self.G)
 
+    #=====================================
+    def create_mask_for_list_of_nodes(
+            self,
+            path_to_csv: str,
+            fname: str,
+            ):
+        """
+        """
+        df = pd.read_csv(path_to_csv)
+
+        MSK = "mask"
+        self.A.obs[MSK] = "Background"
+
+        for index, row in df.iterrows():
+            node = row["node"]
+            label = row["label"]
+            if 0 < self.G.out_degree(node):
+                nodes = nx.descendants(self.G, node)
+                nodes = self.set_of_leaf_nodes.intersection(
+                    nodes)
+            else:
+                nodes = [node]
+            
+            mask = self.A.obs["sp_cluster"].isin(nodes)
+            self.A.obs[MSK].loc[mask] = label
+
+        fname = os.path.join(self.output, fname)
+        self.A.obs[MSK].to_csv(fname, index=True)
+
     #====END=OF=CLASS=====================

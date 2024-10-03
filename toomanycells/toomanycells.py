@@ -3047,6 +3047,7 @@ class TooManyCells:
 
             nodes = nx.descendants(self.G, node)
 
+            # TODO: Check degree out
             if len(nodes) == 0:
                 #This is a leaf node.
                 nodes = [node]
@@ -3806,6 +3807,7 @@ class TooManyCells:
 
         x = self.tmcGraph.set_of_leaf_nodes
         self.set_of_leaf_nodes = x
+
     #=====================================
     def redefine_output_folder(
             self,
@@ -3816,6 +3818,18 @@ class TooManyCells:
         os.makedirs(path, exist_ok = True)
         self.output = path
         self.tmcGraph.output = path
+
+    #=====================================
+    def create_mask_for_list_of_nodes(
+            self,
+            path_to_csv: str,
+            fname: str,
+            ):
+        """
+        """
+        self.tmcGraph.create_mask_for_list_of_nodes(
+            path_to_csv, fname)
+
 
     #====END=OF=CLASS=====================
 
