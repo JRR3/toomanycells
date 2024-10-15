@@ -2831,10 +2831,21 @@ class TooManyCells:
         list_of_column_idx        = []
         list_of_cell_types        = []
 
+        self.marker_to_mad_threshold = {}
+
+        has_threshold = False
+        if "Threshold" in  df_cm.columns:
+            has_threshold = True
+
         for index, row in df_cm.iterrows():
 
             cell_type = row["Cell"]
             marker = row["Marker"]
+
+            if has_threshold:
+                th = row["Threshold"]
+                if pd.notna(th):
+                    self.marker_to_mad_threshold[marker] = th
 
             #In case some cell marker is not present
             #in the expression matrix.
@@ -3187,15 +3198,45 @@ class TooManyCells:
 
 
         print(self.node_exp_stats_df)
-        print(self.node_exp_stats_df.loc["FAP",:])
-        L = ["FAP_mad_bounds", "FAP_counts"]
-        print(self.node_mad_dist_df[L])
+        # print(self.node_exp_stats_df.loc["FAP",:])
+        # L = ["FAP_mad_bounds", "FAP_counts"]
+        # print(self.node_mad_dist_df[L])
 
         self.tf = clock()
         delta = self.tf - self.t0
         txt = ("Elapsed time to compute node metadata: " + 
                 f"{delta:.2f} seconds.")
         print(txt)
+    #=====================================
+    def which_cells_are_above_threshold(
+            self,
+    ):
+        """
+        """
+
+        for marker, threshold in self.marker_to_mad_threshold.items():
+            # print(marker, threshold)
+
+            self.marker_to_column_idx
+            mad = self.node_exp_stats_df.loc[marker, "mad"]
+            median = self.node_exp_stats_df.loc[marker, "median"]
+            marker_exp = mad * threshold + median
+            matrix_col = self.marker_to_column_idx[marker]
+            vec = self.A.X[:,matrix_col]
+
+            if sp.issparse(self.A.X):
+                vec = vec.toarray().squeeze()
+
+            mask = marker_exp <= vec
+            df = self.A.obs.sp_cluster.loc[mask]
+            df = df.to_frame(name="Node")
+            df["Expression"] = vec[mask]
+            df["ExpressionAsMADs"] = (vec[mask] - median) / mad
+            fname = marker + "_exp_based_on_MADs.csv"
+            fname = os.path.join(self.output, fname)
+            df.to_csv(fname, index=True)
+            
+
 
     #=====================================
     def count_connected_nodes_above_threshold_for_attribute(
