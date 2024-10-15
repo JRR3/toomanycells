@@ -2757,7 +2757,7 @@ class TooManyCells:
             print(cell_group_path)
             raise ValueError("File does not exists.")
 
-        df_cg = pd.read_csv(cell_group_path)
+        df_cg = pd.read_csv(cell_group_path, dtype=str)
         print("===============================")
         print("Cell to Group file")
         print(df_cg)
@@ -2807,6 +2807,15 @@ class TooManyCells:
         Each marker is associated to a cell type.
         For a given cell type we generate a list of 
         potential markers to identify that cell.
+
+        >>>Note: In general, first call
+        >>>load_group_and_cell_type_data(cell_group_path)
+
+        We use the dictionary
+            self.marker_to_mad_threshold
+        to select cells whose expression
+        of a given marker is above the
+        given threshold.
         """
 
         self.t0 = clock()
@@ -2815,7 +2824,7 @@ class TooManyCells:
             print(cell_marker_path)
             raise ValueError("File does not exists.")
 
-        df_cm = pd.read_csv(cell_marker_path)
+        df_cm = pd.read_csv(cell_marker_path, dtype=str)
         print("===============================")
         print("Cell to Marker file")
         print(df_cm)
@@ -2853,16 +2862,20 @@ class TooManyCells:
                 print(f"{marker=} not available.")
                 continue
 
-            #In case some cell type is not present
-            #in the expression matrix.
-            if cell_type not in self.cell_type_to_group:
-                print(f"{cell_type=} not available.")
-                if keep_all_markers:
-                    print(f"{cell_type=} will be kept.")
-                    print(f"{marker=} will be kept.")
-                else:
-                    print(f"{marker=} will be ignored.")
-                    continue
+            # In case some cell type is not present
+            # in the cell_type_to_group dictionary.
+            # Note that this dictionary might not be
+            # present. Hence, we check the presence 
+            # of this attribute.
+            if hasattr(self, "cell_type_to_group"):
+                if cell_type not in self.cell_type_to_group:
+                    print(f"{cell_type=} not available.")
+                    if keep_all_markers:
+                        print(f"{cell_type=} will be kept.")
+                        print(f"{marker=} will be kept.")
+                    else:
+                        print(f"{marker=} will be ignored.")
+                        continue
 
             self.cell_type_to_markers[cell_type].append(
                 marker)
@@ -2908,16 +2921,22 @@ class TooManyCells:
     #=====================================
     def populate_tree_with_mean_expression_for_all_markers(
             self,
-            cell_group_path: str,
             cell_marker_path: str,
-    ):
+            cell_group_path: Optional[str] = None,
+        ):
         """
         This function uses a depth-first approach, where 
-        we move from the leaf nodes up to the root. We
-        use this traversal to make the computation of
-        the mean expression at a node more efficient.
+        we move from the leaf nodes all the way
+        up to the root. 
+
+        We use this traversal to make the computation of
+        the mean expression at each node more efficient.
         """
-        self.load_group_and_cell_type_data(cell_group_path)
+
+        if cell_group_path is not None:
+            self.load_group_and_cell_type_data(
+                cell_group_path)
+
         self.load_marker_and_cell_type_data(cell_marker_path)
 
         self.t0 = clock()
@@ -3024,16 +3043,18 @@ class TooManyCells:
     #=====================================
     def populate_tree_with_mean_expression_for_all_markers_s(
             self,
-            cell_group_path: str,
             cell_marker_path: str,
-    ):
+            cell_group_path: Optional[str] = None,
+        ):
         """
-        This is the slower original version of the function
+        This is the slower "original" version of the function
         populate_tree_with_mean_expression_for_all_markers()
         """
         self.t0 = clock()
 
-        self.load_group_and_cell_type_data(cell_group_path)
+        if cell_group_path is not None:
+            self.load_group_and_cell_type_data(
+                cell_group_path)
 
         self.load_marker_and_cell_type_data(
             cell_marker_path,
@@ -3100,9 +3121,44 @@ class TooManyCells:
             self,
     ):
         """
+        Before calling this function we need to call:
+        populate_tree_with_mean_expression_for_all_markers()
+
+        Once we have computed the node expression
+        for all the relevant markers, we can define
+        a distribution for the expression of each marker.
+
         Compute the minimum,
         maximum, median, and mad after ignoring
-        zeros.
+        zeros for each distribution.
+
+        The relevant data frames are:
+
+        >>> (1)
+        self.node_mad_dist_df
+            col = marker + "_mad_bounds"
+            col = marker + "_exp_bounds"
+            col = marker + "_counts"
+        self.node_mad_dist_df = pd.DataFrame(
+            data = np.zeros((15,n_markers * 3)), 
+            index = None,
+            columns = L,
+            dtype=self.FDT)
+
+        >>> (2)
+        self.node_exp_stats_df
+        self.node_exp_stats_df = pd.DataFrame(
+            np.zeros((n_markers, 7)),
+            index = self.list_of_markers,
+            columns = ["median",
+                       "mad",
+                       "min",
+                       "max",
+                       "min_mad",
+                       "max_mad",
+                       "delta"],
+            dtype = self.FDT,
+            )
         """
         self.t0 = clock()
 
@@ -3207,19 +3263,61 @@ class TooManyCells:
         txt = ("Elapsed time to compute node metadata: " + 
                 f"{delta:.2f} seconds.")
         print(txt)
+
     #=====================================
     def which_cells_are_above_threshold(
             self,
     ):
         """
+
+        For every marker we create a CSV file
+        indicating which cells are above the given
+        MAD threshold.
+
+        In the file that was loaded during the call to
+        load_marker_and_cell_type_data()
+        the user can specify the MAD thresholds in a 
+        column named "Threshold".
+
+        Ex.
+
+        Marker	Cell	    Threshold
+        ITGAM	Monocytes	5
+        CD14	Monocytes	40
+
+        We then create a CSV file for each marker with
+        a MAD threshold. The cells that are above the
+        threshold are written to the file. 
+        
+        We also indicate the node (cluster)
+        membership, the expression value and
+        the corresponding number of MADs from
+        the median for each cell.
+
+        Ex.
+
+            Node	Expression	ExpressionAsMADs
+        C1	82	    0.96506536	21.496866
+	    C2  841	    1.4206275	32.1569
+
+        An additional file is also created
+        fname = "cells_with_all_high.csv"
+        which has the intersection of all the cells
+        whose expression is above the given threshold.
         """
 
-        for marker, threshold in self.marker_to_mad_threshold.items():
+        n_cells = self.A.shape[0]
+        mask_all_high = np.full(n_cells, True)
+
+        dict_iterator = self.marker_to_mad_threshold.items()
+        for marker, threshold in dict_iterator:
             # print(marker, threshold)
 
             self.marker_to_column_idx
-            mad = self.node_exp_stats_df.loc[marker, "mad"]
-            median = self.node_exp_stats_df.loc[marker, "median"]
+            mad = self.node_exp_stats_df.loc[marker,
+                                             "mad"]
+            median = self.node_exp_stats_df.loc[marker,
+                                                "median"]
             marker_exp = mad * threshold + median
             matrix_col = self.marker_to_column_idx[marker]
             vec = self.A.X[:,matrix_col]
@@ -3228,15 +3326,22 @@ class TooManyCells:
                 vec = vec.toarray().squeeze()
 
             mask = marker_exp <= vec
+            mask_all_high &= mask
             df = self.A.obs.sp_cluster.loc[mask]
             df = df.to_frame(name="Node")
             df["Expression"] = vec[mask]
-            df["ExpressionAsMADs"] = (vec[mask] - median) / mad
+
+            df["ExpressionAsMADs"] = (vec[mask] - median)
+            df["ExpressionAsMADs"] /= mad
+
             fname = marker + "_exp_based_on_MADs.csv"
             fname = os.path.join(self.output, fname)
             df.to_csv(fname, index=True)
             
-
+        fname = "cells_with_all_high.csv"
+        fname = os.path.join(self.output, fname)
+        df = self.A.obs.sp_cluster.loc[mask_all_high]
+        df.to_csv(fname, index=True)
 
     #=====================================
     def count_connected_nodes_above_threshold_for_attribute(
