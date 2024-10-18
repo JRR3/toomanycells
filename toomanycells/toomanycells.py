@@ -2825,6 +2825,10 @@ class TooManyCells:
             raise ValueError("File does not exists.")
 
         df_cm = pd.read_csv(cell_marker_path, dtype=str)
+        if "Threshold" in df_cm.columns:
+            df_cm["Threshold"] = df_cm["Threshold"].astype(
+                self.FDT)
+
         print("===============================")
         print("Cell to Marker file")
         print(df_cm)
