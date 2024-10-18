@@ -703,7 +703,7 @@ class TooManyCells:
             txt = ("All cells belong" 
                     " to the same partition.")
             print(txt)
-            return
+            return -1
 
         max_n_iter = self.estimate_n_of_iterations()
 
