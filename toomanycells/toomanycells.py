@@ -24,6 +24,7 @@ from tqdm import tqdm
 import networkx as nx
 import matplotlib as mpl
 import celltypist as CT
+from typing import List
 from typing import Union
 from typing import Optional
 from os.path import dirname
@@ -94,9 +95,9 @@ class TooManyCells:
     #=================================================
     def __init__(self,
             input: Optional[Union[sc.AnnData, str]] = None,
-            output: Optional[str] = "",
-            input_is_matrix_market: Optional[bool] = False,
-            use_full_matrix: Optional[bool] = False,
+            output: str = "",
+            input_is_matrix_market: bool = False,
+            use_full_matrix: bool = False,
             ):
         """
         The constructor takes the following inputs.
@@ -385,19 +386,19 @@ class TooManyCells:
     #=====================================
     def run_spectral_clustering(
             self,
-            shift_similarity_matrix:Optional[float] = 0,
-            shift_until_nonnegative:Optional[bool] = False,
-            store_similarity_matrix:Optional[bool] = False,
-            normalize_rows:Optional[bool] = False,
-            similarity_function:Optional[str]="cosine_sparse",
-            similarity_norm: Optional[float] = 2,
-            similarity_power: Optional[float] = 1,
-            similarity_gamma: Optional[float] = None,
-            use_eig_decomp: Optional[bool] = False,
-            use_tf_idf: Optional[bool] = False,
-            tf_idf_norm: Optional[str] = None,
-            tf_idf_smooth: Optional[str] = True,
-            svd_algorithm: Optional[str] = "randomized"):
+            shift_similarity_matrix:float = 0,
+            shift_until_nonnegative:bool = False,
+            store_similarity_matrix:bool = False,
+            normalize_rows:bool = False,
+            similarity_function:str="cosine_sparse",
+            similarity_norm: float = 2,
+            similarity_power: float = 1,
+            similarity_gamma: float = None,
+            use_eig_decomp: bool = False,
+            use_tf_idf: bool = False,
+            tf_idf_norm: str = None,
+            tf_idf_smooth: str = True,
+            svd_algorithm: str = "randomized"):
         """
         This function computes the partitions of the \
                 initial cell population and continues \
@@ -1072,7 +1073,8 @@ class TooManyCells:
         else:
             #Nonnegative row sums.
             try:
-                print("Using the eigsh function.")
+                # print("Using the eigsh function.")
+
                 E_obj = Eigen_Hermitian(laplacian_mtx,
                                         k=2,
                                         M=row_sums_mtx,
@@ -1089,7 +1091,8 @@ class TooManyCells:
                 W = eigen_vectors[:,idx]
 
             except:
-                print("Using the eig function.")
+                # print("Using the eig function.")
+
                 #This is a very expensive operation
                 #since it computes all the eigenvectors.
                 if 5000 < n_rows:
@@ -1141,7 +1144,7 @@ class TooManyCells:
     #=====================================
     def store_outputs(
             self,
-            cell_ann_col: Optional[str] = "cell_annotations",
+            cell_ann_col: str = "cell_annotations",
             ):
         """
         Store the outputs and plot the branching tree.
@@ -1303,8 +1306,8 @@ class TooManyCells:
 
     #=====================================
     def generate_cell_annotation_file(self,
-            cell_ann_col: Optional[str] = "cell_annotations",
-            tag: Optional[str]="cell_annotation_labels"
+            cell_ann_col: str = "cell_annotations",
+            tag: str="cell_annotation_labels"
     ):
         """
         This function stores a CSV file with\
@@ -1334,10 +1337,10 @@ class TooManyCells:
     #=====================================
     def create_data_for_tmci(
             self,
-            tmci_mtx_dir: Optional[str] = "tmci_mtx_data",
-            list_of_genes: Optional[list] = [],
-            path_to_genes: Optional[str] = "",
-            create_matrix: Optional[bool] = True,
+            tmci_mtx_dir: str = "tmci_mtx_data",
+            list_of_genes: List = [],
+            path_to_genes: str = "",
+            create_matrix: bool = True,
             ):
         """
         Produce the 10X files for a given set of\
@@ -1409,10 +1412,10 @@ class TooManyCells:
     #=====================================
     def visualize_with_tmc_interactive(self,
             path_to_tmc_interactive: str,
-            use_column_for_labels: Optional[str] = "",
-            port: Optional[int] = 9991,
-            include_matrix_data: Optional[bool] = False,
-            tmci_mtx_dir: Optional[str] = "",
+            use_column_for_labels: str = "",
+            port: int = 9991,
+            include_matrix_data: bool = False,
+            tmci_mtx_dir: str = "",
             ) -> None:
         """
         This function produces a visualization\
@@ -1762,7 +1765,7 @@ class TooManyCells:
             self, 
             node: int, 
             genes: Union[list, str],
-            output_list: Optional[bool] = False,
+            output_list: bool = False,
             ):
 
         #Get all the descendants for a given node.
@@ -1811,7 +1814,7 @@ class TooManyCells:
     #=====================================
     def load_cluster_info(
             self,
-            cluster_file_path: Optional[str]="",
+            cluster_file_path: str="",
             ):
         """
         Load the cluster file.
@@ -1904,7 +1907,7 @@ class TooManyCells:
     #=====================================
     def plot_radial_tree_from_dot_file(
             self,
-            dot_fname: Optional[str] = "",
+            dot_fname: str = "",
     ):
         """
         This function is no longer supported since 
@@ -1939,7 +1942,7 @@ class TooManyCells:
             self,
             marker: str,
             cell: str,
-            cell_ann_col: Optional[str] = "cell_annotations",
+            cell_ann_col: str = "cell_annotations",
     ):
 
         CA = cell_ann_col
@@ -1956,8 +1959,8 @@ class TooManyCells:
             self,
             marker: str,
             cell_type: str,
-            cell_ann_col: Optional[str] = "cell_annotations",
-            ignore_zero: Optional[bool] = True,
+            cell_ann_col: str = "cell_annotations",
+            ignore_zero: bool = True,
     ):
         """
             Note that this function takes two variables, the 
@@ -2023,8 +2026,8 @@ class TooManyCells:
             self,
             marker: str,
             indices: list,
-            ignore_zero: Optional[bool] = True,
-            only_median: Optional[bool] = False,
+            ignore_zero: bool = True,
+            only_median: bool = False,
     ):
         """
         Aug 13, 2024
@@ -2057,18 +2060,18 @@ class TooManyCells:
             self,
             cell_group_path: str,
             cell_marker_path: str,
-            cell_ann_col: Optional[str] = "cell_annotations",
-            clean_threshold: Optional[float] = 0.8,
-            favor_minorities: Optional[bool] = False,
-            conversion_threshold: Optional[float] = 0.9,
-            confirmation_threshold: Optional[float] = 0.9,
-            elimination_ratio: Optional[float] = -1.,
-            homogeneous_leafs: Optional[bool] = False,
-            follow_parent: Optional[bool] = False,
-            follow_majority: Optional[bool] = False,
-            no_mixtures: Optional[bool] = False,
-            storage_path: Optional[str] = "stable_tree",
-            max_n_iter: Optional[int] = 100,
+            cell_ann_col: str = "cell_annotations",
+            clean_threshold: float = 0.8,
+            favor_minorities: bool = False,
+            conversion_threshold: float = 0.9,
+            confirmation_threshold: float = 0.9,
+            elimination_ratio: float = -1.,
+            homogeneous_leafs: bool = False,
+            follow_parent: bool = False,
+            follow_majority: bool = False,
+            no_mixtures: bool = False,
+            storage_path: str = "stable_tree",
+            max_n_iter: int = 100,
     ):
         CA = cell_ann_col
         tmc_obj = TooManyCells(self, storage_path)
@@ -2130,7 +2133,7 @@ class TooManyCells:
     #=====================================
     def check_leaf_homogeneity(
             self,
-            cell_ann_col: Optional[str] = "cell_annotations",
+            cell_ann_col: str = "cell_annotations",
     ):
 
         CA = cell_ann_col
@@ -2160,9 +2163,9 @@ class TooManyCells:
     #=====================================
     def homogenize_leaf_nodes(
             self,
-            cell_ann_col: Optional[str] = "cell_annotations",
-            follow_parent: Optional[bool] = False,
-            follow_majority: Optional[bool] = False,
+            cell_ann_col: str = "cell_annotations",
+            follow_parent: bool = False,
+            follow_majority: bool = False,
     ):
 
         if follow_parent == follow_majority:
@@ -2220,9 +2223,9 @@ class TooManyCells:
     #=====================================
     def erase_cells_from_json_file(
             self,
-            json_file_path: Optional[str] = "",
-            target_json_file_path: Optional[str] = "",
-            modify_anndata: Optional[bool] = False,
+            json_file_path: str = "",
+            target_json_file_path: str = "",
+            modify_anndata: bool = False,
     ):
 
         #{'_barcode':
@@ -2290,8 +2293,8 @@ class TooManyCells:
             self,
             cells: pd.Series,
             group: str,
-            conversion_threshold: Optional[float] = 0.9,
-            cell_ann_col: Optional[str] = "cell_annotations",
+            conversion_threshold: float = 0.9,
+            cell_ann_col: str = "cell_annotations",
     ):
         """
         The cells parameter is a series that contains
@@ -2381,16 +2384,16 @@ class TooManyCells:
             self,
             cell_group_path: str,
             cell_marker_path: str,
-            cell_ann_col: Optional[str] = "cell_annotations",
-            clean_threshold: Optional[float] = 0.8,
-            favor_minorities: Optional[bool] = False,
-            conversion_threshold: Optional[float] = 0.9,
-            confirmation_threshold: Optional[float] = 0.9,
-            elimination_ratio: Optional[float] = -1.,
-            homogeneous_leafs: Optional[bool] = False,
-            follow_parent: Optional[bool] = False,
-            follow_majority: Optional[bool] = False,
-            no_mixtures: Optional[bool] = False,
+            cell_ann_col: str = "cell_annotations",
+            clean_threshold: float = 0.8,
+            favor_minorities: bool = False,
+            conversion_threshold: float = 0.9,
+            confirmation_threshold: float = 0.9,
+            elimination_ratio: float = -1.,
+            homogeneous_leafs: bool = False,
+            follow_parent: bool = False,
+            follow_majority: bool = False,
+            no_mixtures: bool = False,
     ):
         if not os.path.exists(cell_group_path):
             print(cell_group_path)
@@ -2744,7 +2747,7 @@ class TooManyCells:
     def load_group_and_cell_type_data(
             self,
             cell_group_path: str,
-            cell_ann_col: Optional[str] = "cell_annotations",
+            cell_ann_col: str = "cell_annotations",
     ):
         """
         Each cell type is associated to a group.
@@ -2757,7 +2760,7 @@ class TooManyCells:
             print(cell_group_path)
             raise ValueError("File does not exists.")
 
-        df_cg = pd.read_csv(cell_group_path, dtype=str)
+        df_cg = pd.read_csv(cell_group_path)
         print("===============================")
         print("Cell to Group file")
         print(df_cg)
@@ -2801,21 +2804,12 @@ class TooManyCells:
     def load_marker_and_cell_type_data(
             self,
             cell_marker_path: str,
-            keep_all_markers: Optional[bool] = False,
+            keep_all_markers: bool = False,
     ):
         """
         Each marker is associated to a cell type.
         For a given cell type we generate a list of 
         potential markers to identify that cell.
-
-        >>>Note: In general, first call
-        >>>load_group_and_cell_type_data(cell_group_path)
-
-        We use the dictionary
-            self.marker_to_mad_threshold
-        to select cells whose expression
-        of a given marker is above the
-        given threshold.
         """
 
         self.t0 = clock()
@@ -2824,11 +2818,7 @@ class TooManyCells:
             print(cell_marker_path)
             raise ValueError("File does not exists.")
 
-        df_cm = pd.read_csv(cell_marker_path, dtype=str)
-        if "Threshold" in df_cm.columns:
-            df_cm["Threshold"] = df_cm["Threshold"].astype(
-                self.FDT)
-
+        df_cm = pd.read_csv(cell_marker_path)
         print("===============================")
         print("Cell to Marker file")
         print(df_cm)
@@ -2844,21 +2834,10 @@ class TooManyCells:
         list_of_column_idx        = []
         list_of_cell_types        = []
 
-        self.marker_to_mad_threshold = {}
-
-        has_threshold = False
-        if "Threshold" in  df_cm.columns:
-            has_threshold = True
-
         for index, row in df_cm.iterrows():
 
             cell_type = row["Cell"]
             marker = row["Marker"]
-
-            if has_threshold:
-                th = row["Threshold"]
-                if pd.notna(th):
-                    self.marker_to_mad_threshold[marker] = th
 
             #In case some cell marker is not present
             #in the expression matrix.
@@ -2866,20 +2845,16 @@ class TooManyCells:
                 print(f"{marker=} not available.")
                 continue
 
-            # In case some cell type is not present
-            # in the cell_type_to_group dictionary.
-            # Note that this dictionary might not be
-            # present. Hence, we check the presence 
-            # of this attribute.
-            if hasattr(self, "cell_type_to_group"):
-                if cell_type not in self.cell_type_to_group:
-                    print(f"{cell_type=} not available.")
-                    if keep_all_markers:
-                        print(f"{cell_type=} will be kept.")
-                        print(f"{marker=} will be kept.")
-                    else:
-                        print(f"{marker=} will be ignored.")
-                        continue
+            #In case some cell type is not present
+            #in the expression matrix.
+            if cell_type not in self.cell_type_to_group:
+                print(f"{cell_type=} not available.")
+                if keep_all_markers:
+                    print(f"{cell_type=} will be kept.")
+                    print(f"{marker=} will be kept.")
+                else:
+                    print(f"{marker=} will be ignored.")
+                    continue
 
             self.cell_type_to_markers[cell_type].append(
                 marker)
@@ -2925,22 +2900,16 @@ class TooManyCells:
     #=====================================
     def populate_tree_with_mean_expression_for_all_markers(
             self,
+            cell_group_path: str,
             cell_marker_path: str,
-            cell_group_path: Optional[str] = None,
-        ):
+    ):
         """
         This function uses a depth-first approach, where 
-        we move from the leaf nodes all the way
-        up to the root. 
-
-        We use this traversal to make the computation of
-        the mean expression at each node more efficient.
+        we move from the leaf nodes up to the root. We
+        use this traversal to make the computation of
+        the mean expression at a node more efficient.
         """
-
-        if cell_group_path is not None:
-            self.load_group_and_cell_type_data(
-                cell_group_path)
-
+        self.load_group_and_cell_type_data(cell_group_path)
         self.load_marker_and_cell_type_data(cell_marker_path)
 
         self.t0 = clock()
@@ -3047,18 +3016,16 @@ class TooManyCells:
     #=====================================
     def populate_tree_with_mean_expression_for_all_markers_s(
             self,
+            cell_group_path: str,
             cell_marker_path: str,
-            cell_group_path: Optional[str] = None,
-        ):
+    ):
         """
-        This is the slower "original" version of the function
+        This is the slower original version of the function
         populate_tree_with_mean_expression_for_all_markers()
         """
         self.t0 = clock()
 
-        if cell_group_path is not None:
-            self.load_group_and_cell_type_data(
-                cell_group_path)
+        self.load_group_and_cell_type_data(cell_group_path)
 
         self.load_marker_and_cell_type_data(
             cell_marker_path,
@@ -3125,44 +3092,9 @@ class TooManyCells:
             self,
     ):
         """
-        Before calling this function we need to call:
-        populate_tree_with_mean_expression_for_all_markers()
-
-        Once we have computed the node expression
-        for all the relevant markers, we can define
-        a distribution for the expression of each marker.
-
         Compute the minimum,
         maximum, median, and mad after ignoring
-        zeros for each distribution.
-
-        The relevant data frames are:
-
-        >>> (1)
-        self.node_mad_dist_df
-            col = marker + "_mad_bounds"
-            col = marker + "_exp_bounds"
-            col = marker + "_counts"
-        self.node_mad_dist_df = pd.DataFrame(
-            data = np.zeros((15,n_markers * 3)), 
-            index = None,
-            columns = L,
-            dtype=self.FDT)
-
-        >>> (2)
-        self.node_exp_stats_df
-        self.node_exp_stats_df = pd.DataFrame(
-            np.zeros((n_markers, 7)),
-            index = self.list_of_markers,
-            columns = ["median",
-                       "mad",
-                       "min",
-                       "max",
-                       "min_mad",
-                       "max_mad",
-                       "delta"],
-            dtype = self.FDT,
-            )
+        zeros.
         """
         self.t0 = clock()
 
@@ -3258,94 +3190,15 @@ class TooManyCells:
 
 
         print(self.node_exp_stats_df)
-        # print(self.node_exp_stats_df.loc["FAP",:])
-        # L = ["FAP_mad_bounds", "FAP_counts"]
-        # print(self.node_mad_dist_df[L])
+        print(self.node_exp_stats_df.loc["FAP",:])
+        L = ["FAP_mad_bounds", "FAP_counts"]
+        print(self.node_mad_dist_df[L])
 
         self.tf = clock()
         delta = self.tf - self.t0
         txt = ("Elapsed time to compute node metadata: " + 
                 f"{delta:.2f} seconds.")
         print(txt)
-
-    #=====================================
-    def which_cells_are_above_threshold(
-            self,
-    ):
-        """
-
-        For every marker we create a CSV file
-        indicating which cells are above the given
-        MAD threshold.
-
-        In the file that was loaded during the call to
-        load_marker_and_cell_type_data()
-        the user can specify the MAD thresholds in a 
-        column named "Threshold".
-
-        Ex.
-
-        Marker	Cell	    Threshold
-        ITGAM	Monocytes	5
-        CD14	Monocytes	40
-
-        We then create a CSV file for each marker with
-        a MAD threshold. The cells that are above the
-        threshold are written to the file. 
-        
-        We also indicate the node (cluster)
-        membership, the expression value and
-        the corresponding number of MADs from
-        the median for each cell.
-
-        Ex.
-
-            Node	Expression	ExpressionAsMADs
-        C1	82	    0.96506536	21.496866
-	    C2  841	    1.4206275	32.1569
-
-        An additional file is also created
-        fname = "cells_with_all_high.csv"
-        which has the intersection of all the cells
-        whose expression is above the given threshold.
-        """
-
-        n_cells = self.A.shape[0]
-        mask_all_high = np.full(n_cells, True)
-
-        dict_iterator = self.marker_to_mad_threshold.items()
-        for marker, threshold in dict_iterator:
-            # print(marker, threshold)
-
-            self.marker_to_column_idx
-            mad = self.node_exp_stats_df.loc[marker,
-                                             "mad"]
-            median = self.node_exp_stats_df.loc[marker,
-                                                "median"]
-            marker_exp = mad * threshold + median
-            matrix_col = self.marker_to_column_idx[marker]
-            vec = self.A.X[:,matrix_col]
-
-            if sp.issparse(self.A.X):
-                vec = vec.toarray().squeeze()
-
-            mask = marker_exp <= vec
-            mask_all_high &= mask
-            df = self.A.obs.sp_cluster.loc[mask]
-            df = df.to_frame(name="Node")
-            df["Expression"] = vec[mask]
-
-            df["ExpressionAsMADs"] = (vec[mask] - median)
-            df["ExpressionAsMADs"] /= mad
-
-            fname = marker + "_exp_based_on_MADs.csv"
-            fname = os.path.join(self.output, fname)
-            df.to_csv(fname, index=True)
-            
-        fname = "cells_with_all_high.csv"
-        fname = os.path.join(self.output, fname)
-        df = self.A.obs.sp_cluster.loc[mask_all_high]
-        df.to_csv(fname, index=True)
 
     #=====================================
     def count_connected_nodes_above_threshold_for_attribute(
@@ -3380,7 +3233,7 @@ class TooManyCells:
     #=====================================
     def compute_cell_types(
             self,
-            mad_threshold: Optional[float] = 1.,
+            mad_threshold: float = 1.,
     ):
         """
         TODO: Identify questionable cells and doublets.
@@ -3718,9 +3571,9 @@ class TooManyCells:
     #=====================================
     def annotate_with_celltypist(
             self,
-            cell_ann_col: Optional[str] = "cell_annotations",
-            model_kind: Optional[str] = "Immune_All_High",
-            use_majority_voting: Optional[bool] = False,
+            cell_ann_col: str = "cell_annotations",
+            model_kind: str = "Immune_All_High",
+            use_majority_voting: bool = False,
     ):
         """
         """
@@ -3766,11 +3619,11 @@ class TooManyCells:
     #=====================================
     def quantify_heterogeneity(
             self,
-            list_of_branches: Optional[list] = [0],
-            tag: Optional[str] = "modularity_distribution",
-            file_format: Optional[str] = "pdf",
-            show_column_totals: Optional[bool] = False,
-            use_log_y: Optional[bool] = False,
+            list_of_branches: List = [0],
+            tag: str = "modularity_distribution",
+            file_format: str = "pdf",
+            show_column_totals: bool = False,
+            use_log_y: bool = False,
             color = "blue",
     ):
         """
@@ -3890,24 +3743,24 @@ class TooManyCells:
     def plot_with_tmc_a_la_haskell(
             self,
             tmc_tree_path: str,
-            matrix_path: Optional[str] = "",
-            list_of_genes: Optional[list] = [],
-            use_threshold: Optional[bool] = False,
-            high_low_colors: Optional[list] = ["purple",
+            matrix_path: str = "",
+            list_of_genes: List = [],
+            use_threshold: bool = False,
+            high_low_colors: List = ["purple",
                                                "red",
                                                "blue",
                                                "aqua"],
-            gene_colors: Optional[list] = [],
-            annotation_colors: Optional[list] = [],
-            method: Optional[str] = "MadMedian",
-            tree_file_name: Optional[str] = "tree.svg",
-            threshold: Optional[float] = 1.5,
-            saturation: Optional[float] = 1.5,
-            output_folder: Optional[str] = "tmc_haskell",
-            feature_column: Optional[str] = "1",
-            draw_modularity: Optional[bool] = False,
-            path_to_cell_annotations: Optional[str] = "",
-            draw_node_numbers: Optional[bool] = False,
+            gene_colors: List = [],
+            annotation_colors: List = [],
+            method: str = "MadMedian",
+            tree_file_name: str = "tree.svg",
+            threshold: float = 1.5,
+            saturation: float = 1.5,
+            output_folder: str = "tmc_haskell",
+            feature_column: str = "1",
+            draw_modularity: bool = False,
+            path_to_cell_annotations: str = "",
+            draw_node_numbers: bool = False,
                                    ):
         haskell = TMCHaskell(
             self.output,
@@ -3949,7 +3802,7 @@ class TooManyCells:
     #=====================================
     def load_graph(
             self,
-            json_fname: Optional[str]="",
+            json_fname: str = "",
         ):
 
         self.tmcGraph.load_graph(json_fname)

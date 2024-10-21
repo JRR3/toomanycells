@@ -16,6 +16,7 @@ import pandas as pd
 import matplotlib as mpl
 from typing import Union
 from typing import Optional
+from typing import List
 
 class TMCHaskell:
 
@@ -24,24 +25,24 @@ class TMCHaskell:
             self,
             output: str,
             tmc_tree_path: str,
-            matrix_path: Optional[str] = "",
-            list_of_genes: Optional[list] = [],
-            use_threshold: Optional[bool] = False,
-            high_low_colors: Optional[list] = ["purple",
-                                               "red",
-                                               "blue",
-                                               "aqua"],
-            gene_colors: Optional[list] = [],
-            annotation_colors: Optional[list] = [],
-            method: Optional[str] = "MadMedian",
-            tree_file_name: Optional[str] = "tree.svg",
-            threshold: Optional[float] = 1.5,
-            saturation: Optional[float] = 1.5,
-            output_folder: Optional[str] = "tmc_haskell",
-            feature_column: Optional[str] = "1",
-            draw_modularity: Optional[bool] = False,
-            path_to_cell_annotations: Optional[str] = "",
-            draw_node_numbers: Optional[bool] = False,
+            matrix_path: str = "",
+            list_of_genes: List[str] = [],
+            use_threshold: bool = False,
+            high_low_colors: List[str] = ["purple",
+                                          "red",
+                                          "blue",
+                                          "aqua"],
+            gene_colors: List[str] = [],
+            annotation_colors: List[str] = [],
+            method: str = "MadMedian",
+            tree_file_name: str = "tree.svg",
+            threshold: float = 1.5,
+            saturation: float = 1.5,
+            output_folder: str = "tmc_haskell",
+            feature_column: str = "1",
+            draw_modularity: bool = False,
+            path_to_cell_annotations: str = "",
+            draw_node_numbers: bool = False,
         ):
 
         self.use_threshold = use_threshold
@@ -74,7 +75,6 @@ class TMCHaskell:
 
         self.gene_colors_hex = []
 
-
         # self.list_of_genes = ["FAP","TCF21"]
         # self.list_of_genes = ["FAP"]
 
@@ -92,37 +92,31 @@ class TMCHaskell:
         self.method = method
         self.threshold = threshold
 
-
         self.all_genes = []
-
-        self.draw_node_numbers = False
 
         x = path_to_cell_annotations
         self.path_to_cell_annotations = x
 
-        self.output = os.path.join(output,
-                                   output_folder)
+        self.output = os.path.join(output, output_folder)
 
         # print(self.output)
         os.makedirs(self.output, exist_ok=True)
 
         self.saturation = saturation
 
-
         self.tree_output = tree_file_name
 
         self.cluster_path = os.path.join(self.output,
                                          "clusters.csv")
         
-        self.annotation_colors = annotation_colors
-
-        self.list_of_colors = []
+        self.annotation_colors: List[str] = annotation_colors
+        self.list_of_colors: List[str]= []
+        self.color_str: str = ""
 
 
 
     #=====================================
     def create_gene_objects(self):
-
 
         if self.use_threshold:
 
@@ -144,7 +138,7 @@ class TMCHaskell:
 
             x = '\"DrawItem (DrawThresholdContinuous '
             self.gene_txt = x
-            self.list_of_colors = (
+            self.color_str = (
                 '[' +
                 ','.join(self.high_low_colors_hex) +
                 ']')
@@ -166,8 +160,9 @@ class TMCHaskell:
 
             self.gene_txt = '\"DrawItem (DrawContinuous '
             # print(self.gene_colors_hex)
-            self.list_of_colors = (
+            self.color_str = (
                 '[' + ','.join( self.gene_colors_hex) + ']')
+
             self.gene_list = (
                 '[' + ','.join(self.all_genes) + ']')
 
@@ -215,9 +210,9 @@ class TMCHaskell:
             draw_leaf_flag = ""
             draw_leaf_arguments = ""
 
-        if 0 < len(self.list_of_colors):
+        if 0 < len(self.color_str):
             draw_colors_flag = "--draw-colors"
-            draw_colors_arguments = self.list_of_colors
+            draw_colors_arguments = self.color_str
         else:
             draw_colors_flag = ""
             draw_colors_arguments = ""
@@ -285,5 +280,8 @@ class TMCHaskell:
                              color_hex.lower() +
                              '\\\"')
                 self.list_of_colors.append(color_hex)
+
+        self.color_str = (
+            '[' + ','.join( self.list_of_colors) + ']')
 
         self.execute_command()
