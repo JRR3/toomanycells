@@ -354,6 +354,9 @@ class TooManyCells:
         We assume a model of the form \
         number_of_iter = const * N^exponent \
         where N is the number of cells.
+
+        Note that this estimate was derived
+        from sparse scRNA-seq matrices.
         """
 
         #Average number of cells per leaf node
@@ -386,11 +389,11 @@ class TooManyCells:
     #=====================================
     def run_spectral_clustering(
             self,
-            shift_similarity_matrix:float = 0,
-            shift_until_nonnegative:bool = False,
-            store_similarity_matrix:bool = False,
-            normalize_rows:bool = False,
-            similarity_function:str="cosine_sparse",
+            shift_similarity_matrix: float = 0,
+            shift_until_nonnegative: bool = False,
+            store_similarity_matrix: bool = False,
+            normalize_rows: bool = False,
+            similarity_function: str="cosine_sparse",
             similarity_norm: float = 2,
             similarity_power: float = 1,
             similarity_gamma: float = None,
@@ -1717,6 +1720,10 @@ class TooManyCells:
         """
         For a given pair of nodes x and y, we find the
         path between those nodes.
+        
+        We use the path from the root node to the 
+        corresponding nodes and then we remove the
+        intersection except at the branching point.
         """
         x_path, x_dist = self.get_path_from_root_to_node(x)
         y_path, y_dist = self.get_path_from_root_to_node(y)
@@ -1764,7 +1771,7 @@ class TooManyCells:
     def compute_cluster_mean_expression(
             self, 
             node: int, 
-            genes: Union[list, str],
+            genes: Union[List, str],
             output_list: bool = False,
             ):
 
@@ -1814,7 +1821,7 @@ class TooManyCells:
     #=====================================
     def load_cluster_info(
             self,
-            cluster_file_path: str="",
+            cluster_file_path: str ="",
             ):
         """
         Load the cluster file.
@@ -1849,14 +1856,16 @@ class TooManyCells:
             self,
             x: int,
             y: int,
-            genes: Union[list, str],
+            genes: Union[List, str],
             ):
         """
-        For a given pair of nodes x and y, we compute the \
-            gene expression path along the path connecting\
+        For a given pair of nodes x and y, we compute the
+            gene expression path along the path connecting
             those nodes. 
-        Make sure that property set_of_leaf_nodes is\
+        Make sure that property set_of_leaf_nodes is
             populated with the correct information.
+        TODO: Make sure you populate the gene expression
+        on each node using the right function.
         """
 
         if isinstance(genes, str):
@@ -1914,6 +1923,7 @@ class TooManyCells:
         we want to avoid the dependency on GraphViz.
         Use TooManyCells interactive to visualize 
         your tree instead.
+        TODO: Remove function.
         """
         if len(dot_fname) == 0:
             fname = 'graph.dot'
@@ -1993,6 +2003,10 @@ class TooManyCells:
             self,
             marker: str,
     ):
+        """
+        TODO: Remove this function since
+        it appears that it is not being used.
+        """
 
         if marker not in self.A.var_names:
             return None
@@ -2012,8 +2026,12 @@ class TooManyCells:
     def compute_mean_expression_from_indices(
             self,
             marker: str,
-            indices: list,
+            indices: List,
     ):
+        """
+        TODO: Remove this function since
+        it appears that it is not being used.
+        """
 
         col_index = self.marker_to_column_idx[marker]
         mask = self.A.obs_names.isin(indices)
@@ -2030,7 +2048,11 @@ class TooManyCells:
             only_median: bool = False,
     ):
         """
-        Aug 13, 2024
+        For a given marker, we compute the 
+        the median and MAD expression for the
+        given indices.
+        TODO: Make sure you use the correct function to
+        compute the gene expression at each node.
         """
 
         col_index = self.marker_to_column_idx[marker]
@@ -2073,6 +2095,12 @@ class TooManyCells:
             storage_path: str = "stable_tree",
             max_n_iter: int = 100,
     ):
+        """
+        This function will identify outliers in the
+        cell annotation labels based on the main branches
+        and subsequently will remove those outliers and
+        recompute the tree until no more outliers are found.
+        """
         CA = cell_ann_col
         tmc_obj = TooManyCells(self, storage_path)
 
@@ -2135,6 +2163,11 @@ class TooManyCells:
             self,
             cell_ann_col: str = "cell_annotations",
     ):
+        """
+        Determine if all the leaf nodes are homogeneous.
+        As soon as one heterogeneous node is found, the
+        function returns False.
+        """
 
         CA = cell_ann_col
 
@@ -2167,6 +2200,12 @@ class TooManyCells:
             follow_parent: bool = False,
             follow_majority: bool = False,
     ):
+        """
+        How should we homogenize a leaf node?
+        Either we use the majority present in the
+        parent node, or we use the majority already
+        present in the leaf node.
+        """
 
         if follow_parent == follow_majority:
             print("Homogeneous leafs strategy:")
@@ -2227,6 +2266,11 @@ class TooManyCells:
             target_json_file_path: str = "",
             modify_anndata: bool = False,
     ):
+        """
+        TODO: Remove this function because we
+        now recompute the Graph data structure
+        after eliminating the cells.
+        """
 
         #{'_barcode':
         #{'unCell': 'CAGCTGGCACGGTAGA-176476-OM'},
@@ -2297,9 +2341,13 @@ class TooManyCells:
             cell_ann_col: str = "cell_annotations",
     ):
         """
-        The cells parameter is a series that contains
+        The "cells" parameter is a series that contains
         the cell types as values and the indices 
         correspond to the barcodes.
+
+        We want to determine if a set of cells 
+        belongs to a group previously defined
+        in the CSV file "cell_markers".
         """
         #This is the question we are trying to
         #answer.
@@ -2395,6 +2443,10 @@ class TooManyCells:
             follow_majority: bool = False,
             no_mixtures: bool = False,
     ):
+        """
+        Use the tree structure with the current labels
+        to improve the cell annotation.
+        """
         if not os.path.exists(cell_group_path):
             print(cell_group_path)
             raise ValueError("File does not exists.")
@@ -2760,7 +2812,10 @@ class TooManyCells:
             print(cell_group_path)
             raise ValueError("File does not exists.")
 
-        df_cg = pd.read_csv(cell_group_path)
+        # We assume all the fields in the data frame 
+        # are strings. Hence, number used as labels 
+        # will be considered as strings.
+        df_cg = pd.read_csv(cell_group_path, dtype=str)
         print("===============================")
         print("Cell to Group file")
         print(df_cg)
@@ -2786,8 +2841,14 @@ class TooManyCells:
                 continue
 
             if pd.isna(group):
+                # If the group is not present, we 
+                # assume that the cell type is its
+                # own group.
                 group = cell_type
             elif group == "0":
+                # If the group is zero, then we
+                # assume that the cell type has
+                # to be eliminated or ignored.
                 self.cell_types_to_erase.append(cell_type)
                 continue
 
@@ -2810,6 +2871,26 @@ class TooManyCells:
         Each marker is associated to a cell type.
         For a given cell type we generate a list of 
         potential markers to identify that cell.
+
+        >>>Note: In general, first call
+        >>>load_group_and_cell_type_data(cell_group_path)
+
+        We use the dictionary
+            self.marker_to_mad_threshold
+        to select cells whose expression
+        of a given marker is above or 
+        below the given threshold.
+        
+        Example of the marker_and_cell_type.CSV file.
+
+        Marker	Cell	    Direction	Threshold
+        ITGAM	Monocytes	Above	    5
+        CD14	Monocytes	Above	    40
+        AIF1	Monocytes	Above	    30
+        CSF1R	Monocytes	Above	    40
+        CD163	Macrophages	Above	    40
+        MRC1	Macrophages	Above	    10
+
         """
 
         self.t0 = clock()
@@ -2818,7 +2899,24 @@ class TooManyCells:
             print(cell_marker_path)
             raise ValueError("File does not exists.")
 
-        df_cm = pd.read_csv(cell_marker_path)
+        # We assume all the fields in the data frame 
+        # are strings. Hence, number used as labels 
+        # will be considered as strings.
+        # If thresholds are present, we need to make
+        # sure that they are interpreted as floats.
+        df_cm = pd.read_csv(cell_marker_path, dtype=str)
+
+        has_threshold = False
+        if "Threshold" in df_cm.columns:
+            has_threshold = True
+            if "Direction" in df_cm.columns:
+                pass
+            else:
+                txt = ("Need to specify if you are "
+                       "interested in values above "
+                       "or below the threshold.")
+                raise ValueError(txt)
+
         print("===============================")
         print("Cell to Marker file")
         print(df_cm)
@@ -2834,10 +2932,31 @@ class TooManyCells:
         list_of_column_idx        = []
         list_of_cell_types        = []
 
+        self.marker_to_mad_threshold = {}
+        self.marker_to_mad_direction = {}
+
         for index, row in df_cm.iterrows():
 
             cell_type = row["Cell"]
             marker = row["Marker"]
+
+            if has_threshold:
+                th = row["Threshold"]
+
+                if pd.notna(th):
+                    th = self.FDT(th)
+                    dr = row["Direction"]
+                    self.marker_to_mad_threshold[marker] = th
+
+                    if dr.lower() == "below":
+                        dr = "below"
+                    elif dr.lower() == "above":
+                        dr = "above"
+                    else:
+                        txt = ("Undefined direction.")
+                        raise ValueError(txt)
+
+                    self.marker_to_mad_direction[marker] = dr
 
             #In case some cell marker is not present
             #in the expression matrix.
@@ -2845,16 +2964,20 @@ class TooManyCells:
                 print(f"{marker=} not available.")
                 continue
 
-            #In case some cell type is not present
-            #in the expression matrix.
-            if cell_type not in self.cell_type_to_group:
-                print(f"{cell_type=} not available.")
-                if keep_all_markers:
-                    print(f"{cell_type=} will be kept.")
-                    print(f"{marker=} will be kept.")
-                else:
-                    print(f"{marker=} will be ignored.")
-                    continue
+            # In case some cell type is not present
+            # in the cell_type_to_group dictionary.
+            # Note that this dictionary might not be
+            # present. Hence, we check the presence 
+            # of this attribute.
+            if hasattr(self, "cell_type_to_group"):
+                if cell_type not in self.cell_type_to_group:
+                    print(f"{cell_type=} not available.")
+                    if keep_all_markers:
+                        print(f"{cell_type=} will be kept.")
+                        print(f"{marker=} will be kept.")
+                    else:
+                        print(f"{marker=} will be ignored.")
+                        continue
 
             self.cell_type_to_markers[cell_type].append(
                 marker)
@@ -2900,16 +3023,33 @@ class TooManyCells:
     #=====================================
     def populate_tree_with_mean_expression_for_all_markers(
             self,
-            cell_group_path: str,
             cell_marker_path: str,
-    ):
+            cell_group_path: Optional[str] = None,
+        ):
         """
         This function uses a depth-first approach, where 
-        we move from the leaf nodes up to the root. We
-        use this traversal to make the computation of
-        the mean expression at a node more efficient.
+        we move from the leaf nodes all the way
+        up to the root. 
+
+        We use this traversal to make the computation of
+        the mean expression at each node more efficient.
+
+        We store two quantities for the gene expression
+        information at each node.
+
+        We store the cumulative sum and the mean expression.
+
+        self.G.nodes[node][
+            marker_label_sum] = sum_exp
+
+        self.G.nodes[node][
+            marker_label_mean] = mean_exp
         """
-        self.load_group_and_cell_type_data(cell_group_path)
+
+        if cell_group_path is not None:
+            self.load_group_and_cell_type_data(
+                cell_group_path)
+
         self.load_marker_and_cell_type_data(cell_marker_path)
 
         self.t0 = clock()
@@ -2926,15 +3066,6 @@ class TooManyCells:
 
         self.mean_exp_mtx = np.zeros(
             (n_nodes, n_markers), dtype=self.FDT)
-
-        # print(self.mean_exp_mtx.shape)
-        # print(self.A.X.shape)
-        # for node in self.G.nodes():
-        #     for marker in self.list_of_markers:
-        #         mk_sum = marker + "_sum"
-        #         mk_mean = marker + "_mean"
-        #         self.G.nodes[node][mk_sum] = 0
-        #         self.G.nodes[node][mk_mean] = 0
 
         print("Computing mean expression for all markers...")
         S = [0]
@@ -3013,78 +3144,6 @@ class TooManyCells:
         print(txt)
 
 
-    #=====================================
-    def populate_tree_with_mean_expression_for_all_markers_s(
-            self,
-            cell_group_path: str,
-            cell_marker_path: str,
-    ):
-        """
-        This is the slower original version of the function
-        populate_tree_with_mean_expression_for_all_markers()
-        """
-        self.t0 = clock()
-
-        self.load_group_and_cell_type_data(cell_group_path)
-
-        self.load_marker_and_cell_type_data(
-            cell_marker_path,
-            keep_all_markers=True)
-
-        n_nodes = self.G.number_of_nodes()
-        if n_nodes == 0:
-            raise ValueError("Empty graph.")
-
-        n_markers = len(self.list_of_markers)
-        if n_markers == 0:
-            raise ValueError("Empty list of markers.")
-
-        self.mean_exp_mtx = np.zeros(
-            (n_nodes, n_markers), dtype=self.FDT)
-
-        # print(self.mean_exp_mtx.shape)
-        # print(self.A.X.shape)
-
-        print("Computing mean expression for all markers...")
-        for node in tqdm(self.G.nodes()):
-
-            nodes = nx.descendants(self.G, node)
-
-            # TODO: Check degree out
-            if len(nodes) == 0:
-                #This is a leaf node.
-                nodes = [node]
-            else:
-                #Make sure these are leaf nodes.
-                nodes = self.set_of_leaf_nodes.intersection(
-                    nodes)
-
-            mask = self.A.obs["sp_cluster"].isin(nodes)
-            #Generate indices for cells 
-            #times list of markers.
-            indices = np.ix_(mask, self.list_of_column_idx)
-            values = self.X[indices]
-            mean_exp_vec = values.mean(axis=0)
-            #Fill the row of the expression matrix for the
-            #corresponding node.
-            self.mean_exp_mtx[node] = mean_exp_vec
-
-            #Assign the mean expression to each node.
-            #We use an iterator.
-            #Each node stores a dictionary.
-            it = zip(self.list_of_markers, mean_exp_vec)
-            for marker, mean_exp in it:
-                self.G.nodes[node][marker] = mean_exp
-
-        txt = ("Mean expression has been"
-               " computed for all markers.")
-        print(txt)
-
-        self.tf = clock()
-        delta = self.tf - self.t0
-        txt = ("Elapsed time to compute node expression: " + 
-                f"{delta:.2f} seconds.")
-        print(txt)
 
 
     #=====================================
@@ -3092,9 +3151,48 @@ class TooManyCells:
             self,
     ):
         """
+        Before calling this function we need to call:
+        populate_tree_with_mean_expression_for_all_markers()
+
+        Once we have computed the node expression
+        for all the relevant markers, we can define
+        a distribution for the expression of each marker.
+
         Compute the minimum,
         maximum, median, and mad after ignoring
-        zeros.
+        zeros for each distribution.
+
+        The relevant data frames are:
+
+        >>> (1)
+        self.node_mad_dist_df
+            col = marker + "_mad_bounds"
+            col = marker + "_exp_bounds"
+            col = marker + "_counts"
+        self.node_mad_dist_df = pd.DataFrame(
+            data = np.zeros((15,n_markers * 3)), 
+            index = None,
+            columns = L,
+            dtype=self.FDT)
+
+        Note that we have chosen 15 values to be
+        consistent with too-many-cells interactive.
+        These are the x-axis tick marks.
+
+        >>> (2)
+        self.node_exp_stats_df
+        self.node_exp_stats_df = pd.DataFrame(
+            np.zeros((n_markers, 7)),
+            index = self.list_of_markers,
+            columns = ["median",
+                       "mad",
+                       "min",
+                       "max",
+                       "min_mad",
+                       "max_mad",
+                       "delta"],
+            dtype = self.FDT,
+            )
         """
         self.t0 = clock()
 
@@ -3190,15 +3288,114 @@ class TooManyCells:
 
 
         print(self.node_exp_stats_df)
-        print(self.node_exp_stats_df.loc["FAP",:])
-        L = ["FAP_mad_bounds", "FAP_counts"]
-        print(self.node_mad_dist_df[L])
+        # print(self.node_exp_stats_df.loc["FAP",:])
+        # L = ["FAP_mad_bounds", "FAP_counts"]
+        # print(self.node_mad_dist_df[L])
 
         self.tf = clock()
         delta = self.tf - self.t0
         txt = ("Elapsed time to compute node metadata: " + 
                 f"{delta:.2f} seconds.")
         print(txt)
+
+    #=====================================
+    def which_cells_are_above_threshold(
+            self,
+    ):
+        """
+
+        For every marker we create a CSV file
+        indicating which cells are above or
+        below the given MAD threshold.
+
+        In the file that was loaded during the call to
+        load_marker_and_cell_type_data()
+        the user can specify the MAD thresholds in a 
+        column named "Threshold".
+
+        Marker	Cell	    Direction	Threshold
+        ITGAM	Monocytes	Above	    5
+        CD14	Monocytes	Above	    40
+        AIF1	Monocytes	Above	    30
+        CSF1R	Monocytes	Above	    40
+        CD163	Macrophages	Above	    40
+        MRC1	Macrophages	Above	    10
+        
+        The user also has to specify the direction.
+
+        For example:
+
+        ITGAM	Monocytes	Above	    5
+        ...
+
+        means that we want to find cells whose
+        ITGAM expression is Above the value 
+        resulting from multiplying the MAD for
+        ITGAM by 5 and adding to that the 
+        corresponding median expression.
+
+        We then create a CSV file for each marker with
+        a MAD threshold. The cells that are above the
+        threshold are written to the file. 
+        
+        We also indicate the node (cluster)
+        membership, the expression value and
+        the corresponding number of MADs from
+        the median for each cell.
+
+        Ex.
+
+            Node	Expression	ExpressionAsMADs
+        C1	82	    0.96506536	21.496866
+	    C2  841	    1.4206275	32.1569
+
+        An additional file is also created
+        fname = "cells_with_all_high.csv"
+        which has the intersection of all the cells
+        whose expression is above the given threshold.
+        """
+
+        n_cells = self.A.shape[0]
+        mask_intersection = np.full(n_cells, True)
+
+        dict_iterator = self.marker_to_mad_threshold.items()
+        for marker, threshold in dict_iterator:
+            # print(marker, threshold)
+            direction = self.marker_to_mad_direction[marker]
+            mad = self.node_exp_stats_df.loc[marker,
+                                             "mad"]
+            median = self.node_exp_stats_df.loc[marker,
+                                                "median"]
+            marker_exp = mad * threshold + median
+            matrix_col = self.marker_to_column_idx[marker]
+            vec = self.A.X[:,matrix_col]
+
+            if sp.issparse(self.A.X):
+                vec = vec.toarray().squeeze()
+
+            if direction == "above":
+                mask = marker_exp <= vec
+            elif direction == "below":
+                mask = vec <= marker_exp
+            else:
+                raise ValueError("Unexpected direction")
+            mask_intersection &= mask
+            df = self.A.obs.sp_cluster.loc[mask]
+            df = df.to_frame(name="Node")
+            df["Expression"] = vec[mask]
+
+            df["ExpressionAsMADs"] = (vec[mask] - median)
+            df["ExpressionAsMADs"] /= mad
+
+            fname  = f"{marker}_exp_{direction}"
+            fname += f"_MAD_threshold.csv"
+            fname = os.path.join(self.output, fname)
+            df.to_csv(fname, index=True)
+            
+        fname = "remaining_cells_after_intersection.csv"
+        fname = os.path.join(self.output, fname)
+        df = self.A.obs.sp_cluster.loc[mask_intersection]
+        df.to_csv(fname, index=True)
 
     #=====================================
     def count_connected_nodes_above_threshold_for_attribute(
@@ -3237,6 +3434,8 @@ class TooManyCells:
     ):
         """
         TODO: Identify questionable cells and doublets.
+        This function aims to fully annotate a collection
+        of cells based on the provided cell markers.
         """
         n_markers = len(self.list_of_markers)
         mad_exp_df = pd.DataFrame(
@@ -3576,6 +3775,9 @@ class TooManyCells:
             use_majority_voting: bool = False,
     ):
         """
+        Instead of using celltypist separately,
+        we facilitate its use through TMC 
+        a la Python.
         """
         B = sc.AnnData(self.A.X.copy())
 
@@ -3617,9 +3819,9 @@ class TooManyCells:
         print(self.A.obs[cell_ann_col])
 
     #=====================================
-    def quantify_heterogeneity(
+    def quantify_modularity_heterogeneity(
             self,
-            list_of_branches: List = [0],
+            list_of_branches: List[int] = [0],
             tag: str = "modularity_distribution",
             file_format: str = "pdf",
             show_column_totals: bool = False,
@@ -3744,14 +3946,14 @@ class TooManyCells:
             self,
             tmc_tree_path: str,
             matrix_path: str = "",
-            list_of_genes: List = [],
+            list_of_genes: List[str] = [],
             use_threshold: bool = False,
-            high_low_colors: List = ["purple",
-                                               "red",
-                                               "blue",
-                                               "aqua"],
-            gene_colors: List = [],
-            annotation_colors: List = [],
+            high_low_colors: List[str] = ["purple",
+                                          "red",
+                                          "blue",
+                                          "aqua"],
+            gene_colors: List[str] = [],
+            annotation_colors: List[str] = [],
             method: str = "MadMedian",
             tree_file_name: str = "tree.svg",
             threshold: float = 1.5,
@@ -3802,7 +4004,7 @@ class TooManyCells:
     #=====================================
     def load_graph(
             self,
-            json_fname: str = "",
+            json_fname: str = "graph.json",
         ):
 
         self.tmcGraph.load_graph(json_fname)
@@ -3817,6 +4019,9 @@ class TooManyCells:
             path: str,
             ):
         """
+        In case one wants to change the 
+        output folder for all the relevant
+        objects.
         """
         os.makedirs(path, exist_ok = True)
         self.output = path
