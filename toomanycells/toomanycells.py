@@ -611,6 +611,26 @@ class TooManyCells:
             self.X *= -0.5
             self.X += 1
 
+        elif similarity_function == "div_by_delta_max":
+            # Let M = max_{x,y} {||x-y||}
+            #1 - ||x-y|| / M
+            # Note that this quantity is zero
+            when ||x-y|| equals the diameter.
+
+            if self.similarity_norm == 1:
+                lp_norm = "l1"
+            elif self.similarity_norm == 2:
+                lp_norm = "l2"
+            else:
+                txt = "Similarity norm should be 1 or 2."
+                raise ValueError(txt)
+
+            self.X = pairwise_distances(self.X,
+                                        metric=lp_norm,
+                                        n_jobs=n_workers)
+            self.X *= -0.5
+            self.X += 1
+
 
         if similarity_function != "cosine_sparse":
 
@@ -1722,7 +1742,7 @@ class TooManyCells:
         path between those nodes.
         
         We use the path from the root node to the 
-        corresponding nodes and then we remove the
+        corresponding nodes, and then we remove the
         intersection except at the branching point.
         """
         x_path, x_dist = self.get_path_from_root_to_node(x)
@@ -1771,9 +1791,20 @@ class TooManyCells:
     def compute_cluster_mean_expression(
             self, 
             node: int, 
-            genes: Union[List, str],
+            genes: Union[List[str], str],
             output_list: bool = False,
             ):
+        """
+        Compute the mean expression for a specific
+        cluster.
+
+        If you plan to use this function repeatedly,
+        then consider calculating the mean expression
+        for each node of the whole tree.
+
+        The corresponding function is:
+        populate_tree_with_mean_expression_for_all_markers()
+        """
 
         #Get all the descendants for a given node.
         #This is a set.
@@ -1856,7 +1887,7 @@ class TooManyCells:
             self,
             x: int,
             y: int,
-            genes: Union[List, str],
+            genes: Union[List[str], str],
             ):
         """
         For a given pair of nodes x and y, we compute the
@@ -1864,8 +1895,16 @@ class TooManyCells:
             those nodes. 
         Make sure that property set_of_leaf_nodes is
             populated with the correct information.
+
         TODO: Make sure you populate the gene expression
         on each node using the right function.
+        
+        If you plan to use this function repeatedly,
+        then consider calculating the mean expression
+        for the whole tree first.
+
+        The corresponding function is:
+        populate_tree_with_mean_expression_for_all_markers()
         """
 
         if isinstance(genes, str):
@@ -1912,40 +1951,6 @@ class TooManyCells:
         fname = os.path.join(self.output, fname)
         fig.savefig(fname, bbox_inches="tight")
         print("Plot has been generated.")
-
-    #=====================================
-    def plot_radial_tree_from_dot_file(
-            self,
-            dot_fname: str = "",
-    ):
-        """
-        This function is no longer supported since 
-        we want to avoid the dependency on GraphViz.
-        Use TooManyCells interactive to visualize 
-        your tree instead.
-        TODO: Remove function.
-        """
-        if len(dot_fname) == 0:
-            fname = 'graph.dot'
-            dot_fname = os.path.join(self.output, fname)
-        else:
-            if not os.path.exists(dot_fname):
-                raise ValueError("DOT file not found.")
-
-        fname = 'output_graph.svg'
-        fname = os.path.join(self.output, fname)
-
-        command = ['twopi',
-                '-Groot=0',
-                '-Goverlap=true',
-                '-Granksep=2',
-                '-Tsvg',
-                dot_fname,
-                '>',
-                fname,
-                ]
-        command = ' '.join(command)
-        p = subprocess.call(command, shell=True)
 
     #=====================================
     def compute_marker_mean_value_for_cell(
@@ -2257,80 +2262,6 @@ class TooManyCells:
                 continue
 
         return elim_set
-
-                    
-    #=====================================
-    def erase_cells_from_json_file(
-            self,
-            json_file_path: str = "",
-            target_json_file_path: str = "",
-            modify_anndata: bool = False,
-    ):
-        """
-        TODO: Remove this function because we
-        now recompute the Graph data structure
-        after eliminating the cells.
-        """
-
-        #{'_barcode':
-        #{'unCell': 'CAGCTGGCACGGTAGA-176476-OM'},
-        #'_cellRow': {'unRow': 29978}}
-        if len(json_file_path) == 0:
-            folder = "tmc_outputs"
-            source = os.getcwd()
-            fname = "cluster_tree.json"
-            source_fname = os.path.join(
-                source, folder, fname)
-            fname = "pruned_cluster_tree.json"
-            target_fname = os.path.join(
-                source, folder, fname)
-
-        else:
-            source_fname = json_file_path
-            target_fname = target_json_file_path
-
-        with open(source_fname, "r") as f:
-            source = f.readline()
-
-        list_of_regexp = []
-        replace_dict = {}
-
-        print(f"Creating regular expressions...")
-        n_cells_to_eliminate = len(
-            self.cells_to_be_eliminated)
-        for k, barcode in enumerate(tqdm(
-            self.cells_to_be_eliminated,
-            total=n_cells_to_eliminate)):
-
-            txt = '[{][^{]+[{][a-zA-Z":]+[ ]?["]'
-            # txt += "(?P<barcode>"
-            txt += barcode
-            # txt += ")"
-            txt += '["][}][^}]+[}]{2}[,]?'
-            list_of_regexp.append(txt)
-            replace_dict[barcode] = ""
-
-        print(f"Modifying JSON file.")
-        pattern = "|".join(list_of_regexp)
-        regexp = re.compile(pattern)
-        fun = lambda x: ""
-        obj = regexp.sub(fun, source)
-        print(f"Finished eliminating barcodes in the file.")
-
-        print(f"Writing modified JSON file.")
-        with open(target_fname, "w") as output_file:
-            output_file.write(obj)
-
-        print(f"Finished writing modified JSON file.")
-
-        if modify_anndata:
-            #This will eliminate all the
-            #cells labeled with an X from the 
-            #anndata object.
-            mask = self.A.obs.index.isin(
-                self.cells_to_be_eliminated)
-            self.A = self.A[~mask].copy()
-
 
     #=================================================
     def check_if_cells_belong_to_group(
