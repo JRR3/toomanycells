@@ -28,8 +28,6 @@ from typing import List
 from typing import Union
 from typing import Optional
 from os.path import dirname
-from scipy.io import mmread
-from scipy.io import mmwrite
 from collections import deque
 from scipy import sparse as sp
 from scipy.stats import entropy
@@ -38,6 +36,8 @@ import plotly.graph_objects as go
 from time import perf_counter as clock
 from collections import defaultdict as ddict
 from scipy.stats import median_abs_deviation
+from scipy.io import mmread as matrix_market_read
+from scipy.io import mmwrite as matrix_market_write
 
 #Matplotlib parameters.
 mpl.use("agg")
@@ -53,6 +53,7 @@ from common import MultiIndexList
 from tmcHaskell import TMCHaskell
 from tmcGraph import TMCGraph
 from similarityMatrix import SimilarityMatrix
+from multiPlotter import MultiPlotter
 
 #=====================================================
 class TooManyCells:
@@ -149,7 +150,7 @@ class TooManyCells:
                     try:
                         self.A = sc.read_10x_mtx(self.source)
                     except:
-                        self.convert_mm_from_source_to_anndata()
+                        self.convert_mm_from_source_to_adata()
                 else:
                     for f in os.listdir(self.source):
                         if f.endswith('.h5ad'):
@@ -253,7 +254,7 @@ class TooManyCells:
         # We use a deque to offer the possibility of breadth-
         # versus depth-first. Our current implementation
         # uses depth-first to be consistent with the 
-        # numbering scheme of TooManyCellsInteractive.
+        # numbering scheme of too-many-cells interactive.
         self.DQ = deque()
 
         #Map a node to the path in the
@@ -643,7 +644,7 @@ class TooManyCells:
 
 
     #=====================================
-    def convert_mm_from_source_to_anndata(self):
+    def convert_mm_from_source_to_adata(self):
         """
         This function reads the matrix.mtx file \
                 located at the source directory.\
@@ -676,7 +677,7 @@ class TooManyCells:
             raise ValueError(txt)
 
         fname = os.path.join(self.source, fname)
-        mat = mmread(fname)
+        mat = matrix_market_read(fname)
         #Remember that the input matrix has
         #genes for rows and cells for columns.
         #Thus, just transpose.
@@ -831,7 +832,8 @@ class TooManyCells:
             matrix_f = "matrix.mtx"
             matrix_f = os.path.join(self.tmci_mtx_dir,
                                     matrix_f)
-            mmwrite(matrix_f, sp.coo_matrix(G_mtx.T))
+            matrix_market_write(matrix_f,
+                                sp.coo_matrix(G_mtx.T))
 
     #=====================================
     def visualize_with_tmc_interactive(self,
@@ -1095,7 +1097,8 @@ class TooManyCells:
         mtx_path = os.path.join(
             self.tmci_mtx_dir, "matrix.mtx")
 
-        mmwrite(mtx_path, sp.coo_matrix(m))
+        matrix_market_write(mtx_path,
+                            sp.coo_matrix(m))
 
 
     #=====================================
@@ -3366,9 +3369,28 @@ class TooManyCells:
             fname: str,
             ):
         """
+        What does this function do?
         """
         self.tmcGraph.create_mask_for_list_of_nodes(
             path_to_csv, fname)
+
+    #=====================================
+    def plot_embedding(
+            self,
+            path: str,
+            label: str,
+            column: str,
+            color_map: Union[dict, str],
+            ):
+        """
+        """
+        obj = MultiPlotter(self.A, self.output)
+        obj.process_embedding(
+            path,
+            label,
+            column,
+            color_map,
+        )
 
 
     #====END=OF=CLASS=====================
