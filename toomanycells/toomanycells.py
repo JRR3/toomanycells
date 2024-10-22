@@ -291,62 +291,6 @@ class TooManyCells:
         # self.use_twopi_cmd   = True
         self.verbose_mode    = False
 
-    #=====================================
-    def normalize_sparse_rows(self):
-        """
-        Divide each row of the count matrix by the \
-            given norm. Note that this function \
-            assumes that the matrix is in the \
-            compressed sparse row format.
-        """
-
-        print("Normalizing rows.")
-
-
-        for i, row in enumerate(self.X):
-            data = row.data.copy()
-            row_norm  = np.linalg.norm(
-                data, ord=self.similarity_norm)
-            data /= row_norm
-            start = self.X.indptr[i]
-            end   = self.X.indptr[i+1]
-            self.X.data[start:end] = data
-
-    #=====================================
-    def normalize_dense_rows(self):
-        """
-        Divide each row of the count matrix by the \
-            given norm. Note that this function \
-            assumes that the matrix is dense.
-        """
-
-        print('Normalizing rows.')
-
-        for row in self.X:
-            row /= np.linalg.norm(row,
-                                  ord=self.similarity_norm)
-
-    # #=====================================
-    # def modularity_to_json(self, Q:float):
-    #     return {'_item': None,
-    #             '_significance': None,
-    #             '_distance': Q}
-
-    # #=====================================
-    # def cell_to_json(self, cell_name, cell_number):
-    #     return {'_barcode': {'unCell': cell_name},
-    #             '_cellRow': {'unRow': cell_number}}
-
-    # #=====================================
-    # def cells_to_json(self,rows):
-    #     L = []
-    #     for row in rows:
-    #         cell_id = self.A.obs.index[row]
-    #         D = self.cell_to_json(cell_id, row)
-    #         L.append(D)
-    #     return {'_item': L,
-    #             '_significance': None,
-    #             '_distance': None}
 
     #=====================================
     def estimate_n_of_iterations(self) -> int:
@@ -393,14 +337,14 @@ class TooManyCells:
             shift_until_nonnegative: bool = False,
             store_similarity_matrix: bool = False,
             normalize_rows: bool = False,
-            similarity_function: str="cosine_sparse",
+            similarity_function: str = "cosine_sparse",
             similarity_norm: float = 2,
             similarity_power: float = 1,
-            similarity_gamma: float = None,
-            use_eig_decomp: bool = False,
+            similarity_gamma: Optional[float] = None,
             use_tf_idf: bool = False,
-            tf_idf_norm: str = None,
-            tf_idf_smooth: str = True,
+            tf_idf_norm: Optional[str] = None,
+            tf_idf_smooth: bool = True,
+            use_eig_decomp: bool = False,
             svd_algorithm: str = "randomized"):
         """
         This function computes the partitions of the \
@@ -408,6 +352,9 @@ class TooManyCells:
                 until the modularity of the newly \
                 created partitions is below threshold.
         """
+
+        #In case the user wants to call this function again.
+        self.spectral_clustering_has_been_called = True
 
         if self.too_few_observations:
             raise ValueError("Too few observations (cells).")
@@ -511,7 +458,7 @@ class TooManyCells:
             t0 = clock()
             print("Building similarity matrix ...")
             n_rows = self.X.shape[0]
-            max_workers = os.cpu_count()
+            max_workers = int(os.cpu_count())
             n_workers = 1
             if n_rows < 500:
                 pass
@@ -583,19 +530,12 @@ class TooManyCells:
                 gamma = similarity_gamma)
 
         elif similarity_function == "div_by_sum":
-            #1 - ( ||x-y|| / (||x|| + ||y||) )^power
-            #The rows should have been previously normalized.
-            def sim_fun(x,y):
-                delta = np.linalg.norm(
-                    x-y, ord=similarity_norm)
-                x_norm = np.linalg.norm(
-                    x, ord=similarity_norm)
-                y_norm = np.linalg.norm(
-                    y, ord=similarity_norm)
-                delta /= (x_norm + y_norm)
-                delta = np.power(delta, 1)
-                value =  1 - delta
-                return value
+            # D(x,y) = 1 - ||x-y|| / (||x|| + ||y||)
+
+            # If the vectors have unit norm, then
+            # D(x,y) = 1 - ||x-y|| / (||x|| + ||y||)
+
+            # The rows should have been previously normalized.
 
             if self.similarity_norm == 1:
                 lp_norm = "l1"
@@ -612,10 +552,12 @@ class TooManyCells:
             self.X += 1
 
         elif similarity_function == "div_by_delta_max":
-            # Let M = max_{x,y} {||x-y||}
-            #1 - ||x-y|| / M
+            # Let M be the diameter of the set S.
+            # M = max_{x,y in S} {||x-y||}
+            # D(x,y) = 1 - ||x-y|| / M
             # Note that this quantity is zero
-            when ||x-y|| equals the diameter.
+            # when ||x-y|| equals M and is 
+            # equal to 1 only when x = y.
 
             if self.similarity_norm == 1:
                 lp_norm = "l1"
