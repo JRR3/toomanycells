@@ -14,10 +14,17 @@ import os
 import numpy as np
 import pandas as pd
 from typing import List
+from typing import Tuple
 import matplotlib as mpl
+from scipy import spatial
 from typing import Optional
 from scipy import sparse as sp
+from numpy.typing import ArrayLike
 from time import perf_counter as clock
+from sklearn.metrics import pairwise_distances
+from sklearn.decomposition import TruncatedSVD
+from sklearn.metrics.pairwise import pairwise_kernels
+from scipy.sparse.linalg import eigsh as Eigen_Hermitian
 from sklearn.feature_extraction.text import TfidfTransformer
 
 class SimilarityMatrix:
@@ -25,10 +32,24 @@ class SimilarityMatrix:
     #=====================================
     def __init__(
             self,
-            matrix: np.ndarray,
+            matrix: ArrayLike,
+            use_hermitian_method: bool = False,
+            svd_algorithm: str = "randomized",
+            verbose_mode: bool = False,
     ):
         self.X = matrix
         self.is_sparse = sp.issparse(self.X)
+        self.similarity_norm: float
+        self.trunc_SVD = None
+        self.use_hermitian_method = use_hermitian_method
+        self.svd_algorithm = svd_algorithm
+
+        list_of_svd_algorithms = ["randomized","arpack"]
+        if svd_algorithm not in list_of_svd_algorithms:
+            raise ValueError("Unexpected SVD algorithm.")
+
+        self.verbose_mode = verbose_mode
+        self.eps = 1e-9
 
     #=====================================
     def compute_similarity_matrix(
@@ -67,6 +88,7 @@ class SimilarityMatrix:
         similarity_functions.append("gaussian")
         similarity_functions.append("div_by_sum")
         similarity_functions.append("div_by_delta_max")
+
         if similarity_function not in similarity_functions:
             raise ValueError("Unexpected similarity fun.")
 
@@ -107,6 +129,7 @@ class SimilarityMatrix:
         #Normalization section
         use_cos_sp = similarity_function == "cosine_sparse"
         use_dbs = similarity_function == "div_by_sum"
+
         if normalize_rows or use_cos_sp or use_dbs:
             t0 = clock()
 
@@ -127,9 +150,10 @@ class SimilarityMatrix:
         if similarity_function == "cosine_sparse":
 
             self.trunc_SVD = TruncatedSVD(
-                    n_components=2,
-                    n_iter=5,
-                    algorithm=svd_algorithm)
+                n_components=2,
+                n_iter=5,
+                algorithm=self.svd_algorithm
+            )
 
         else:
             #Use a similarity function different from
@@ -154,22 +178,22 @@ class SimilarityMatrix:
             print(f"Using {n_workers=}.")
 
         if similarity_function == "cosine_sparse":
+            # This function is not translation invariant.
             pass
         elif similarity_function == "cosine":
             #( x @ y ) / ( ||x|| * ||y|| )
-            def sim_fun(x,y):
-                cos_sim = x @ y
-                x_norm = np.linalg.norm(x, ord=2)
-                y_norm = np.linalg.norm(y, ord=2)
-                cos_sim /= (x_norm * y_norm)
-                return cos_sim
-
+            # This function is not translation invariant.
             self.X = pairwise_kernels(self.X,
                                         metric="cosine",
                                         n_jobs=n_workers)
 
         elif similarity_function == "neg_exp":
-            #exp(-||x-y||^power * gamma)
+            # exp(-||x-y||^power * gamma)
+            # This function is translation invariant.
+
+            # Notice the similarity between this function
+            # and the laplacian kernel below. 
+            # The Laplacian kernel only offers the L1 norm.
             def sim_fun(x,y):
                 delta = np.linalg.norm(
                     x-y, ord=similarity_norm)
@@ -183,6 +207,8 @@ class SimilarityMatrix:
 
         elif similarity_function == "laplacian":
             #exp(-||x-y||^power * gamma)
+            # This function is translation invariant.
+            # The Laplacian kernel only offers the L1 norm.
             def sim_fun(x,y):
                 delta = np.linalg.norm(
                     x-y, ord=1)
@@ -197,6 +223,8 @@ class SimilarityMatrix:
 
         elif similarity_function == "gaussian":
             #exp(-||x-y||^power * gamma)
+            # This function is translation invariant.
+            # The Gaussian kernel only offers the L2 norm.
             def sim_fun(x,y):
                 delta = np.linalg.norm(
                     x-y, ord=2)
@@ -211,11 +239,13 @@ class SimilarityMatrix:
 
         elif similarity_function == "div_by_sum":
             # D(x,y) = 1 - ||x-y|| / (||x|| + ||y||)
+            # This function is not translation invariant.
 
             # If the vectors have unit norm, then
-            # D(x,y) = 1 - ||x-y|| / (||x|| + ||y||)
+            # D(x,y) = 1 - ||x-y|| / 2
 
-            # The rows should have been previously normalized.
+            # If the user chooses this function, then
+            # the row vectors are automatically normalized.
 
             if self.similarity_norm == 1:
                 lp_norm = "l1"
@@ -235,7 +265,8 @@ class SimilarityMatrix:
             # Let M be the diameter of the set S.
             # M = max_{x,y in S} {||x-y||}
             # D(x,y) = 1 - ||x-y|| / M
-            # Note that this quantity is zero
+            # This function is translation invariant.
+            # Note that D(x,y) is zero
             # when ||x-y|| equals M and is 
             # equal to 1 only when x = y.
 
@@ -250,19 +281,22 @@ class SimilarityMatrix:
             self.X = pairwise_distances(self.X,
                                         metric=lp_norm,
                                         n_jobs=n_workers)
-            self.X *= -0.5
+
+            diam = self.compute_diameter_for_observations()
+            self.X *= -1 / diam
             self.X += 1
 
 
         if similarity_function != "cosine_sparse":
 
-
             if shift_until_nonnegative:
                 min_value = self.X.min()
                 if min_value < 0:
                     shift_similarity_matrix = -min_value
-                    print(f"Similarity matrix will be shifted.")
-                    print(f"Shift: {shift_similarity_matrix}.")
+                    txt="Similarity matrix will be shifted."
+                    print(txt)
+                    txt=f"Shift: {shift_similarity_matrix}."
+                    print(txt)
                     self.X += shift_similarity_matrix
 
             elif shift_similarity_matrix != 0:
@@ -296,7 +330,6 @@ class SimilarityMatrix:
 
         print("Normalizing rows.")
 
-
         for i, row in enumerate(self.X):
             data = row.data.copy()
             row_norm  = np.linalg.norm(
@@ -317,8 +350,8 @@ class SimilarityMatrix:
         print('Normalizing rows.')
 
         for row in self.X:
-            row /= np.linalg.norm(row,
-                                  ord=self.similarity_norm)
+            row /= np.linalg.norm(
+                row, ord=self.similarity_norm)
 
     # #=====================================
     # def modularity_to_json(self, Q:float):
@@ -341,3 +374,334 @@ class SimilarityMatrix:
     #     return {'_item': L,
     #             '_significance': None,
     #             '_distance': None}
+
+    #=====================================
+    def compute_partition_for_sp(self,
+                                 rows: np.ndarray,
+    ) -> Tuple[float, np.ndarray]:
+        """
+        This function is for sparse matrices.
+
+        Compute the partition of the given set
+        of cells. The rows input
+        contains the indices of the
+        rows we are to partition.
+        The algorithm computes a truncated
+        SVD and the corresponding modularity
+        of the newly created communities.
+        """
+
+        if self.verbose_mode:
+            print(f'I was given: {rows=}')
+
+        partition = []
+        Q = 0
+
+        n_rows = len(rows) 
+        #print(f"Number of cells: {n_rows}")
+
+        #If the number of rows is less than 3,
+        #we keep the cluster as it is.
+        if n_rows < 3:
+            return (Q, partition)
+
+        B = self.X[rows,:]
+        ones = np.ones(n_rows)
+        partial_row_sums = B.T.dot(ones)
+        #1^T @ B @ B^T @ 1 = (B^T @ 1)^T @ (B^T @ 1)
+        L = partial_row_sums @ partial_row_sums - n_rows
+        #These are the row sums of the similarity matrix
+        row_sums = B @ partial_row_sums
+        #Check if we have negative entries before computing
+        #the square root.
+        # if  neg_row_sums or self.use_hermitian_method:
+        zero_row_sums_mask = np.abs(row_sums) < self.eps
+        has_zero_row_sums = zero_row_sums_mask.any()
+        has_neg_row_sums = (row_sums < -self.eps).any() 
+
+        if has_zero_row_sums:
+            print("We have zero row sums.")
+            row_sums[zero_row_sums_mask] = 0
+
+        if has_neg_row_sums and has_zero_row_sums:
+            txt = "This matrix cannot be processed."
+            print(txt)
+            txt = "Cannot have negative and zero row sums."
+            raise ValueError(txt)
+
+        if  has_neg_row_sums:
+            #This means we cannot use the fast approach
+            #We'll have to build a dense representation
+            # of the similarity matrix.
+            if 5000 < n_rows:
+                print("The row sums are negative.")
+                print("We will use a full eigen decomp.")
+                print(f"The block size is {n_rows}.")
+                print("Warning ...")
+                txt = "This operation is very expensive."
+                print(txt)
+            laplacian_mtx  = B @ B.T
+            row_sums_mtx   = sp.diags(row_sums)
+            laplacian_mtx  = row_sums_mtx - laplacian_mtx
+
+            #This is a very expensive operation
+            #since it computes all the eigenvectors.
+            inv_row_sums   = 1/row_sums
+            inv_row_sums   = sp.diags(inv_row_sums)
+            laplacian_mtx  = inv_row_sums @ laplacian_mtx
+            eig_obj = np.linalg.eig(laplacian_mtx)
+            eig_vals = eig_obj.eigenvalues
+            eig_vecs = eig_obj.eigenvectors
+            idx = np.argsort(np.abs(np.real(eig_vals)))
+            #Get the index of the second smallest eigenvalue.
+            idx = idx[1]
+            W = np.real(eig_vecs[:,idx])
+            W = np.squeeze(np.asarray(W))
+
+        elif self.use_hermitian_method or has_zero_row_sums:
+            laplacian_mtx  = B @ B.T
+            row_sums_mtx   = sp.diags(row_sums)
+            laplacian_mtx  = row_sums_mtx - laplacian_mtx
+            try:
+                #if the row sums are negative, this 
+                #step could fail.
+                E_obj = Eigen_Hermitian(laplacian_mtx,
+                                        k=2,
+                                        M=row_sums_mtx,
+                                        sigma=0,
+                                        which="LM")
+                eigen_val_abs = np.abs(E_obj[0])
+                #Identify the eigenvalue with the
+                #largest magnitude.
+                idx = np.argmax(eigen_val_abs)
+                #Choose the eigenvector corresponding
+                # to the eigenvalue with the 
+                # largest magnitude.
+                eigen_vectors = E_obj[1]
+                W = eigen_vectors[:,idx]
+            except:
+                #This is a very expensive operation
+                #since it computes all the eigenvectors.
+                if 5000 < n_rows:
+                    print("We will use a full eigen decomp.")
+                    print(f"The block size is {n_rows}.")
+                    print("Warning ...")
+                    txt = "This operation is very expensive."
+                    print(txt)
+                inv_row_sums   = 1/row_sums
+                inv_row_sums   = sp.diags(inv_row_sums)
+                laplacian_mtx  = inv_row_sums @ laplacian_mtx
+                eig_obj = np.linalg.eig(laplacian_mtx)
+                eig_vals = eig_obj.eigenvalues
+                eig_vecs = eig_obj.eigenvectors
+                idx = np.argsort(np.abs(np.real(eig_vals)))
+                idx = idx[1]
+                W = np.real(eig_vecs[:,idx])
+                W = np.squeeze(np.asarray(W))
+
+
+        else:
+            #This is the fast approach.
+            #It is fast in the sense that the 
+            #operations are faster if the matrix
+            #is sparse, i.e., O(n) nonzero entries.
+
+            d = 1/np.sqrt(row_sums)
+            D = sp.diags(d)
+            C = D @ B
+            W = self.trunc_SVD.fit_transform(C)
+            singular_values = self.trunc_SVD.singular_values_
+            idx = np.argsort(singular_values)
+            #Get the singular vector corresponding to the
+            #second largest singular value.
+            W = W[:,idx[0]]
+
+
+        mask_c1 = 0 < W
+        mask_c2 = ~mask_c1
+
+        #If one partition has all the elements
+        #then return with Q = 0.
+        if mask_c1.all() or mask_c2.all():
+            return (Q, partition)
+
+        masks = [mask_c1, mask_c2]
+
+        for mask in masks:
+            n_rows_msk = mask.sum()
+            partition.append(rows[mask])
+            ones_msk = ones * mask
+            row_sums_msk = B.T.dot(ones_msk)
+            O_c = row_sums_msk @ row_sums_msk - n_rows_msk
+            L_c = ones_msk @ row_sums  - n_rows_msk
+            Q += O_c / L - (L_c / L)**2
+
+        if self.verbose_mode:
+            print(f'{Q=}')
+            print(f'I found: {partition=}')
+            print('===========================')
+
+        return (Q, partition)
+
+    #=====================================
+    def compute_partition_for_gen(self, 
+                                  rows: np.ndarray,
+    ) -> Tuple[float, np.ndarray]:
+        """
+        Compute the partition of the given set
+        of cells. The rows input
+        contains the indices of the
+        rows we are to partition.
+        The algorithm computes a truncated
+        SVD and the corresponding modularity
+        of the newly created communities.
+        """
+
+        if self.verbose_mode:
+            print(f'I was given: {rows=}')
+
+        partition = []
+        Q = 0
+
+        n_rows = len(rows) 
+        #print(f"Number of cells: {n_rows}")
+
+        #If the number of rows is less than 3,
+        #we keep the cluster as it is.
+        if n_rows < 3:
+            return (Q, partition)
+
+        S = self.X[np.ix_(rows, rows)]
+        ones = np.ones(n_rows)
+        row_sums = S.dot(ones)
+        row_sums_mtx   = sp.diags(row_sums)
+        laplacian_mtx  = row_sums_mtx - S
+        L = np.sum(row_sums) - n_rows
+
+        zero_row_sums_mask = np.abs(row_sums) < self.eps
+        has_zero_row_sums = zero_row_sums_mask.any()
+        has_neg_row_sums = (row_sums < -self.eps).any() 
+
+        if has_neg_row_sums:
+            print("The similarity matrix "
+                  "has negative row sums")
+
+        if has_zero_row_sums:
+            print("We have zero row sums.")
+            row_sums[zero_row_sums_mask] = 0
+
+        if has_neg_row_sums and has_zero_row_sums:
+            txt = "This matrix cannot be processed."
+            print(txt)
+            txt = "Cannot have negative and zero row sums."
+            raise ValueError(txt)
+
+        if has_neg_row_sums:
+            #This is a very expensive operation
+            #since it computes all the eigenvectors.
+            if 5000 < n_rows:
+                print("The row sums are negative.")
+                print("We will use a full eigen decomp.")
+                print(f"The block size is {n_rows}.")
+                print("Warning ...")
+                txt = "This operation is very expensive."
+                print(txt)
+            inv_row_sums   = 1/row_sums
+            inv_row_sums   = sp.diags(inv_row_sums)
+            laplacian_mtx  = inv_row_sums @ laplacian_mtx
+            eig_obj = np.linalg.eig(laplacian_mtx)
+            eig_vals = eig_obj.eigenvalues
+            eig_vecs = eig_obj.eigenvectors
+            idx = np.argsort(np.abs(np.real(eig_vals)))
+            idx = idx[1]
+            W = np.real(eig_vecs[:,idx])
+            W = np.squeeze(np.asarray(W))
+
+        else:
+            #Nonnegative row sums.
+            try:
+                # print("Using the eigsh function.")
+
+                E_obj = Eigen_Hermitian(laplacian_mtx,
+                                        k=2,
+                                        M=row_sums_mtx,
+                                        sigma=0,
+                                        which="LM")
+                eigen_val_abs = np.abs(E_obj[0])
+                #Identify the eigenvalue with the
+                #largest magnitude.
+                idx = np.argmax(eigen_val_abs)
+                #Choose the eigenvector corresponding
+                # to the eigenvalue with the 
+                # largest magnitude.
+                eigen_vectors = E_obj[1]
+                W = eigen_vectors[:,idx]
+
+            except:
+                # print("Using the eig function.")
+
+                #This is a very expensive operation
+                #since it computes all the eigenvectors.
+                if 5000 < n_rows:
+                    print("We will use a full eigen decomp.")
+                    print(f"The block size is {n_rows}.")
+                    print("Warning ...")
+                    txt = "This operation is very expensive."
+                    print(txt)
+                inv_row_sums   = 1/row_sums
+                inv_row_sums   = sp.diags(inv_row_sums)
+                laplacian_mtx  = inv_row_sums @ laplacian_mtx
+                eig_obj = np.linalg.eig(laplacian_mtx)
+                eig_vals = eig_obj.eigenvalues
+                eig_vecs = eig_obj.eigenvectors
+                idx = np.argsort(np.abs(np.real(eig_vals)))
+                #Get the index of the second smallest 
+                #eigenvalue.
+                idx = idx[1]
+                W = np.real(eig_vecs[:,idx])
+                W = np.squeeze(np.asarray(W))
+
+
+        mask_c1 = 0 < W
+        mask_c2 = ~mask_c1
+
+        #If one partition has all the elements
+        #then return with Q = 0.
+        if mask_c1.all() or mask_c2.all():
+            return (Q, partition)
+
+        masks = [mask_c1, mask_c2]
+
+        for mask in masks:
+            n_rows_msk = mask.sum()
+            partition.append(rows[mask])
+            ones_msk = ones * mask
+            row_sums_msk = S @ ones_msk
+            O_c = ones_msk @ row_sums_msk - n_rows_msk
+            L_c = ones_msk @ row_sums  - n_rows_msk
+            Q += O_c / L - (L_c / L)**2
+
+        if self.verbose_mode:
+            print(f'{Q=}')
+            print(f'I found: {partition=}')
+            print('===========================')
+
+        return (Q, partition)
+
+    #=====================================
+    def compute_diameter_for_observations(self):
+        """
+        Assuming every row vector is a 
+        point in R^n, we compute the diameter 
+        of that set using the norm
+        """
+        indices = spatial.ConvexHull(self.X).vertices
+        candidates = self.X[indices]
+        distance_matrix = spatial.distance_matrix(
+            candidates, candidates, p=self.similarity_norm)
+        # If we want to get two points that produce
+        # the diameter.
+        # matrix_dim = distance_matrix.shape
+        # index_for_max = distance_matrix.argmax()
+        # i,j = np.unravel_index(index_for_max, matrix_dim)
+        return distance_matrix.max()
