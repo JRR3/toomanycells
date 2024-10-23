@@ -261,7 +261,7 @@ class TMCHaskell:
                 "",
                 ">",
                 self.cluster_path]
-        # print(command)
+        print(command)
         command = list(filter(len, command))
         command = " ".join(command)
         #print(">>>>>>>>>>>")

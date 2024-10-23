@@ -37,7 +37,7 @@ class SimilarityMatrix:
             svd_algorithm: str = "randomized",
             verbose_mode: bool = False,
     ):
-        self.X = matrix
+        self.X: ArrayLike = matrix
         self.is_sparse = sp.issparse(self.X)
         self.similarity_norm: float
         self.trunc_SVD = None
@@ -695,8 +695,12 @@ class SimilarityMatrix:
         point in R^n, we compute the diameter 
         of that set using the norm
         """
-        indices = spatial.ConvexHull(self.X).vertices
-        candidates = self.X[indices]
+        if self.X.shape[0] < 500:
+            candidates = self.X
+        else:
+            indices = spatial.ConvexHull(self.X).vertices
+            candidates = self.X[indices]
+
         distance_matrix = spatial.distance_matrix(
             candidates, candidates, p=self.similarity_norm)
         # If we want to get two points that produce
