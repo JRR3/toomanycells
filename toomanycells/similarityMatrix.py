@@ -282,7 +282,7 @@ class SimilarityMatrix:
                                         metric=lp_norm,
                                         n_jobs=n_workers)
 
-            diam = self.compute_diameter_for_observations()
+            diam = self.X.max()
             self.X *= -1 / diam
             self.X += 1
 
@@ -689,23 +689,37 @@ class SimilarityMatrix:
         return (Q, partition)
 
     #=====================================
-    def compute_diameter_for_observations(self):
+    def compute_diameter_for_observations(
+        self,
+        matrix: ArrayLike,
+        lp_norm: str,
+        use_convex_hull: bool = False,
+    ) -> float:
         """
         Assuming every row vector is a 
         point in R^n, we compute the diameter 
         of that set using the norm
         """
-        if self.X.shape[0] < 500:
-            candidates = self.X
-        else:
-            indices = spatial.ConvexHull(self.X).vertices
-            candidates = self.X[indices]
+        if use_convex_hull:
+            indices = spatial.ConvexHull(matrix).vertices
+            candidates = matrix[indices]
+            distance_matrix = spatial.distance_matrix(
+                candidates,
+                candidates,
+                p = self.similarity_norm
+            )
+            return distance_matrix.max()
 
-        distance_matrix = spatial.distance_matrix(
-            candidates, candidates, p=self.similarity_norm)
+        distance_matrix = pairwise_distances(
+            matrix,
+            metric=lp_norm,
+            n_jobs=4,
+        )
+
+        return distance_matrix.max()
+
         # If we want to get two points that produce
         # the diameter.
         # matrix_dim = distance_matrix.shape
         # index_for_max = distance_matrix.argmax()
         # i,j = np.unravel_index(index_for_max, matrix_dim)
-        return distance_matrix.max()

@@ -39,6 +39,8 @@ from scipy.stats import median_abs_deviation
 from scipy.io import mmread as matrix_market_read
 from scipy.io import mmwrite as matrix_market_write
 
+from toomanycells import cellAnnotation
+
 #Matplotlib parameters.
 mpl.use("agg")
 mpl.rcParams["figure.dpi"]=600
@@ -54,6 +56,7 @@ from tmcHaskell import TMCHaskell
 from tmcGraph import TMCGraph
 from similarityMatrix import SimilarityMatrix
 from multiPlotter import MultiPlotter
+from cellAnnotation import CellAnnotation
 
 #=====================================================
 class TooManyCells:
@@ -1566,106 +1569,6 @@ class TooManyCells:
         if something_has_changed:
             print(f"{iteration=}")
             
-
-    #=====================================
-    def check_leaf_homogeneity(
-            self,
-            cell_ann_col: str = "cell_annotations",
-    ):
-        """
-        Determine if all the leaf nodes are homogeneous.
-        As soon as one heterogeneous node is found, the
-        function returns False.
-        """
-
-        CA = cell_ann_col
-
-        for node in self.G.nodes:
-            if 0 < self.G.out_degree(node):
-                #This is not a leaf node.
-                continue
-
-            #Child
-            mask = self.A.obs["sp_cluster"].isin([node])
-            S = self.A.obs[CA].loc[mask].unique()
-
-            if len(S) == 1:
-                #The node is already homogeneous
-                continue
-            else:
-                #We found one leaf node that is not
-                #homogeneous.
-                self.leaf_nodes_are_homogeneous = False
-                return False
-
-        self.leaf_nodes_are_homogeneous = True
-
-        return True
-
-    #=====================================
-    def homogenize_leaf_nodes(
-            self,
-            cell_ann_col: str = "cell_annotations",
-            follow_parent: bool = False,
-            follow_majority: bool = False,
-    ):
-        """
-        How should we homogenize a leaf node?
-        Either we use the majority present in the
-        parent node, or we use the majority already
-        present in the leaf node.
-        """
-
-        if follow_parent == follow_majority:
-            print("Homogeneous leafs strategy:")
-            raise ValueError("Strategy has to be unique.")
-
-        CA = cell_ann_col
-        elim_set = set()
-
-        # for node in self.G.nodes:
-            # if 0 < self.G.out_degree(node):
-            #     continue
-
-        if len(self.set_of_leaf_nodes) == 0:
-            raise ValueError("Empty set of leaf nodes.")
-
-        for node in self.set_of_leaf_nodes:
-            parent = next(self.G.predecessors(node))
-            #print(f"{parent}-->{node}")
-
-            #Child
-            mask = self.A.obs["sp_cluster"].isin([node])
-            S = self.A.obs[CA].loc[mask]
-            vc = S.value_counts(normalize=True)
-            child_majority = vc.index[0]
-            child_ratio = vc.iloc[0]
-
-            if child_ratio == 1:
-                #The node is already homogeneous
-                continue
-
-            if follow_parent:
-                #Parent
-                mask = self.A.obs["sp_cluster"].isin([parent])
-                S = self.A.obs[CA].loc[mask]
-                vc = S.value_counts(normalize=True)
-                parent_majority = vc.index[0]
-    
-                #Who is different from the parent?
-                mask = S != parent_majority
-                Q = S.loc[mask]
-                elim_set.update(Q.index)
-                continue
-
-            if follow_majority:
-                #Who is different from the child's majority?
-                mask = S != child_majority
-                Q = S.loc[mask]
-                elim_set.update(Q.index)
-                continue
-
-        return elim_set
 
     #=================================================
     def check_if_cells_belong_to_group(
@@ -3390,6 +3293,30 @@ class TooManyCells:
             label,
             column,
             color_map,
+        )
+
+    #=====================================
+    def homogenize_leaf_nodes(
+            self,
+            cell_ann_col: str = "cell_annotations",
+            upper_threshold: float = 0.80,
+            change_below_this: float = 0.50,
+            minimum_level: int = 0,
+            change_all: bool = True,
+            labels_to_change: List[str] = [],
+    ):
+        """
+        Use the majority to annotate the cells
+        that belong to a specific category.
+        """
+        obj = CellAnnotation(self.G, self.A, self.output)
+        obj.homogenize_leaf_nodes(
+            cell_ann_col,
+            upper_threshold,
+            change_below_this,
+            minimum_level,
+            change_all,
+            labels_to_change,
         )
 
 

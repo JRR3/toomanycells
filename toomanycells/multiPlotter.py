@@ -46,7 +46,7 @@ class MultiPlotter:
     #=====================================
     def plot_embedding(self,
                        matrix: ArrayLike,
-                       label: str,
+                       file_name: str,
                        colors: ArrayLike,
                        color_map: Union[dict, str],
     ):
@@ -68,11 +68,11 @@ class MultiPlotter:
             ax=ax,
             c = colors,
             cmap = color_map,
-            legend_loc = (1,0.5),
+            legend_loc = (1, 0.5),
             ticks=False,
         )
         #ax.set_aspect("equal")
-        fname = f"{label}_embedding.pdf"
+        fname = file_name
         fname = os.path.join(self.output, fname)
         fig.savefig(fname, bbox_inches="tight")
     #=====================================
@@ -88,7 +88,7 @@ class MultiPlotter:
         colors = self.A.obs[column]
 
         mtx = self.load_embedding(path)
-        print(mtx)
+        # print(mtx)
 
         self.plot_embedding(mtx,
                             label,
