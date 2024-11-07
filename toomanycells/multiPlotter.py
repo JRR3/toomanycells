@@ -4,10 +4,6 @@
 #Javier Ruiz Ramirez
 #October 2024
 #########################################################
-#This is a Python script to produce TMC trees using
-#the original too-many-cells tool.
-#https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7439807/
-#########################################################
 #Questions? Email me at: javier.ruizramirez@uhn.ca
 #########################################################
 import os

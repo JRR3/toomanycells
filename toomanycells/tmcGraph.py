@@ -605,13 +605,19 @@ class TMCGraph:
             json.dump(nld, f, ensure_ascii=False, indent=4)
 
     #=====================================
-    def store_outputs(self):
+    def store_outputs(self,
+                      store_in_uns_dict = False):
         """
         """
         self.write_cell_assignment_to_csv()
         self.convert_graph_to_tmc_json()
         self.convert_graph_to_json()
         self.write_cluster_list_to_tmc_json()
+
+        if store_in_uns_dict:
+            self.A.uns["tmc_graph"] = self.G
+            x = self.set_of_leaf_nodes
+            self.A.uns["tmc_leaf_nodes"] = x
 
     #=====================================
     def load_graph(
@@ -657,6 +663,7 @@ class TMCGraph:
 
         #We convert the number of cells of each node to
         #integer. We also convert the modularity to float.
+        #Lastly, we populate the set of leaf nodes.
         for node in self.G.nodes():
 
             not_leaf_node = 0 < self.G.out_degree(node)

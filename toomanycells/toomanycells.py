@@ -573,6 +573,7 @@ class TooManyCells:
     def store_outputs(
             self,
             cell_ann_col: str = "cell_annotations",
+            store_in_uns_dict: bool = False,
             ):
         """
         Store the outputs and plot the branching tree.
@@ -600,7 +601,7 @@ class TooManyCells:
         # nx.nx_agraph.write_dot(self.G, dot_fname)
 
         #Write graph data to file.
-        self.tmcGraph.store_outputs()
+        self.tmcGraph.store_outputs(store_in_uns_dict)
 
         #Store the cell annotations in the output folder.
         if 0 < len(cell_ann_col):
@@ -3242,14 +3243,21 @@ class TooManyCells:
     #=====================================
     def load_graph(
             self,
-            json_fname: str = "graph.json",
+            json_fname: str = "",
+            store_in_uns_dict: bool = False,
         ):
+        """
+        """
 
         self.tmcGraph.load_graph(json_fname)
         self.G = self.tmcGraph.G
 
         x = self.tmcGraph.set_of_leaf_nodes
         self.set_of_leaf_nodes = x
+
+        if store_in_uns_dict:
+            self.A.uns["tmc_graph"] = self.G
+            self.A.uns["tmc_leaf_nodes"] = x
 
     #=====================================
     def redefine_output_folder(
