@@ -723,3 +723,13 @@ class SimilarityMatrix:
         # matrix_dim = distance_matrix.shape
         # index_for_max = distance_matrix.argmax()
         # i,j = np.unravel_index(index_for_max, matrix_dim)
+    #=====================================
+
+    # def linear_operator(
+    #     self,
+    #     matrix: ArrayLike,
+    #     lp_norm: str,
+    #     use_convex_hull: bool = False,
+    # ) -> float:
+    #     """
+    #     """

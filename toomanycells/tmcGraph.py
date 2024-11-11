@@ -615,9 +615,20 @@ class TMCGraph:
         self.write_cluster_list_to_tmc_json()
 
         if store_in_uns_dict:
+            #The directed graph is stored in the dict.
             self.A.uns["tmc_graph"] = self.G
             x = self.set_of_leaf_nodes
+            #The list of leaf nodes is stored in the dict.
             self.A.uns["tmc_leaf_nodes"] = x
+            S = json.dumps(
+                self.J,
+                cls=JEncoder,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                )
+            #The cluster_tree.json is stored in the
+            #dictionary as a string.
+            self.A.uns["tmc_json"] = S
 
     #=====================================
     def load_graph(

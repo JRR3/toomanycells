@@ -343,7 +343,7 @@ class TooManyCells:
             tf_idf_norm: Optional[str] = None,
             tf_idf_smooth: bool = True,
             use_hermitian_method: bool = False,
-            svd_algorithm: str = "randomized",
+            svd_algorithm: str = "arpack",
     ):
         """
         This function computes the partitions of the \
@@ -586,7 +586,7 @@ class TooManyCells:
         cluster_tree.json: The json file containing the 
         output tree in a recursive format.
 
-        graph.dot: A dot file of the tree. It includes the 
+        graph.json: A JSON file of the tree. It includes the 
         modularity and the size.
 
         node_info.csv: Size and modularity of each node.
