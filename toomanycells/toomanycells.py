@@ -410,9 +410,11 @@ class TooManyCells:
         p_node_id = node_id
 
         if similarity_function == "cosine_sparse":
-            Q,S = simMat.compute_partition_for_sp(rows)
+            Q,S = simMat.compute_partition_for_cosp(rows)
+        elif similarity_function == "norm_sparse":
+            Q,S = simMat.compute_partition_for_normsp(rows)
         else:
-            Q,S = simMat.compute_partition_for_gen(rows)
+            Q,S = simMat.compute_partition_for_full(rows)
 
         if self.eps < Q:
             #Modularity is above threshold, and
@@ -469,10 +471,13 @@ class TooManyCells:
                 # We need to know the modularity to 
                 # determine if the node will be partitioned.
                 if similarity_function == "cosine_sparse":
-                    Q,S = simMat.compute_partition_for_sp(
+                    Q,S = simMat.compute_partition_for_cosp(
+                        rows)
+                if similarity_function == "norm_sparse":
+                    Q,S = simMat.compute_partition_for_normsp(
                         rows)
                 else:
-                    Q,S = simMat.compute_partition_for_gen(
+                    Q,S = simMat.compute_partition_for_full(
                         rows)
 
                 # If the parent node is 0, then the path is
