@@ -96,6 +96,7 @@ class TooManyCells:
             output: str = "",
             input_is_matrix_market: bool = False,
             use_full_matrix: bool = False,
+            use_raw: bool = False,
             ):
         """
         The constructor takes the following inputs.
@@ -212,15 +213,30 @@ class TooManyCells:
         #Note that we are making sure that the 
         #sparse matrix has the CSR format. This
         #is relevant when we normalize.
-        if sp.issparse(self.A.X):
+
+        self.is_sparse = False
+        self.X : Union[sp.spmatrix, sp.sparray, np.ndarray]
+
+        if use_raw:
+            if "raw" not in self.A.layers:
+                txt = "Layer raw is not available."
+                raise ValueError(txt)
+
+            self.X = self.A.layers["raw"].copy()
+
+        else:
+
+            self.X = self.A.X.copy()
+
+        if sp.issparse(self.X):
             #Compute the density of the matrix
-            rho = self.A.X.nnz / np.prod(self.A.X.shape)
+            rho = self.X.nnz / np.prod(self.X.shape)
             #If more than 50% of the matrix is occupied,
             #we generate a dense version of the matrix.
             sparse_threshold = 0.50
             if use_full_matrix or sparse_threshold < rho:
                 self.is_sparse = False
-                self.X = self.A.X.toarray()
+                self.X = self.X.toarray()
                 txt = ("Using a dense representation" 
                        " of the count matrix.")
                 print(txt)
@@ -228,14 +244,15 @@ class TooManyCells:
             else:
                 self.is_sparse = True
                 #Make sure we use a CSR array format.
-                self.X = sp.csr_array(self.A.X,
-                                       dtype=self.FDT,
-                                       copy=True)
+                if not isinstance(self.X, sp.csr_array):
+                    self.X = sp.csr_array(self.X,
+                                          dtype=self.FDT,
+                                          copy=True)
         else:
             #The matrix is dense.
             print("The matrix is dense.")
             self.is_sparse = False
-            self.X = self.A.X.copy()
+            # self.X = self.X.copy()
             self.X = self.X.astype(self.FDT)
 
         self.n_cells, self.n_genes = self.A.shape
@@ -357,7 +374,6 @@ class TooManyCells:
 
         if self.too_few_observations:
             raise ValueError("Too few observations (cells).")
-
 
         simMat = SimilarityMatrix(
             self.X,
