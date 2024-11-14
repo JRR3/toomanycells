@@ -489,7 +489,7 @@ class TooManyCells:
                 if similarity_function == "cosine_sparse":
                     Q,S = simMat.compute_partition_for_cosp(
                         rows)
-                if similarity_function == "norm_sparse":
+                elif similarity_function == "norm_sparse":
                     Q,S = simMat.compute_partition_for_normsp(
                         rows)
                 else:

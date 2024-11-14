@@ -70,7 +70,7 @@ deactivate
 
 Just type
 ```
-pip install toomanycells==1.0.42
+pip install toomanycells
 ```
 in your home or custom environment. 
 If you want to install an updated
