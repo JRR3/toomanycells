@@ -117,7 +117,6 @@ class TooManyCells:
         #We use a directed graph to enforce the parent
         #to child relation.
         self.G = nx.DiGraph()
-
         self.set_of_leaf_nodes = set()
 
         if input is None:
@@ -141,13 +140,13 @@ class TooManyCells:
 
         elif isinstance(input, str):
             self.source = os.path.abspath(input)
-            if self.source.endswith('.h5ad'):
+            if self.source.endswith(".h5ad"):
                 self.t0 = clock()
                 self.A = sc.read_h5ad(self.source)
                 self.tf = clock()
                 delta = self.tf - self.t0
-                txt = ('Elapsed time for loading: ' +
-                        f'{delta:.2f} seconds.')
+                txt = ("Elapsed time for loading: " +
+                        f"{delta:.2f} seconds.")
                 print(txt)
             else:
                 if input_is_matrix_market:
@@ -582,6 +581,8 @@ class TooManyCells:
             self.final_n_iter = pbar.n
             pbar.refresh()
 
+        self.tmcGraph.set_of_leaf_nodes = self.set_of_leaf_nodes
+
         self.tf = clock()
         self.delta_clustering = self.tf - self.t0
         self.delta_clustering /= 60
@@ -622,6 +623,7 @@ class TooManyCells:
         # nx.nx_agraph.write_dot(self.G, dot_fname)
 
         #Write graph data to file.
+        self.tmcGraph.set_of_leaf_nodes
         self.tmcGraph.store_outputs(store_in_uns_dict)
 
         #Store the cell annotations in the output folder.
@@ -820,6 +822,9 @@ class TooManyCells:
             list_of_genes = df.iloc[:,0].to_list()
 
         if 0 < len(list_of_genes):
+            # Note that if we provided a path then
+            # the list_of_genes variable has 
+            # positive length.
 
             for gene in list_of_genes:
                 if gene not in self.A.var.index:
@@ -835,7 +840,7 @@ class TooManyCells:
             var_names = self.A.var_names
             G_mtx = self.A.X
 
-        L = [var_names,var_names]
+        L = [var_names, var_names]
         pd.DataFrame(L).transpose().to_csv(
             genes_f,
             sep="\t",
@@ -1293,7 +1298,7 @@ class TooManyCells:
             cluster_fname = cluster_file_path
 
         else:
-            fname = 'clusters.csv'
+            fname = "clusters.csv"
             cluster_fname = os.path.join(self.output, fname)
 
         if not os.path.exists(cluster_fname):
@@ -1302,6 +1307,8 @@ class TooManyCells:
         df = pd.read_csv(cluster_fname, index_col=0)
         self.A.obs["sp_cluster"] = df["cluster"]
 
+        # This set should  be equal to the one
+        # stored in the tmcGraph object.
         self.set_of_leaf_nodes = set(df["cluster"])
 
         self.tf = clock()
@@ -1706,6 +1713,7 @@ class TooManyCells:
         """
         Use the tree structure with the current labels
         to improve the cell annotation.
+        TODO: This function needs to be relocated.
         """
         if not os.path.exists(cell_group_path):
             print(cell_group_path)
@@ -3271,9 +3279,11 @@ class TooManyCells:
         """
 
         self.tmcGraph.load_graph(json_fname)
-        self.G = self.tmcGraph.G
-
+        # After loading the graph, the set of leaf
+        # nodes gets populated internally.
         x = self.tmcGraph.set_of_leaf_nodes
+
+        self.G = self.tmcGraph.G
         self.set_of_leaf_nodes = x
 
         if store_in_uns_dict:

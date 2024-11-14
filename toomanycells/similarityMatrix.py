@@ -52,6 +52,7 @@ class SimilarityMatrix:
 
         self.verbose_mode = verbose_mode
         self.eps = 1e-9
+        self.FDT = np.float64
         
 
     #=====================================
@@ -184,6 +185,7 @@ class SimilarityMatrix:
             vec = self.compute_vector_of_norms()
             self.norm_sq_vec = vec * vec
             diam = self.compute_diameter_for_observations()
+            print(f"The diameter is approx.: {diam}")
             self.inv_diam_sq = 1 / (diam * diam)
 
         else:
@@ -313,7 +315,9 @@ class SimilarityMatrix:
                                         metric=lp_norm,
                                         n_jobs=n_workers)
 
+            self.X *= self.X
             diam = self.X.max()
+            print(f"The diameter is: {diam}")
             self.X *= -1 / diam
             self.X += 1
 
@@ -732,7 +736,7 @@ class SimilarityMatrix:
     #=====================================
     def compute_diameter_for_observations(
         self,
-        matrix: ArrayLike,
+        matrix: Optional[ArrayLike] = None,
         lp_norm: str = "l2",
         use_convex_hull: bool = False,
         use_brute_force: bool = False,
@@ -742,6 +746,9 @@ class SimilarityMatrix:
         point in R^n, we estimate the diameter 
         of that set.
         """
+
+        if matrix is None:
+            matrix = self.X
 
         if lp_norm == "l2":
             lp_norm_int = 2
@@ -818,11 +825,44 @@ class SimilarityMatrix:
         if n_rows < 3:
             return (Q, partition)
 
-        # S              = self.X[np.ix_(rows, rows)]
+        S = self.X[rows]
+        S = pairwise_distances(S,
+                               metric="l2",
+                               n_jobs=16)
+        diam = S.max()
+        print(f"The diameter is: {diam}")
+        # diam_sq = diam * diam
+        # S *= S
+        # S *= -1 / diam_sq
+        # S += 1
+
         similarity_op  = self.generate_norm_sim_as_linear_op(
-            rows)
+            rows,
+            scale = 0
+            )
         ones           = np.ones(n_rows)
+
+        first_col = ones * 0
+        first_col[0] = 1
+
+        first_col_s = similarity_op @ first_col
+        first_col_t = S @ first_col
+
         row_sums       = similarity_op @ ones
+
+        row_sums_s     = similarity_op @ ones
+        row_sums_t     = S @ ones
+
+        delta_1 = np.linalg.norm(row_sums_s - row_sums_t)
+        print(f"{delta_1=}")
+
+        delta_2 = np.linalg.norm(first_col_s - first_col_t)
+        print(f"{delta_2=}")
+        # print(row_sums)
+        # print(row_sums.min())
+        # print(first_col)
+        # print(first_col.min())
+        # print(first_col.max())
         # row_sums_mtx   = sp.diags(row_sums)
         row_sums_op    = self.generate_diag_as_linear_op(
             row_sums)
@@ -947,8 +987,10 @@ class SimilarityMatrix:
 
 
     #=====================================
-    def generate_norm_sim_as_linear_op(self,
-                                    rows: np.ndarray,
+    def generate_norm_sim_as_linear_op(
+            self,
+            rows: np.ndarray,
+            scale: float = 1,
     ) -> LinearOperator:
         """
         Generate a linear operator that describes
@@ -964,7 +1006,9 @@ class SimilarityMatrix:
             norm_sq = norms * (ones @ vec)
             norm_sq += ones * (norms @ vec)
             norm_sq -= 2 * B @ (B.T @ vec)
-            norm_sq *= self.inv_diam_sq
+            # norm_sq *= self.inv_diam_sq
+            return norm_sq
+            norm_sq *= scale
             return ones * (ones @ vec) - norm_sq
 
         return LinearOperator(dtype=self.FDT,

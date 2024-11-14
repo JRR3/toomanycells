@@ -94,7 +94,12 @@ class CellAnnotation:
 
         fname = "homogenized_cell_annotations.csv"
         fname = os.path.join(self.output, fname)
-        self.A.obs[CA].to_csv(fname, index=True)
+        S = self.A.obs[CA]
+        # To be consistent with TooManyCells interactive
+        # labeling conventions for the cell annotations.
+        S.index.name = "item"
+        S.name       = "label"
+        S.to_csv(fname, index=True)
 
     #=====================================
     def find_majority_from_node(

@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import networkx as nx
+from typing import Set
 from typing import Union
 from os.path import dirname
 from typing import Optional
@@ -33,12 +34,16 @@ class TMCGraph:
                  graph: nx.DiGraph,
                  adata: sc.AnnData,
                  output: str,
-        ) -> None:
+        ):
 
         self.G = graph
         self.A = adata
         self.output = output
 
+
+        # In case the graph is not empty, 
+        # populate the set_of_leaf_nodes().
+        self.find_leaf_nodes()
 
         self.J = MultiIndexList()
 
@@ -54,7 +59,6 @@ class TMCGraph:
 
         self.node_counter = 0
 
-        self.set_of_leaf_nodes = set()
 
 
     #=====================================
