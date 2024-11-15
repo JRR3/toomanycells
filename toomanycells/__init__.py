@@ -2,7 +2,7 @@
 
 __author__ = """Javier Ruiz-Ramirez"""
 __email__ = "javier.ruizramirez@uhn.ca"
-__version__ = "1.0.49"
+__version__ = "1.0.50"
 
 from .toomanycells import TooManyCells
 from .common import load_metadata_for_demo
