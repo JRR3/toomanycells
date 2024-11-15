@@ -181,6 +181,8 @@ class SimilarityMatrix:
 
         elif similarity_function == "norm_sparse":
 
+            # self.test_normsp_operator()
+
             similarity_matrix_is_sparse = True
             vec = self.compute_vector_of_norms()
             self.norm_sq_vec = vec * vec
@@ -825,53 +827,75 @@ class SimilarityMatrix:
         if n_rows < 3:
             return (Q, partition)
 
-        S = self.X[rows]
-        S = pairwise_distances(S,
-                               metric="l2",
-                               n_jobs=16)
-        diam = S.max()
-        print(f"The diameter is: {diam}")
-        # diam_sq = diam * diam
+        # print(rows)
+        # S = self.X[rows]
+        # S = pairwise_distances(S,
+        #                        metric="l2",
+        #                        n_jobs=16)
+        # diam = S.max()
+        # print(f"The diameter is: {diam}")
+        # self.inv_diam_sq = 1 / (diam * diam)
         # S *= S
-        # S *= -1 / diam_sq
+        # S *= -self.inv_diam_sq
         # S += 1
 
+
         similarity_op  = self.generate_norm_sim_as_linear_op(
-            rows,
-            scale = 0
-            )
+            rows)
         ones           = np.ones(n_rows)
 
-        first_col = ones * 0
-        first_col[0] = 1
+        # first_col = ones * 0
+        # first_col[0] = 1
 
-        first_col_s = similarity_op @ first_col
-        first_col_t = S @ first_col
+        # first_col_s = similarity_op @ first_col
+        # first_col_t = S @ first_col
 
-        row_sums       = similarity_op @ ones
+        # print("Similarity matrix:")
+        # print(S)
 
-        row_sums_s     = similarity_op @ ones
-        row_sums_t     = S @ ones
+        # print("First col:")
+        # print(first_col)
+        # print(first_col_t)
 
-        delta_1 = np.linalg.norm(row_sums_s - row_sums_t)
-        print(f"{delta_1=}")
+        row_sums = similarity_op @ ones
 
-        delta_2 = np.linalg.norm(first_col_s - first_col_t)
-        print(f"{delta_2=}")
+        # print("Row sums:")
+        # print(row_sums)
         # print(row_sums)
         # print(row_sums.min())
         # print(first_col)
         # print(first_col.min())
         # print(first_col.max())
-        # row_sums_mtx   = sp.diags(row_sums)
-        row_sums_op    = self.generate_diag_as_linear_op(
+
+        row_sums_mtx   = sp.diags(row_sums)
+
+        # row_sums_inv_mtx   = sp.diags(1 / row_sums)
+        # LOP = row_sums_mtx - S
+        # print(LOP)
+
+        row_sums_op = self.generate_diag_as_linear_op(
             row_sums)
+
+        # vec = row_sums_op @ ones
+        # print("Row sums op @ ones")
+        # print(vec)
+
         laplacian_op  = row_sums_op - similarity_op
         L_all = np.sum(row_sums) - n_rows
 
         zero_row_sums_mask = np.abs(row_sums) < self.eps
         has_zero_row_sums = zero_row_sums_mask.any()
         has_neg_row_sums = (row_sums < -self.eps).any() 
+
+        # vec = np.random.rand(n_rows)
+        # row_sums_s     = laplacian_op @ vec
+        # row_sums_t     = LOP @ vec
+
+        # delta_1 = np.linalg.norm(row_sums_s - row_sums_t)
+        # print(f"{delta_1=}")
+
+        # delta_2 = np.linalg.norm(first_col_s - first_col_t)
+        # print(f"{delta_2=}")
 
         if has_neg_row_sums:
             print("The similarity matrix "
@@ -897,11 +921,13 @@ class SimilarityMatrix:
                 print("Warning ...")
                 txt = "This operation is very expensive."
                 print(txt)
+
             E_obj = EigenGeneral(laplacian_op,
                                  k=2,
                                  M=row_sums_op,
-                                 sigma=0,
-                                 which="LM")
+                                #  sigma=0,
+                                 which="SM")
+
             eigen_val_abs = np.abs(E_obj[0])
             #Identify the eigenvalue with the
             #largest magnitude.
@@ -919,8 +945,8 @@ class SimilarityMatrix:
                 E_obj = EigenHermitian(laplacian_op,
                                         k=2,
                                         M=row_sums_op,
-                                        sigma=0,
-                                        which="LM")
+                                        # sigma=0,
+                                        which="SM")
                 eigen_val_abs = np.abs(E_obj[0])
                 #Identify the eigenvalue with the
                 #largest magnitude.
@@ -946,8 +972,8 @@ class SimilarityMatrix:
                 E_obj = EigenGeneral(laplacian_op,
                                     k=2,
                                     M=row_sums_op,
-                                    sigma=0,
-                                    which="LM")
+                                    # sigma=0,
+                                    which="SM")
                 eigen_val_abs = np.abs(E_obj[0])
                 #Identify the eigenvalue with the
                 #largest magnitude.
@@ -990,7 +1016,6 @@ class SimilarityMatrix:
     def generate_norm_sim_as_linear_op(
             self,
             rows: np.ndarray,
-            scale: float = 1,
     ) -> LinearOperator:
         """
         Generate a linear operator that describes
@@ -1006,9 +1031,7 @@ class SimilarityMatrix:
             norm_sq = norms * (ones @ vec)
             norm_sq += ones * (norms @ vec)
             norm_sq -= 2 * B @ (B.T @ vec)
-            # norm_sq *= self.inv_diam_sq
-            return norm_sq
-            norm_sq *= scale
+            norm_sq *= self.inv_diam_sq
             return ones * (ones @ vec) - norm_sq
 
         return LinearOperator(dtype=self.FDT,
@@ -1037,6 +1060,39 @@ class SimilarityMatrix:
                               matvec=mat_vec_prod,
                               rmatvec=mat_vec_prod,
                               )
+
+    #=====================================
+    def test_normsp_operator(self,
+                             n_rows: int = 5,
+                             n_cols: int = 4,
+        ):
+
+        self.X = np.random.rand(n_rows, n_cols)
+        rows = range(n_rows)
+        D = pairwise_distances(self.X, metric="l2")
+        D *= D
+        self.inv_diam_sq = 1 / D.max()
+        D *= -self.inv_diam_sq
+        D += 1
+        norms = np.linalg.norm(self.X, axis=1)
+        self.norm_sq_vec = norms * norms
+        L = self.generate_norm_sim_as_linear_op(rows)
+
+        s = 0
+        for col in range(n_cols):
+            vec = np.zeros(n_rows)
+            vec[col] = 1
+            obs = L @ vec
+            real = D @ vec
+            delta = np.linalg.norm(obs-real)
+            print(f"Error for column {col} is: {delta}")
+            s += delta
+
+        print(f"The error sum is: {s}")
+    #=====================================
+
+
+            
 
 
 
