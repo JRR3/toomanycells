@@ -203,7 +203,8 @@ class TooManyCells:
         self.delta_clustering = 0
         self.final_n_iter     = 0
 
-        self.FDT = np.float64
+        #self.FDT = np.float64
+        self.FDT = np.float32
         txt = f"Data will be treated as: {self.FDT}."
         print(txt)
 
@@ -360,6 +361,7 @@ class TooManyCells:
             tf_idf_smooth: bool = True,
             use_hermitian_method: bool = False,
             svd_algorithm: str = "arpack",
+            plot_similarity_matrix: bool = False,
     ):
         """
         This function computes the partitions of the \
@@ -378,6 +380,7 @@ class TooManyCells:
             self.X,
             use_hermitian_method,
             svd_algorithm,
+            self.output,
         )
 
         simMat.compute_similarity_matrix(
@@ -392,6 +395,7 @@ class TooManyCells:
             use_tf_idf,
             tf_idf_norm,
             tf_idf_smooth,
+            plot_similarity_matrix,
         )
 
         #===========================================
@@ -486,14 +490,16 @@ class TooManyCells:
                 # We need to know the modularity to 
                 # determine if the node will be partitioned.
                 if similarity_function == "cosine_sparse":
-                    Q,S = simMat.compute_partition_for_cosp(
-                        rows)
+                    Q,S=simMat.compute_partition_for_cosp(
+                            rows)
                 elif similarity_function == "norm_sparse":
-                    Q,S = simMat.compute_partition_for_normsp(
-                        rows)
+                    Q,S=simMat.compute_partition_for_normsp(
+                            rows)
+                    #Q = 0
                 else:
-                    Q,S = simMat.compute_partition_for_full(
-                        rows)
+                    Q,S=simMat.compute_partition_for_full(
+                            rows)
+                    #Q = 0
 
                 # If the parent node is 0, then the path is
                 # "0".
@@ -557,7 +563,8 @@ class TooManyCells:
 
                     #Update the relation between a set of
                     #cells and the corresponding leaf node.
-                    #Also include the path to reach that node.
+                    #Also include the path to reach that 
+                    #node.
                     c = self.cluster_column_index
                     self.A.obs.iloc[rows, c] = node_id
 
