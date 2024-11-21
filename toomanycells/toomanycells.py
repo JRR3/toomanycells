@@ -258,7 +258,7 @@ class TooManyCells:
         self.n_cells, self.n_genes = self.A.shape
 
         self.too_few_observations = False
-        if self.n_cells < 3:
+        if self.n_cells < 2:
             print("Warning: Too few observations (cells).")
             self.too_few_observations = True
 
@@ -362,6 +362,7 @@ class TooManyCells:
             use_hermitian_method: bool = False,
             svd_algorithm: str = "arpack",
             plot_similarity_matrix: bool = False,
+            modularity_threshold: float = 1e-9,
     ):
         """
         This function computes the partitions of the \
@@ -435,7 +436,7 @@ class TooManyCells:
         else:
             Q,S = simMat.compute_partition_for_full(rows)
 
-        if self.eps < Q:
+        if modularity_threshold < Q:
             #Modularity is above threshold, and
             #thus each partition will be 
             #inserted into the deque.
@@ -458,9 +459,27 @@ class TooManyCells:
             #Modularity is below threshold and 
             #therefore this partition will not
             #be considered.
+            print("Step 1:")
             txt = ("All cells belong" 
                     " to the same partition.")
             print(txt)
+            #Update the relation between a set of
+            #cells and the corresponding leaf node.
+            #Also include the path to reach that 
+            #node.
+            c = self.cluster_column_index
+            self.A.obs.iloc[rows, c] = node_id
+
+            p = self.path_column_index
+            self.A.obs.iloc[rows, p] = str(node_id)
+
+            self.set_of_leaf_nodes.add(node_id)
+
+            #Update the JSON structure for 
+            #a leaf node.
+            L = self.tmcGraph.cells_to_json(rows)
+            self.tmcGraph.J.append(L)
+            self.tmcGraph.J.append([])
             return -1
 
         max_n_iter = self.estimate_n_of_iterations()
@@ -532,7 +551,7 @@ class TooManyCells:
                 #Include new edge into the graph.
                 self.G.add_edge(p_node_id, node_id)
 
-                if self.eps < Q:
+                if modularity_threshold < Q:
                     #Modularity is above threshold, and
                     #thus each partition will be 
                     #inserted into the deque.
@@ -789,8 +808,8 @@ class TooManyCells:
         self.cell_annotations_path = fname
 
         ca = self.A.obs[cell_ann_col].copy()
-        ca.index.names = ['item']
-        ca = ca.rename('label')
+        ca.index.names = ["item"]
+        ca = ca.rename("label")
         ca.to_csv(fname, index=True)
 
     #=====================================

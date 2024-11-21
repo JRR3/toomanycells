@@ -29,6 +29,7 @@ from scipy.sparse.linalg import eigs as EigenGeneral
 from sklearn.metrics.pairwise import pairwise_kernels
 from scipy.sparse.linalg import eigsh as EigenHermitian
 from sklearn.feature_extraction.text import TfidfTransformer
+from scipy.linalg import eig as EG
 
 #Matplotlib parameters.
 mpl.use("agg")
@@ -48,6 +49,7 @@ class SimilarityMatrix:
             use_hermitian_method: bool = False,
             svd_algorithm: str = "randomized",
             output: str = "",
+            modularity_default: float = 0,
             verbose_mode: bool = False,
     ):
         self.X: ArrayLike = matrix
@@ -56,6 +58,7 @@ class SimilarityMatrix:
         self.trunc_SVD = None
         self.use_hermitian_method = use_hermitian_method
         self.svd_algorithm = svd_algorithm
+        self.modularity_default = modularity_default
 
         list_of_svd_algorithms = ["randomized", "arpack"]
         if svd_algorithm not in list_of_svd_algorithms:
@@ -451,14 +454,19 @@ class SimilarityMatrix:
             print(f'I was given: {rows=}')
 
         partition = []
-        Q = 0
+        Q = self.modularity_default
 
         n_rows = len(rows) 
         #print(f"Number of cells: {n_rows}")
 
         #If the number of rows is less than 3,
         #we keep the cluster as it is.
-        if n_rows < 3:
+        #if n_rows < 3:
+            #Q = -np.inf
+            #return (Q, partition)
+
+        if n_rows == 1:
+            Q = -np.inf
             return (Q, partition)
 
         B = self.X[rows,:]
@@ -485,6 +493,19 @@ class SimilarityMatrix:
             txt = "Cannot have negative and zero row sums."
             raise ValueError(txt)
 
+        n_cols = B.shape[1]
+        condition = n_cols == 2
+        condition |= has_neg_row_sums
+        condition |= has_zero_row_sums
+        condition |= self.use_hermitian_method
+        if condition:
+            similarity_op=self.generate_cos_sim_as_linear_op(
+                    B)
+
+            row_sums_op = self.generate_diag_as_linear_op(
+                row_sums)
+            laplacian_op = row_sums_op - similarity_op
+
         if  has_neg_row_sums:
             #This means we cannot use the fast approach
             #We'll have to build a dense representation
@@ -496,15 +517,12 @@ class SimilarityMatrix:
                 print("Warning ...")
                 txt = "This operation is very expensive."
                 print(txt)
-            laplacian_mtx  = B @ B.T
-            row_sums_mtx   = sp.diags(row_sums)
-            laplacian_mtx  = row_sums_mtx - laplacian_mtx
 
-            E_obj = EigenGeneral(laplacian_mtx,
+            E_obj = EigenGeneral(laplacian_op,
                                  k=2,
-                                 M=row_sums_mtx,
-                                 sigma=0,
-                                 which="LM")
+                                 M=row_sums_op,
+                                 #sigma=0,
+                                 which="SM")
             eigen_val_abs = np.abs(E_obj[0])
             #Identify the eigenvalue with the
             #largest magnitude.
@@ -515,18 +533,15 @@ class SimilarityMatrix:
             eigen_vectors = E_obj[1]
             W = eigen_vectors[:,idx]
 
-        elif self.use_hermitian_method or has_zero_row_sums:
-            laplacian_mtx  = B @ B.T
-            row_sums_mtx   = sp.diags(row_sums)
-            laplacian_mtx  = row_sums_mtx - laplacian_mtx
+        elif condition:
             try:
                 #if the row sums are negative, this 
                 #step could fail.
-                E_obj = EigenHermitian(laplacian_mtx,
+                E_obj = EigenHermitian(laplacian_op,
                                         k=2,
-                                        M=row_sums_mtx,
-                                        sigma=0,
-                                        which="LM")
+                                        M=row_sums_op,
+                                        #sigma=0,
+                                        which="SM")
                 eigen_val_abs = np.abs(E_obj[0])
                 #Identify the eigenvalue with the
                 #largest magnitude.
@@ -536,6 +551,7 @@ class SimilarityMatrix:
                 # largest magnitude.
                 eigen_vectors = E_obj[1]
                 W = eigen_vectors[:,idx]
+
             except:
                 #This is a very expensive operation
                 #since it computes all the eigenvectors.
@@ -546,11 +562,11 @@ class SimilarityMatrix:
                     txt = "This operation is very expensive."
                     print(txt)
 
-                E_obj = EigenGeneral(laplacian_mtx,
+                E_obj = EigenGeneral(laplacian_op,
                                      k=2,
-                                     M=row_sums_mtx,
-                                     sigma=0,
-                                     which="LM")
+                                     M=row_sums_op,
+                                     #sigma=0,
+                                     which="SM")
                 eigen_val_abs = np.abs(E_obj[0])
                 #Identify the eigenvalue with the
                 #largest magnitude.
@@ -571,19 +587,29 @@ class SimilarityMatrix:
             D = sp.diags(d)
             C = D @ B
             W = self.trunc_SVD.fit_transform(C)
-            singular_values = self.trunc_SVD.singular_values_
-            idx = np.argsort(singular_values)
+            singular_values=self.trunc_SVD.singular_values_
+            order = np.argsort(singular_values)
+            idx = order[0]
+            if singular_values[idx] < self.eps:
+                raise ValueError("Zero singular value.")
             #Get the singular vector corresponding to the
             #second largest singular value.
-            W = W[:,idx[0]]
+            W = W[:,idx]
 
+
+        mask = W <=0
+        if mask.all():
+            print("W <= 0 ... ")
+            print("W += epsilon.")
+            W += self.eps
 
         mask_c1 = 0 < W
         mask_c2 = ~mask_c1
 
         #If one partition has all the elements
-        #then return with Q = 0.
+        #then return with Q = -inf.
         if mask_c1.all() or mask_c2.all():
+            Q = -np.inf
             return (Q, partition)
 
         masks = [mask_c1, mask_c2]
@@ -622,22 +648,30 @@ class SimilarityMatrix:
             print(f"I was given: {rows=}")
 
         partition = []
-        Q = 0
+        Q = self.modularity_default
 
         n_rows = len(rows) 
         #print(f"Number of cells: {n_rows}")
 
-        #If the number of rows is less than 3,
+        #If the number of rows is one,
         #we keep the cluster as it is.
-        if n_rows < 3:
+        if n_rows == 1:
+            Q = -np.inf
             return (Q, partition)
 
         S              = self.X[np.ix_(rows, rows)]
         ones           = np.ones(n_rows)
         row_sums       = S.dot(ones)
-        row_sums_mtx   = sp.diags(row_sums)
+        #row_sums_mtx   = sp.diags(row_sums)
+        row_sums_mtx   = np.diag(row_sums)
         laplacian_mtx  = row_sums_mtx - S
+
+
         L_all = np.sum(row_sums) - n_rows
+
+        if np.abs(L_all) < self.eps:
+            print("Zero L_all += epsilon.")
+            L_all += self.eps
 
         zero_row_sums_mask = np.abs(row_sums) < self.eps
         has_zero_row_sums = zero_row_sums_mask.any()
@@ -657,7 +691,26 @@ class SimilarityMatrix:
             txt = "Cannot have negative and zero row sums."
             raise ValueError(txt)
 
-        if has_neg_row_sums:
+        if n_rows < 100:
+
+            E_obj = np.linalg.eig(laplacian_mtx)
+            eigen_val_abs = np.abs(E_obj[0])
+            #Identify the eigenvalue with the
+            #largest magnitude.
+            order = np.argsort(eigen_val_abs)
+            idx = order[1]
+            #Choose the eigenvector corresponding
+            # to the eigenvalue with the 
+            # largest magnitude.
+            eigen_vectors = E_obj[1]
+            W = eigen_vectors[:,idx]
+            #print(W)
+            #print(S)
+            #print(laplacian_mtx)
+            #print(E_obj[0])
+            #print(E_obj[1])
+
+        elif has_neg_row_sums:
             #This is a very expensive operation
             #since it computes all the eigenvectors.
             if 5000 < n_rows:
@@ -670,8 +723,8 @@ class SimilarityMatrix:
             E_obj = EigenGeneral(laplacian_mtx,
                                  k=2,
                                  M=row_sums_mtx,
-                                 sigma=0,
-                                 which="LM")
+                                 #sigma=0,
+                                 which="SM")
             eigen_val_abs = np.abs(E_obj[0])
             #Identify the eigenvalue with the
             #largest magnitude.
@@ -681,6 +734,7 @@ class SimilarityMatrix:
             # largest magnitude.
             eigen_vectors = E_obj[1]
             W = eigen_vectors[:,idx]
+
         else:
             #Nonnegative row sums.
             try:
@@ -689,8 +743,8 @@ class SimilarityMatrix:
                 E_obj = EigenHermitian(laplacian_mtx,
                                         k=2,
                                         M=row_sums_mtx,
-                                        sigma=0,
-                                        which="LM")
+                                        #sigma=0,
+                                        which="SM")
                 eigen_val_abs = np.abs(E_obj[0])
                 #Identify the eigenvalue with the
                 #largest magnitude.
@@ -702,7 +756,7 @@ class SimilarityMatrix:
                 W = eigen_vectors[:,idx]
 
             except:
-                # print("Using the eig function.")
+                print("Using the eig function.")
 
                 #This is a very expensive operation
                 #since it computes all the eigenvectors.
@@ -716,8 +770,8 @@ class SimilarityMatrix:
                 E_obj = EigenGeneral(laplacian_mtx,
                                     k=2,
                                     M=row_sums_mtx,
-                                    sigma=0,
-                                    which="LM")
+                                    #sigma=0,
+                                    which="SM")
                 eigen_val_abs = np.abs(E_obj[0])
                 #Identify the eigenvalue with the
                 #largest magnitude.
@@ -727,6 +781,17 @@ class SimilarityMatrix:
                 # largest magnitude.
                 eigen_vectors = E_obj[1]
                 W = eigen_vectors[:,idx]
+                #print(S)
+                #print(row_sums_mtx)
+                #print(laplacian_mtx)
+                #print(E_obj)
+
+
+        mask = W <=0
+        if mask.all():
+            print("W <= 0 ... ")
+            print("W += epsilon.")
+            W += self.eps
 
         mask_c1 = 0 < W
         mask_c2 = ~mask_c1
@@ -734,6 +799,7 @@ class SimilarityMatrix:
         #If one partition has all the elements
         #then return with Q = 0.
         if mask_c1.all() or mask_c2.all():
+            Q = -np.inf
             return (Q, partition)
 
         masks = [mask_c1, mask_c2]
@@ -752,6 +818,7 @@ class SimilarityMatrix:
             print(f'I found: {partition=}')
             print('===========================')
 
+        #print(Q,partition)
         return (Q, partition)
 
     #=====================================
@@ -833,15 +900,19 @@ class SimilarityMatrix:
             print(f"I was given: {rows=}")
 
         partition = []
-        Q = 0
+        Q = self.modularity_default
 
         n_rows = len(rows) 
         #print(f"Number of cells: {n_rows}")
 
         #If the number of rows is one
         #we keep the cluster as it is.
-        if n_rows < 3:
+        if n_rows == 1:
+            Q = -np.inf
             return (Q, partition)
+
+        #if n_rows < 3:
+            #return (Q, partition)
 
         # print(rows)
         # S = self.X[rows]
@@ -883,7 +954,7 @@ class SimilarityMatrix:
         # print(first_col.min())
         # print(first_col.max())
 
-        row_sums_mtx   = sp.diags(row_sums)
+        #row_sums_mtx   = sp.diags(row_sums)
 
         # row_sums_inv_mtx   = sp.diags(1 / row_sums)
         # LOP = row_sums_mtx - S
@@ -897,7 +968,26 @@ class SimilarityMatrix:
         # print(vec)
 
         laplacian_op  = row_sums_op - similarity_op
+        print(similarity_op)
+        print(row_sums_op)
+        print(laplacian_op)
+        print("For loop")
+        A,B = np.linalg.eig(laplacian_op)
+        #print(A)
+        #print(B)
+        for lam, v in zip(A,B):
+            print("-------------")
+            x = laplacian_op @ v
+            vmod = v * lam
+            delta = np.linalg.norm(x - vmod)
+            print(f"{lam=}")
+            print(f"{x=}")
+            print(f"{v=}")
+            print(f"{vmod=}")
+            print(f"{delta=}")
+            print("-------------")
         L_all = np.sum(row_sums) - n_rows
+        exit()
 
         zero_row_sums_mask = np.abs(row_sums) < self.eps
         has_zero_row_sums = zero_row_sums_mask.any()
@@ -928,7 +1018,6 @@ class SimilarityMatrix:
             raise ValueError(txt)
 
         if has_neg_row_sums:
-            raise ValueError("XXX")
             #This is a very expensive operation
             #since it computes all the eigenvectors.
             if 5000 < n_rows:
@@ -1002,12 +1091,20 @@ class SimilarityMatrix:
                 eigen_vectors = E_obj[1]
                 W = eigen_vectors[:,idx]
 
+        #Convert zeros into positive values.
+        mask = W <=0
+        if mask.all():
+            print("W <= 0 ... ")
+            print("W += epsilon.")
+            W += self.eps
+
         mask_c1 = 0 < W
         mask_c2 = ~mask_c1
 
         #If one partition has all the elements
         #then return with Q = 0.
         if mask_c1.all() or mask_c2.all():
+            Q = -np.inf
             return (Q, partition)
 
         masks = [mask_c1, mask_c2]
@@ -1027,7 +1124,39 @@ class SimilarityMatrix:
             print(f'I found: {partition=}')
             print('===========================')
 
+        #if n_rows == 2:
+            #print(masks)
+            #print(f"{Q=}")
+
         return (Q, partition)
+
+    #=====================================
+    def generate_cos_sim_as_linear_op(
+            self,
+            B: ArrayLike,
+    ) -> LinearOperator:
+        """
+        Generate a linear operator that describes
+        the matrix:
+        S(x,y) = <x,y>
+        """
+        #B = self.X[rows,:]
+
+        n_rows = B.shape[0]
+
+        if n_rows < 100:
+            #We use the full matrix.
+            S = B @ B.T
+            return S
+
+        def mat_vec_prod(vec: ArrayLike):
+            return B @ (B.T @ vec)
+
+        return LinearOperator(dtype=self.FDT,
+                              shape=(n_rows,n_rows),
+                              matvec=mat_vec_prod,
+                              rmatvec=mat_vec_prod,
+                              )
 
 
     #=====================================
@@ -1045,6 +1174,30 @@ class SimilarityMatrix:
         ones   = np.ones(n_rows)
         B = self.X[rows,:]
         norms = self.norm_sq_vec[rows]
+
+
+        if n_rows < 100:
+            #We use the full matrix.
+
+            #S = np.outer(norms,ones)
+            #S += S.T
+            #S -= 2 * B @ B.T
+            #S *= inv_diam_sq
+            #return np.outer(ones, ones) - S
+
+            S = pairwise_distances(B, metric="l2")
+            diam = S.max()
+            min_dist = S.min()
+
+            if n_rows == 2:
+                diam *= 1.1
+
+            inv_diam_sq = 1 / (diam * diam)
+            S *= S
+            S *= -inv_diam_sq
+            S += 1
+
+            return S
 
         if scale is None:
             diam = self.compute_diameter_for_observations(B)
@@ -1077,6 +1230,10 @@ class SimilarityMatrix:
         """
 
         n_rows = len(diagonal)
+
+        if n_rows < 100:
+            return np.diag(diagonal)
+
         D      = sp.diags(diagonal)
         def mat_vec_prod(vec: ArrayLike):
             return D @ vec
