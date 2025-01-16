@@ -68,11 +68,75 @@ deactivate
 
 ## Installation
 
-Just type
+Caveat: I have tested the following steps in
+python 3.9.18. For other versions, things might
+be different.
+
+In theory, just typing
 ```
 pip install toomanycells
 ```
-in your home or custom environment. 
+in your home or custom environment 
+should work. However, for reproducibility,
+here is the list of packages I had in my virtual 
+environment:
+```
+anndata==0.10.9
+array_api_compat==1.8
+celltypist==1.6.3
+certifi==2024.8.30
+charset-normalizer==3.3.2
+click==8.1.7
+contourpy==1.3.0
+cycler==0.12.1
+et-xmlfile==1.1.0
+exceptiongroup==1.2.2
+fonttools==4.54.1
+get-annotations==0.1.2
+h5py==3.11.0
+idna==3.10
+igraph==0.11.6
+importlib_resources==6.4.5
+joblib==1.4.2
+kiwisolver==1.4.7
+legacy-api-wrap==1.4
+leidenalg==0.10.2
+llvmlite==0.43.0
+matplotlib==3.9.2
+natsort==8.4.0
+networkx==3.2.1
+numba==0.60.0
+numpy==2.0.2
+openpyxl==3.1.5
+packaging==24.1
+pandas==2.2.3
+patsy==0.5.6
+pillow==10.4.0
+plotly==5.24.1
+pynndescent==0.5.13
+pyparsing==3.1.4
+python-dateutil==2.9.0.post0
+pytz==2024.2
+requests==2.32.3
+scanpy==1.10.3
+scikit-learn==1.5.2
+scipy==1.13.1
+seaborn==0.13.2
+session-info==1.0.0
+six==1.16.0
+statsmodels==0.14.3
+stdlib-list==0.10.0
+tenacity==9.0.0
+texttable==1.7.0
+threadpoolctl==3.5.0
+toomanycells==1.0.50
+tqdm==4.66.5
+tzdata==2024.2
+umap-learn==0.5.6
+urllib3==2.2.3
+zipp==3.20.2
+```
+
 If you want to install an updated
 version, then use the following flag.
 ```
