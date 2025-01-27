@@ -172,8 +172,12 @@ where `name_of_the_column` is the name of the AnnData.obs
 column that contains the cell annotations.
 Note that this function relies on
 [too-many-cells](https://gregoryschwartz.github.io/too-many-cells/)
-(à la Haskell). So you need to have it installed.
-
+(à la Haskell). So you need to have it installed, or use the version 
+provided by your cluster. For example, 
+   ```
+   module add too-many-cells
+   ```
+And make sure your cluster has a recent version.
 ## Usage
 1. First import the module as follows
    ```
