@@ -44,7 +44,6 @@ paper](https://www.nature.com/articles/s41592-020-0748-5).**
 -   Documentation: https://JRR3.github.io/toomanycells
 
 ## Dependencies
-
 Version 1.0.40 no longer requires Graphviz. Thus,
 no need to install a separate C library!
 
@@ -129,7 +128,7 @@ stdlib-list==0.10.0
 tenacity==9.0.0
 texttable==1.7.0
 threadpoolctl==3.5.0
-toomanycells==1.0.50
+toomanycells==1.0.52
 tqdm==4.66.5
 tzdata==2024.2
 umap-learn==0.5.6
@@ -140,8 +139,13 @@ zipp==3.20.2
 If you want to install an updated
 version, then use the following flag.
 ```
-pip install toomanycells -U
+pip install -U --no-deps toomanycells
 ```
+Note that we are requiring to keep all the 
+dependencies as they are. Otherwise they would
+get updated and that could potentially brake
+the installation.
+
 Make sure you have the latest version. If not,
 run the previous command again.
 

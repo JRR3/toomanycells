@@ -34,7 +34,7 @@ class TMCHaskell:
                                           "blue",
                                           "aqua"],
             gene_colors: List[str] = [],
-            annotation_colors: List[str] = [],
+            annotation_colors: Optional[List[str]] = None,
             method: str = "MadMedian",
             tree_file_name: str = "tree.svg",
             threshold: float = 1.5,
@@ -110,7 +110,7 @@ class TMCHaskell:
         self.cluster_path = os.path.join(self.output,
                                          "clusters.csv")
         
-        self.annotation_colors: List[str] = annotation_colors
+        self.annotation_colors = annotation_colors
         self.list_of_colors: List[str]= []
         self.color_str: str = ""
 
@@ -216,6 +216,7 @@ class TMCHaskell:
         if 0 < len(self.color_str):
             draw_colors_flag = "--draw-colors"
             draw_colors_arguments = self.color_str
+            print(draw_colors_arguments)
         else:
             draw_colors_flag = ""
             draw_colors_arguments = ""
@@ -267,10 +268,10 @@ class TMCHaskell:
 
 
         # Uncomment for testing purposes.
-        # print(command)
 
         command = list(filter(len, command))
         command = " ".join(command)
+        # print(command)
         p = subprocess.call(command, shell=True)
 
     #=====================================
@@ -278,19 +279,22 @@ class TMCHaskell:
 
         if 0 < len(self.list_of_genes):
             self.create_gene_objects()
-        else:
-            if len(self.annotation_colors) == 0:
+        elif self.annotation_colors is None:
+            #TMC will create it for us.
+            pass
+        elif len(self.annotation_colors) == 0:
+            #We create it ourselves.
                 self.populate_annotation_colors()
-            else:
-                for color in self.annotation_colors:
-                    color_hex = mpl.colors.cnames[color]
-                    color_hex = ('\\\"' +
-                                color_hex.lower() +
-                                '\\\"')
-                    self.list_of_colors.append(color_hex)
+        else:
+            for color in self.annotation_colors:
+                color_hex = mpl.colors.cnames[color]
+                color_hex = ('\\\"' +
+                            color_hex.lower() +
+                            '\\\"')
+                self.list_of_colors.append(color_hex)
 
-        self.color_str = (
-            '[' + ','.join( self.list_of_colors) + ']')
+            self.color_str = (
+                '[' + ','.join( self.list_of_colors) + ']')
 
         self.execute_command()
 
