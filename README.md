@@ -46,7 +46,7 @@ paper](https://www.nature.com/articles/s41592-020-0748-5).**
 ## Dependencies
 
 Version 1.0.40 no longer requires Graphviz. Thus,
-no dependencies!
+no need to install a separate C library!
 
 ## Virtual environments
 To have control of your working environment 
@@ -69,7 +69,7 @@ deactivate
 ## Installation
 
 Caveat: I have tested the following steps in
-python 3.9.18. For other versions, things might
+**Python 3.9.18**. For other versions, things might
 be different.
 
 In theory, just typing
@@ -150,13 +150,33 @@ If you want to see a concrete example of how
 to use toomanycells, check out the jupyter 
 notebook [demo](./toomanycells_demo.ipynb).
 
+## Quick plotting
+If you are already familiar with toomanycells and
+want to generate a quick plot (an SVG) of your tree after 
+calling 
+   ```
+   tmc_obj.run_spectral_clustering()
+   ```
+then use the following call
+   ```
+   tmc_obj.store_outputs(
+       cell_ann_col="name_of_the_column",
+       plot_tree=True,
+       )
+   ```
+where `name_of_the_column` is the name of the AnnData.obs 
+column that contains the cell annotations.
+Note that this function relies on
+[too-many-cells](https://gregoryschwartz.github.io/too-many-cells/)
+(à la Haskell). So you need to have it installed.
+
 ## Usage
 1. First import the module as follows
    ```
    from toomanycells import TooManyCells as tmc
    ```
 
-2. If you already have an 
+1. If you already have an 
 [AnnData](https://anndata.readthedocs.io/en/latest/) 
 object `A` loaded into memory, then you can create a 
 TooManyCells object with
@@ -170,14 +190,14 @@ TooManyCells object with
    ```
    tmc_obj = tmc(A, output_directory)
    ```
-3. If instead of providing an AnnData object you want to
+1. If instead of providing an AnnData object you want to
 provide the directory where your data is located, you can use
 the syntax
    ```
    tmc_obj = tmc(input_directory, output_directory)
    ```
 
-4. If your input directory has a file in the [matrix market
+1. If your input directory has a file in the [matrix market
 format](https://math.nist.gov/MatrixMarket/formats.html),
 then you have to specify this information by using the
 following flag
@@ -190,7 +210,7 @@ Under this scenario, the `input_directory` must contain a
 `.mtx` file, a `barcodes.tsv` file (the observations), and
 a `genes.tsv` (the features).
 
-5. Once your data has been loaded successfully, you can start the clustering process with the following command
+1. Once your data has been loaded successfully, you can start the clustering process with the following command
    ```
    tmc_obj.run_spectral_clustering()
    ```
@@ -203,14 +223,23 @@ with 483,152 cells and 58,870 genes (14.51 GB in zip
 format) the total time was about 50 minutes in the same
 computer. ![Progress bar example](https://github.com/JRR3/toomanycells/blob/main/tests/tabula_sapiens_time.png)
     
-6. At the end of the clustering process the `.obs` data frame of the AnnData object should have two columns named `['sp_cluster', 'sp_path']` which contain the cluster labels and the path from the root node to the leaf node, respectively.
+1. At the end of the clustering process the `.obs` data frame of the AnnData object should have two columns named `['sp_cluster', 'sp_path']` which contain the cluster labels and the path from the root node to the leaf node, respectively.
    ```
    tmc_obj.A.obs[['sp_cluster', 'sp_path']]
    ```
-7. To generate the outputs, just call the function
+1. To generate the outputs, just call the function
    ```
    tmc_obj.store_outputs()
    ```
+   or
+   ```
+   tmc_obj.store_outputs(
+       cell_ann_col="name_of_the_column",
+       plot_tree=True,
+       )
+   ```
+   to include a plot of the graph.
+
 This call will generate JSON file
 containing the nodes and edges of the graph (`graph.json`), 
 one CSV file that describes the cluster
@@ -221,12 +250,12 @@ JSON files.  One relates cells to clusters
 full tree structure (`cluster_tree.json`). You need this
 last file for too-many-cells interactive (TMCI).
 
-8. If you already have the `graph.json` file you can 
+1. If you already have the `graph.json` file you can 
 load it with
    ```
    tmc_obj.load_graph(json_fname="some_path")
    ```
-9. If you want to visualize your results in a dynamic
+1. If you want to visualize your results in a dynamic
 platform, I strongly recommend the tool
 [too-many-cells-interactive](https://github.com/schwartzlab-methods/too-many-cells-interactive?tab=readme-ov-file).
 To use it, first make sure that you have Docker Compose and
@@ -239,7 +268,7 @@ your configuration or `home.nix` file and run
 ```
 home-manager switch
 ```
-10.  If you installed Docker Desktop you probably don't need to
+1.  If you installed Docker Desktop you probably don't need to
 follow this step. However, under some distributions the
 following two commands have proven to be essential. Use
 ```
@@ -328,6 +357,8 @@ type labels on a cluster-by-cluster basis
 ```
 ### Median absolute deviation classification
 Work in progress...
+
+## Plotting
 
 ## Heterogeneity quantification
 Imagine you want to compare the heterogeneity of cell 
@@ -494,6 +525,18 @@ If that is the case,
 the convergence to a solution could be extremely slow.
 However, if you use the non-sparse version of this
 function, we provide a reasonable solution to this problem.
+
+### Dimension-adaptive Euclidean Norm (DaEN)
+If your data consists of points whose Euclidean
+norm varies across multiple length scales, then 
+one option is to use a similarity function that
+can adapt to those changes in magnitude.
+Before I explain it in detail, here is how
+you can call it
+```
+tmc_obj.run_spectral_clustering(
+    similarity_function="norm_sparse")
+```
 
 ### Cosine
 If your matrix is dense, 

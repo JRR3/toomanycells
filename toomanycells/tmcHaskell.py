@@ -17,6 +17,7 @@ import matplotlib as mpl
 from typing import Union
 from typing import Optional
 from typing import List
+from itertools import cycle
 
 class TMCHaskell:
 
@@ -41,7 +42,7 @@ class TMCHaskell:
             output_folder: str = "tmc_haskell",
             feature_column: str = "1",
             draw_modularity: bool = False,
-            path_to_cell_annotations: str = "",
+            path_to_cell_annotations: Optional[str] = None,
             draw_node_numbers: bool = False,
         ):
 
@@ -189,7 +190,9 @@ class TMCHaskell:
             modularity_flag = ""
             modularity_argument = ""
 
-        if os.path.exists(self.path_to_cell_annotations):
+        c1= self.path_to_cell_annotations is not None
+        c2= os.path.exists(self.path_to_cell_annotations)
+        if c1 and c2:
             labels_flag = "--labels-file"
             labels_argument = self.path_to_cell_annotations
         else:
@@ -261,11 +264,13 @@ class TMCHaskell:
                 "",
                 ">",
                 self.cluster_path]
-        print(command)
+
+
+        # Uncomment for testing purposes.
+        # print(command)
+
         command = list(filter(len, command))
         command = " ".join(command)
-        #print(">>>>>>>>>>>")
-        #print(command)
         p = subprocess.call(command, shell=True)
 
     #=====================================
@@ -274,14 +279,43 @@ class TMCHaskell:
         if 0 < len(self.list_of_genes):
             self.create_gene_objects()
         else:
-            for color in self.annotation_colors:
-                color_hex = mpl.colors.cnames[color]
-                color_hex = ('\\\"' +
-                             color_hex.lower() +
-                             '\\\"')
-                self.list_of_colors.append(color_hex)
+            if len(self.annotation_colors) == 0:
+                self.populate_annotation_colors()
+            else:
+                for color in self.annotation_colors:
+                    color_hex = mpl.colors.cnames[color]
+                    color_hex = ('\\\"' +
+                                color_hex.lower() +
+                                '\\\"')
+                    self.list_of_colors.append(color_hex)
 
         self.color_str = (
             '[' + ','.join( self.list_of_colors) + ']')
 
         self.execute_command()
+
+    #=====================================
+    def populate_annotation_colors(self):
+
+        c1= self.path_to_cell_annotations is not None
+        c2= os.path.exists(
+            self.path_to_cell_annotations)
+        if c1 and c2:
+            df = pd.read_csv(self.path_to_cell_annotations)
+        else:
+            raise ValueError("Cannot create list of colors.")
+
+        cell_types = df["label"].unique()
+        n_cell_types = len(cell_types)
+        cmap = mpl.colormaps.get_cmap("tab20")
+        cycling_index = cycle(range(cmap.N))
+
+        for i in range(n_cell_types):
+            rgba =  cmap(next(cycling_index))
+            color_hex = mpl.colors.rgb2hex(rgba)
+            color_hex = ('\\\"' +
+                        color_hex.lower() +
+                        '\\\"')
+            self.list_of_colors.append(color_hex)
+
+

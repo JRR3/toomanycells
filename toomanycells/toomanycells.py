@@ -620,8 +620,9 @@ class TooManyCells:
     #=====================================
     def store_outputs(
             self,
-            cell_ann_col: str = "cell_annotations",
+            cell_ann_col: Optional[str] = None,
             store_in_uns_dict: bool = False,
+            plot_tree: bool = False,
             ):
         """
         Store the outputs and plot the branching tree.
@@ -653,13 +654,30 @@ class TooManyCells:
         self.tmcGraph.store_outputs(store_in_uns_dict)
 
         #Store the cell annotations in the output folder.
-        if 0 < len(cell_ann_col):
+        if cell_ann_col:
+
             if cell_ann_col in self.A.obs.columns:
-                self.generate_cell_annotation_file(
-                    cell_ann_col)
+                pass
             else:
                 txt = "Annotation column does not exists."
-                #raise ValueError(txt)
+                raise ValueError(txt)
+
+            self.generate_cell_annotation_file(cell_ann_col)
+
+            if plot_tree:
+
+                labels_path = os.path.join(
+                    self.output,
+                    "cell_annotation_labels.csv")
+
+                haskell = TMCHaskell(
+                    self.output,
+                    tmc_tree_path = self.output,
+                    path_to_cell_annotations=labels_path,
+                )
+        
+                haskell.run()
+
 
         print(self.G)
 
