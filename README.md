@@ -288,7 +288,7 @@ sudo chmod 666 /var/run/docker.sock
 ```
 to let Docker read and write to that location.
 
-11.  Now clone the repository 
+1.  Now clone the repository 
    ```
    git clone https://github.com/schwartzlab-methods/too-many-cells-interactive.git
    ```
