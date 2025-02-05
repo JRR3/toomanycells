@@ -263,6 +263,7 @@ load it with
    ```
    tmc_obj.load_graph(json_fname="some_path")
    ```
+## Visualization with TMCI
 1. If you want to visualize your results in a dynamic
 platform, I strongly recommend the tool
 [too-many-cells-interactive](https://github.com/schwartzlab-methods/too-many-cells-interactive?tab=readme-ov-file).
