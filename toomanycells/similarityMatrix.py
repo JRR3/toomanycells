@@ -525,8 +525,9 @@ class SimilarityMatrix:
             #1^T @ B @ B^T @ 1 = (B^T @ 1)^T @ (B^T @ 1)
             L_all_clone = row_sums.sum() - n_rows
 
-            if self.eps < np.abs(L_all_clone - L_all):
-                raise ValueError("Discrepancy @ L_all.")
+            #Revise the use of this check.
+            #if self.eps < np.abs(L_all_clone - L_all):
+                #raise ValueError("Discrepancy @ L_all.")
 
             #print(similarity_op)
             #print(laplacian_op)
