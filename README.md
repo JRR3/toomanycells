@@ -193,7 +193,7 @@ Note that this function relies on
 [too-many-cells](https://gregoryschwartz.github.io/too-many-cells/)
 (à la Haskell). So you need to have it installed. If you work
 within the cluster of your organization, maybe it has 
-already been installed and you could loaded as follows.
+already been installed, and you could load it as follows.
    ```
    module add too-many-cells
    ```
@@ -310,6 +310,7 @@ sudo chmod 666 /var/run/docker.sock
 ```
 to let Docker read and write to that location.
 
+
 11.  Now clone the repository 
    ```
    git clone https://github.com/schwartzlab-methods/too-many-cells-interactive.git
@@ -333,6 +334,52 @@ with ~90K cells (observations). ![Visualization example](https://github.com/JRR3
    
 And this is the visualization for the Tabula Sapiens data set with ~480K cells.
 ![Visualization example](https://github.com/JRR3/toomanycells/blob/main/tests/tmci_tabula_sapiens.png)
+
+## Running TMCI independently
+In case you already have the outputs for TMCI, but you
+want to visualize a specific set of genes on top of
+your tree, you are going to need the expression matrix
+corresponding to those genes in the matrix marker format.
+You will also need a list of genes and the barcodes.
+All of that can be easily achieved with toomanycells
+(à la Python) after loading your matrix or AnnData
+object. If you are interested in only a few genes,
+you can call 
+   ```
+   tmc_obj.create_data_for_tmci(
+      list_of_genes = ["G1","G2",...,"Gn"]
+   )
+   ```
+   where `G1`,`G2`,...,`Gn`, are the labels
+   of the genes of interest. If instead you have
+   a table of genes stored as a text file, then
+   use the call
+   ```
+   tmc_obj.create_data_for_tmci(
+      path_to_genes = "path/to/genes.csv"
+   )
+   ```
+   Lastly, if you want to write all the available genes
+   to a matrix, then simply call
+   ```
+   tmc_obj.create_data_for_tmci()
+   ```
+   but note that this could take a considerable
+   amount of time, depending on how many genes
+   in your matrix.
+   After calling this function, you will
+   have a new folder called `tmci_mtx_data`
+   which will contain the aforementioned files.
+   It is also important to mention that you need
+
+   ```
+   ./start-and-load.sh \
+    --matrix-dir /path_to/tmci_mtx_data \
+    --tree-path /path_to/cluster_tree.json \
+    --label-path /path_to/cell_annotations.csv \
+    --port 2025 \
+    --debug
+   ```
 
 ## What is the time complexity of toomanycells (à la Python)?
 To answer that question we have created the following benchmark. We tested the performance of toomanycells in 20 data sets having the following number of cells: 6360, 10479, 12751, 16363, 23973, 32735, 35442, 40784, 48410, 53046, 57621, 62941, 68885, 76019, 81449, 87833, 94543, 101234, 107809, 483152. The range goes from thousands of cells to almost half a million cells. These are the results.
