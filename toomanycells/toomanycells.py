@@ -623,6 +623,7 @@ class TooManyCells:
             cell_ann_col: Optional[str] = None,
             store_in_uns_dict: bool = False,
             plot_tree: bool = False,
+            draw_modularity: bool = False,
             ):
         """
         Store the outputs and plot the branching tree.
@@ -674,6 +675,7 @@ class TooManyCells:
                     self.output,
                     tmc_tree_path = self.output,
                     path_to_cell_annotations=labels_path,
+                    draw_modularity = draw_modularity,
                 )
         
                 haskell.run()
@@ -3253,7 +3255,11 @@ class TooManyCells:
         fig.savefig(fname, bbox_inches="tight")
 
     #=====================================
-    def easy_plot(self, cell_ann_col: str):
+    def easy_plot(
+        self,
+        cell_ann_col: str,
+        draw_modularity: bool = False,
+        ):
         """
         This function can be used to plot 
         your toomanycells tree if you already
@@ -3270,6 +3276,7 @@ class TooManyCells:
             self.output,
             tmc_tree_path = self.output,
             path_to_cell_annotations=labels_path,
+            draw_modularity = draw_modularity,
         )
 
         haskell.run()
