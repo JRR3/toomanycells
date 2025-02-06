@@ -30,6 +30,7 @@ from sklearn.metrics.pairwise import pairwise_kernels
 from scipy.sparse.linalg import eigsh as EigenHermitian
 from sklearn.feature_extraction.text import TfidfTransformer
 from scipy.linalg import eig as EG
+from sklearn.utils import issparse
 
 #Matplotlib parameters.
 mpl.use("agg")
@@ -68,6 +69,8 @@ class SimilarityMatrix:
         self.eps = 1e-9
         self.FDT = np.float64
         self.output = output
+        self.add_eps_to_zero = False
+        self.threshold_to_full = 200
         
 
     #=====================================
@@ -1046,8 +1049,8 @@ class SimilarityMatrix:
 
         laplacian_op  = row_sums_op - similarity_op
 
-        #print(similarity_op)
         #print(row_sums_op)
+        #print(similarity_op)
         #print(laplacian_op)
 
         zero_row_sums_mask = np.abs(row_sums) < self.eps
@@ -1067,6 +1070,11 @@ class SimilarityMatrix:
         if has_neg_row_sums:
             print("The similarity matrix "
                   "has negative row sums")
+            Q = -np.inf
+            print(n_rows)
+            print(row_sums.min())
+            raise ValueError("XXX")
+            return (Q, partition)
 
         if has_zero_row_sums:
             print("We have zero row sums.")
@@ -1117,7 +1125,15 @@ class SimilarityMatrix:
                 # largest magnitude.
                 eigen_vectors = E_obj[1]
                 W = eigen_vectors[:,idx]
+
                 #print("E_obj")
+                #print(E_obj[0])
+                #print(E_obj[1])
+
+                #print("==============")
+                #E_obj = np.linalg.eig(laplacian_op)
+                #M = np.diag(1/row_sums)
+                #print(M)
                 #print(E_obj[0])
                 #print(E_obj[1])
 
@@ -1143,11 +1159,12 @@ class SimilarityMatrix:
                 W = eigen_vectors[:,idx]
 
         #Convert zeros into positive values.
-        mask = W <=0
-        if mask.all():
-            print("W <= 0 ... ")
-            print("W += epsilon.")
-            W += self.eps
+        if self.add_eps_to_zero:
+            mask = W <=0
+            if mask.all():
+                print("W <= 0 ... ")
+                print("W += epsilon.")
+                W += self.eps
 
         mask_c1 = self.eps / 2 < W
         mask_c2 = ~mask_c1
@@ -1199,7 +1216,10 @@ class SimilarityMatrix:
             #We use the full matrix.
             S = B @ B.T
 
-            np.fill_diagonal(S, 1)
+            if sp.issparse(S):
+                np.fill_diagonal(S.toarray(), 1)
+            else:
+                np.fill_diagonal(S, 1)
 
             return S
 
@@ -1230,7 +1250,7 @@ class SimilarityMatrix:
         norms = self.norm_sq_vec[rows]
 
 
-        if n_rows < 100:
+        if n_rows < self.threshold_to_full:
             #We use the full matrix.
 
             #S = np.outer(norms,ones)
@@ -1285,7 +1305,7 @@ class SimilarityMatrix:
 
         n_rows = len(diagonal)
 
-        if n_rows < 100:
+        if n_rows < self.threshold_to_full:
             return np.diag(diagonal)
 
         D      = sp.diags(diagonal)
