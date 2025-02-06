@@ -1217,9 +1217,9 @@ class SimilarityMatrix:
             S = B @ B.T
 
             if sp.issparse(S):
-                np.fill_diagonal(S.toarray(), 1)
-            else:
-                np.fill_diagonal(S, 1)
+                S = S.toarray()
+            
+            np.fill_diagonal(S, 1)
 
             return S
 
