@@ -7,7 +7,7 @@
 #Questions? Email me at: javier.ruizramirez@uhn.ca
 #########################################################
 import os
-import scprep
+# import scprep
 import numpy as np
 import scanpy as sc
 import pandas as pd
@@ -41,53 +41,50 @@ class MultiPlotter:
 
     #=====================================
     def plot_embedding(self,
-                       matrix: ArrayLike,
+                       color_column: str,
+                       color_map: pd.DataFrame,
                        file_name: str,
-                       colors: ArrayLike,
-                       color_map: Union[dict, str],
-    ):
+                       ):
 
         fig, ax = plt.subplots()
 
         if os.path.exists(color_map):
-            df = pd.read_csv(color_map,
-                             index_col=None,
-                             header=0)
-            color_map = {}
-            for index, row in df.iterrows():
-                cell_type = row["Cell"]
-                color = row["Color"]
-                color_map[cell_type] = color
+            pass
+        else:
+            raise ValueError("Undefined data frame for cmap.")
 
-        scprep.plot.scatter2d(
-            matrix,
+        df = pd.read_csv(
+            color_map,
+            index_col=None,
+            header=0)
+
+        color_map = {}
+
+
+        for index, row in df.iterrows():
+            cell_type = row["Cell"]
+            color = row["Color"]
+            color_map[cell_type] = color
+
+        if "default" not in color_map:
+            color_map["default"] = "gray"
+
+        cell_types = self.A.obs[color_column].unique()
+
+        for cell_type in cell_types:
+            if cell_type not in color_map:
+                color_map[cell_type] = color_map["default"]
+
+        sc.pl.embedding(
+            self.A,
+            color=color_column,
             ax=ax,
-            c = colors,
-            cmap = color_map,
-            legend_loc = (1, 0.5),
-            ticks=False,
+            palette = color_map,
+            legend_loc = "right margin",
+            #ticks=False,
         )
         #ax.set_aspect("equal")
         fname = file_name
         fname = os.path.join(self.output, fname)
         fig.savefig(fname, bbox_inches="tight")
     #=====================================
-    def process_embedding(self,
-                          path: str,
-                          label: str,
-                          column: str,
-                          color_map: Union[dict, str],
-    ):
-        """
-        """
-
-        colors = self.A.obs[column]
-
-        mtx = self.load_embedding(path)
-        # print(mtx)
-
-        self.plot_embedding(mtx,
-                            label,
-                            colors,
-                            color_map,
-        )

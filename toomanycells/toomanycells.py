@@ -3383,21 +3383,19 @@ class TooManyCells:
 
     #=====================================
     def plot_embedding(
-            self,
-            path: str,
-            label: str,
-            column: str,
-            color_map: Union[dict, str],
-            ):
+        self,
+        color_column: str,
+        color_map: pd.DataFrame,
+        file_name: str,
+        ):
         """
         """
         obj = MultiPlotter(self.A, self.output)
-        obj.process_embedding(
-            path,
-            label,
-            column,
-            color_map,
-        )
+
+        obj.plot_embedding(
+            color_column = color_column,
+            color_map = color_map,
+            file_name = file_name,)
 
     #=====================================
     def homogenize_leaf_nodes(
