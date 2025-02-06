@@ -3252,6 +3252,27 @@ class TooManyCells:
         fname = os.path.join(self.output, fname)
         fig.savefig(fname, bbox_inches="tight")
 
+    #=====================================
+    def easy_plot(self, cell_ann_col: str):
+        """
+        This function can be used to plot 
+        your toomanycells tree if you already
+        have generated the outputs.
+        """
+
+        self.generate_cell_annotation_file(cell_ann_col)
+
+        labels_path = os.path.join(
+            self.output,
+            "cell_annotation_labels.csv")
+
+        haskell = TMCHaskell(
+            self.output,
+            tmc_tree_path = self.output,
+            path_to_cell_annotations=labels_path,
+        )
+
+        haskell.run()
 
     #=====================================
     def plot_with_tmc_a_la_haskell(

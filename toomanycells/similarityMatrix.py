@@ -30,7 +30,6 @@ from sklearn.metrics.pairwise import pairwise_kernels
 from scipy.sparse.linalg import eigsh as EigenHermitian
 from sklearn.feature_extraction.text import TfidfTransformer
 from scipy.linalg import eig as EG
-from sklearn.utils import issparse
 
 #Matplotlib parameters.
 mpl.use("agg")
