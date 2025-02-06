@@ -4,14 +4,16 @@
 [![image](https://img.shields.io/pypi/v/toomanycells.svg)](https://pypi.python.org/pypi/toomanycells)
 
 ### It's [Scanpy](https://github.com/scverse/scanpy) friendly!
+### Please remember to [cite](https://doi.org/10.1093/gigascience/giae056) us
 
-** A python package for spectral clustering based on the
+**A Python package for spectral clustering** based on the
 powerful suite of tools named
 [too-many-cells](https://github.com/GregorySchwartz/too-many-cells).
 In essence, you can use toomanycells to partition a data set
 in the form of a matrix of integers or floating point numbers
 into clusters, where members of a cluster are similar to each
-other. The rows represent observations and the
+other under a given similarity function.
+The rows represent observations and the
 columns are the features. However, sometimes just knowing the
 clusters is not sufficient. Often, we are insterested on the
 relationships between the clusters, and this tool can help 
@@ -37,7 +39,7 @@ data. However, a common application is to classify cells and
 therefore you can provide an
 [AnnData](https://anndata.readthedocs.io/en/latest/) object.
 You can read about this application in this [Nature Methods
-paper](https://www.nature.com/articles/s41592-020-0748-5).**
+paper](https://www.nature.com/articles/s41592-020-0748-5).
 
 
 -   Free software: GNU AFFERO GENERAL PUBLIC LICENSE
@@ -135,21 +137,30 @@ umap-learn==0.5.6
 urllib3==2.2.3
 zipp==3.20.2
 ```
-
 If you want to install an updated
-version, then use the following flag.
+version, then please use the following 
+approach.
 ```
 pip install -U --no-deps toomanycells
 ```
 Note that we are requiring to keep all the 
 dependencies as they are. Otherwise they would
-get updated and that could potentially brake
+get upgraded and that could potentially **break**
 the installation.
+
+To install packages based on a list of requirements,
+i.e., the packages you want installed with the specific
+version, then use
+```
+pip install -r requirements.txt
+```
+where `requirements.txt` is a list
+like the one shown the above block of code.
 
 Make sure you have the latest version. If not,
 run the previous command again.
 
-## Quick run
+## Quick run (needs to be updated)
 If you want to see a concrete example of how
 to use toomanycells, check out the jupyter 
 notebook [demo](./toomanycells_demo.ipynb).
@@ -168,23 +179,32 @@ then use the following call
        plot_tree=True,
        )
    ```
+If you already have the outputs and you 
+just want to plot, then simply call
+   ```
+   tmc_obj.easy_plot(cell_ann_col="name_of_the_column")
+   ```
 where `name_of_the_column` is the name of the AnnData.obs 
 column that contains the cell annotations.
+This function will look for the outputs in the 
+folder that you defined for the `output_directory`
+as shown in step 2.
 Note that this function relies on
 [too-many-cells](https://gregoryschwartz.github.io/too-many-cells/)
-(à la Haskell). So you need to have it installed, or use the version 
-provided by your cluster. For example, 
+(à la Haskell). So you need to have it installed. If you work
+within the cluster of your organization, maybe it has 
+already been installed and you could loaded as follows.
    ```
    module add too-many-cells
    ```
 And make sure your cluster has a recent version.
-## Usage
+## Starting from scratch
 1. First import the module as follows
    ```
    from toomanycells import TooManyCells as tmc
    ```
 
-1. If you already have an 
+2. If you already have an 
 [AnnData](https://anndata.readthedocs.io/en/latest/) 
 object `A` loaded into memory, then you can create a 
 TooManyCells object with
@@ -194,18 +214,18 @@ TooManyCells object with
    In this case the output folder will be called 
    `tmc_outputs`.  However, if you want the output folder to
    be a particular directory, then you can specify the path 
-   as follows
+   as follows.
    ```
    tmc_obj = tmc(A, output_directory)
    ```
-1. If instead of providing an AnnData object you want to
+3. If instead of providing an AnnData object you want to
 provide the directory where your data is located, you can use
 the syntax
    ```
    tmc_obj = tmc(input_directory, output_directory)
    ```
 
-1. If your input directory has a file in the [matrix market
+4. If your input directory has a file in the [matrix market
 format](https://math.nist.gov/MatrixMarket/formats.html),
 then you have to specify this information by using the
 following flag
@@ -218,7 +238,8 @@ Under this scenario, the `input_directory` must contain a
 `.mtx` file, a `barcodes.tsv` file (the observations), and
 a `genes.tsv` (the features).
 
-1. Once your data has been loaded successfully, you can start the clustering process with the following command
+5. Once your data has been loaded successfully, 
+you can start the clustering process with the following command
    ```
    tmc_obj.run_spectral_clustering()
    ```
@@ -231,11 +252,11 @@ with 483,152 cells and 58,870 genes (14.51 GB in zip
 format) the total time was about 50 minutes in the same
 computer. ![Progress bar example](https://github.com/JRR3/toomanycells/blob/main/tests/tabula_sapiens_time.png)
     
-1. At the end of the clustering process the `.obs` data frame of the AnnData object should have two columns named `['sp_cluster', 'sp_path']` which contain the cluster labels and the path from the root node to the leaf node, respectively.
+6. At the end of the clustering process the `.obs` data frame of the AnnData object should have two columns named `['sp_cluster', 'sp_path']` which contain the cluster labels and the path from the root node to the leaf node, respectively.
    ```
    tmc_obj.A.obs[['sp_cluster', 'sp_path']]
    ```
-1. To generate the outputs, just call the function
+7. To generate the outputs, just call the function
    ```
    tmc_obj.store_outputs()
    ```
@@ -258,13 +279,13 @@ JSON files.  One relates cells to clusters
 full tree structure (`cluster_tree.json`). You need this
 last file for too-many-cells interactive (TMCI).
 
-1. If you already have the `graph.json` file you can 
+8. If you already have the `graph.json` file you can 
 load it with
    ```
    tmc_obj.load_graph(json_fname="some_path")
    ```
 ## Visualization with TMCI
-1. If you want to visualize your results in a dynamic
+9. If you want to visualize your results in a dynamic
 platform, I strongly recommend the tool
 [too-many-cells-interactive](https://github.com/schwartzlab-methods/too-many-cells-interactive?tab=readme-ov-file).
 To use it, first make sure that you have Docker Compose and
@@ -277,7 +298,7 @@ your configuration or `home.nix` file and run
 ```
 home-manager switch
 ```
-1.  If you installed Docker Desktop you probably don't need to
+10.  If you installed Docker Desktop you probably don't need to
 follow this step. However, under some distributions the
 following two commands have proven to be essential. Use
 ```
@@ -289,7 +310,7 @@ sudo chmod 666 /var/run/docker.sock
 ```
 to let Docker read and write to that location.
 
-1.  Now clone the repository 
+11.  Now clone the repository 
    ```
    git clone https://github.com/schwartzlab-methods/too-many-cells-interactive.git
    ```
