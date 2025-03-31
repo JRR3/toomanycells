@@ -366,11 +366,12 @@ you can call
    ```
    but note that this could take a considerable
    amount of time, depending on how many genes
-   in your matrix.
+   are in your matrix.
    After calling this function, you will
    have a new folder called `tmci_mtx_data`
    which will contain the aforementioned files.
    It is also important to mention that you need
+   a file wiht the labels
 
    ```
    ./start-and-load.sh \
