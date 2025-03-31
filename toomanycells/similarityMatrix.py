@@ -661,7 +661,17 @@ class SimilarityMatrix:
             order = np.argsort(singular_values)
             idx = order[0]
             if singular_values[idx] < self.eps:
-                raise ValueError("Zero singular value.")
+                print(f"{n_rows=}")
+                print(f"{row_sums=}")
+                print("The value of index is:")
+                print(idx)
+                print("The singular values are:")
+                print(singular_values)
+                print("The value of sigma_idx is:")
+                print(singular_values[idx])
+                print("The rows are:")
+                print(rows)
+                #raise ValueError("Zero singular value.")
             #Get the singular vector corresponding to the
             #second largest singular value.
             W = W[:,idx]
