@@ -364,7 +364,7 @@ class TooManyCells:
             plot_similarity_matrix: bool = False,
             modularity_threshold: float = 1e-9,
             use_exact_diameter: bool = False,
-            use_diameter_adaptive: bool = True,
+            use_adaptive_diameter: bool = True,
     ):
         """
         This function computes the partitions of the \
@@ -384,6 +384,7 @@ class TooManyCells:
             use_hermitian_method,
             svd_algorithm,
             self.output,
+            self.verbose_mode,
         )
 
         simMat.compute_similarity_matrix(
@@ -400,7 +401,7 @@ class TooManyCells:
             tf_idf_smooth,
             plot_similarity_matrix,
             use_exact_diameter,
-            use_diameter_adaptive,
+            use_adaptive_diameter,
         )
 
         #===========================================

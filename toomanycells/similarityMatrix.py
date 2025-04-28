@@ -104,7 +104,7 @@ class SimilarityMatrix:
             tf_idf_smooth: bool = False,
             plot_similarity_matrix: bool = False,
             use_exact_diameter: bool = False,
-            use_diameter_adaptive: bool = True,
+            use_adaptive_diameter: bool = True,
     ):
 
         if similarity_norm < 1:
@@ -208,7 +208,7 @@ class SimilarityMatrix:
             self.norm_sq_vec = vec * vec
 
             self.use_exact_diameter = use_exact_diameter
-            self.use_diameter_adaptive = use_diameter_adaptive
+            self.use_adaptive_diameter = use_adaptive_diameter
 
             #The diameter is computed within the 
             #definition of the LinearOperator.
@@ -664,6 +664,7 @@ class SimilarityMatrix:
             C = D @ B
             W = self.trunc_SVD.fit_transform(C)
             singular_values=self.trunc_SVD.singular_values_
+            print(f"{singular_values=}")
             order = np.argsort(singular_values)
             idx = order[0]
             if singular_values[idx] < self.eps:
@@ -681,6 +682,7 @@ class SimilarityMatrix:
             #Get the singular vector corresponding to the
             #second largest singular value.
             W = W[:,idx]
+            print(f"{idx=}")
 
 
         mask = W <=0
@@ -695,6 +697,7 @@ class SimilarityMatrix:
         #If one partition has all the elements
         #then return with Q = -inf.
         if mask_c1.all() or mask_c2.all():
+            print("One partition has all the elements.")
             Q = -np.inf
             return (Q, partition)
 
@@ -1286,7 +1289,7 @@ class SimilarityMatrix:
             if n_rows == 2:
                 diam *= 1.1
 
-            if self.use_diameter_adaptive:
+            if self.use_adaptive_diameter:
                 scaling = 1 / (diam * diam)
             else:
                 scaling = self.inv_diam_sq
@@ -1297,7 +1300,7 @@ class SimilarityMatrix:
 
             return S
 
-        if self.use_diameter_adaptive:
+        if self.use_adaptive_diameter:
             diam = self.compute_diameter_for_observations(B)
             #print(f"Calculated {diam=:.2e}")
             scaling = 1 / (diam * diam)
