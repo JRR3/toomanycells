@@ -363,6 +363,8 @@ class TooManyCells:
             svd_algorithm: str = "arpack",
             plot_similarity_matrix: bool = False,
             modularity_threshold: float = 1e-9,
+            use_exact_diameter: bool = False,
+            use_diameter_adaptive: bool = True,
     ):
         """
         This function computes the partitions of the \
@@ -397,6 +399,8 @@ class TooManyCells:
             tf_idf_norm,
             tf_idf_smooth,
             plot_similarity_matrix,
+            use_exact_diameter,
+            use_diameter_adaptive,
         )
 
         #===========================================

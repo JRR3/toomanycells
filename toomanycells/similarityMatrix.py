@@ -47,7 +47,7 @@ class SimilarityMatrix:
             self,
             matrix: ArrayLike,
             use_hermitian_method: bool = False,
-            svd_algorithm: str = "randomized",
+            svd_algorithm: str = "arpack",
             output: str = "",
             modularity_default: float = 0,
             verbose_mode: bool = False,
@@ -74,7 +74,7 @@ class SimilarityMatrix:
 
     #=====================================
     def compute_vector_of_norms(self,
-                                lp_norm = 2,
+                                lp_norm:float = 2,
         ) -> ArrayLike:
         if self.is_sparse:
             vec = sp.linalg.norm(self.X,
@@ -103,6 +103,8 @@ class SimilarityMatrix:
             tf_idf_norm: Optional[str] = None,
             tf_idf_smooth: bool = False,
             plot_similarity_matrix: bool = False,
+            use_exact_diameter: bool = False,
+            use_diameter_adaptive: bool = True,
     ):
 
         if similarity_norm < 1:
@@ -204,12 +206,16 @@ class SimilarityMatrix:
             similarity_matrix_is_sparse = True
             vec = self.compute_vector_of_norms()
             self.norm_sq_vec = vec * vec
+
+            self.use_exact_diameter = use_exact_diameter
+            self.use_diameter_adaptive = use_diameter_adaptive
+
             #The diameter is computed within the 
             #definition of the LinearOperator.
 
-            #diam = self.compute_diameter_for_observations()
+            diam = self.compute_diameter_for_observations()
             #print(f"The diameter is approx.: {diam}")
-            #self.inv_diam_sq = 1 / (diam * diam)
+            self.inv_diam_sq = 1 / (diam * diam)
 
         else:
             #Use a similarity function different from
@@ -909,8 +915,8 @@ class SimilarityMatrix:
         self,
         matrix: Optional[ArrayLike] = None,
         lp_norm: str = "l2",
-        use_convex_hull: bool = False,
-        use_brute_force: bool = False,
+        # use_convex_hull: bool = False,
+        # use_brute_force: bool = False,
     ) -> float:
         """
         Assuming every row vector is a 
@@ -926,17 +932,17 @@ class SimilarityMatrix:
         elif lp_norm == "l1":
             lp_norm_int = 1
 
-        if use_convex_hull:
-            indices = spatial.ConvexHull(matrix).vertices
-            candidates = matrix[indices]
-            distance_matrix = spatial.distance_matrix(
-                candidates,
-                candidates,
-                p = lp_norm_int
-            )
-            return distance_matrix.max()
+        # if use_convex_hull:
+        #     indices = spatial.ConvexHull(matrix).vertices
+        #     candidates = matrix[indices]
+        #     distance_matrix = spatial.distance_matrix(
+        #         candidates,
+        #         candidates,
+        #         p = lp_norm_int
+        #     )
+        #     return distance_matrix.max()
 
-        if use_brute_force:
+        if self.use_exact_diameter:
             distance_matrix = pairwise_distances(
                 matrix,
                 metric=lp_norm,
@@ -944,6 +950,7 @@ class SimilarityMatrix:
             )
             return distance_matrix.max()
 
+        #Else, we use the approximation.
         centroid  = matrix.mean(axis=0)
 
         fun = lambda x: np.linalg.norm(
@@ -1247,7 +1254,6 @@ class SimilarityMatrix:
     def generate_norm_sim_as_linear_op(
             self,
             rows: np.ndarray,
-            scale: Optional[float] = None,
     ) -> LinearOperator:
         """
         Generate a linear operator that describes
@@ -1260,6 +1266,8 @@ class SimilarityMatrix:
         norms = self.norm_sq_vec[rows]
 
 
+        #If the number of rows is less than 200,
+        #we use a direct method.
         if n_rows < self.threshold_to_full:
             #We use the full matrix.
 
@@ -1271,30 +1279,36 @@ class SimilarityMatrix:
 
             S = pairwise_distances(B, metric="l2")
             diam = S.max()
-            min_dist = S.min()
+
+            #This quantity should be zero.
+            # min_dist = S.min()
 
             if n_rows == 2:
                 diam *= 1.1
 
-            inv_diam_sq = 1 / (diam * diam)
+            if self.use_diameter_adaptive:
+                scaling = 1 / (diam * diam)
+            else:
+                scaling = self.inv_diam_sq
+
             S *= S
-            S *= -inv_diam_sq
+            S *= -scaling
             S += 1
 
             return S
 
-        if scale is None:
+        if self.use_diameter_adaptive:
             diam = self.compute_diameter_for_observations(B)
             #print(f"Calculated {diam=:.2e}")
-            inv_diam_sq = 1 / (diam * diam)
+            scaling = 1 / (diam * diam)
         else:
-            inv_diam_sq = scale
+            scaling = self.inv_diam_sq
 
         def mat_vec_prod(vec: ArrayLike):
             norm_sq = norms * (ones @ vec)
             norm_sq += ones * (norms @ vec)
             norm_sq -= 2 * B @ (B.T @ vec)
-            norm_sq *= inv_diam_sq
+            norm_sq *= scaling
             return ones * (ones @ vec) - norm_sq
 
         return LinearOperator(dtype=self.FDT,
