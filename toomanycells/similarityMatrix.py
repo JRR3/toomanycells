@@ -603,7 +603,9 @@ class SimilarityMatrix:
                     similarity_op += np.abs(s_min)
                     row_sums = similarity_op @ ones
                     L_all = row_sums.sum() - n_rows
-                    row_sums_op = self.generate_diag_as_linear_op(row_sums)
+                    rso = self.generate_diag_as_linear_op(
+                        row_sums)
+                    row_sums_op = rso
                     laplacian_op = row_sums_op - similarity_op
 
                     E_obj = EigenHermitian(laplacian_op,
@@ -611,6 +613,7 @@ class SimilarityMatrix:
                                             M=row_sums_op,
                                             #sigma=0,
                                             which="SM")
+
                     eigen_val_abs = np.abs(E_obj[0])
                     #Identify the eigenvalue with the
                     #largest magnitude.
@@ -664,7 +667,7 @@ class SimilarityMatrix:
             C = D @ B
             W = self.trunc_SVD.fit_transform(C)
             singular_values=self.trunc_SVD.singular_values_
-            print(f"{singular_values=}")
+            # print(f"{singular_values=}")
             order = np.argsort(singular_values)
             idx = order[0]
             if singular_values[idx] < self.eps:
@@ -682,10 +685,11 @@ class SimilarityMatrix:
             #Get the singular vector corresponding to the
             #second largest singular value.
             W = W[:,idx]
-            print(f"{idx=}")
+            # print(f"{idx=}")
 
 
         mask = W <=0
+        # print(f"{mask.sum()=}")
         if mask.all():
             print("W <= 0 ... ")
             print("W += epsilon.")

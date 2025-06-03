@@ -465,6 +465,9 @@ class TooManyCells:
             #therefore this partition will not
             #be considered.
             print("Step 1:")
+            print("Modularity is below threshold.")
+            txt = f"{Q=}"
+            print(txt)
             txt = ("All cells belong" 
                     " to the same partition.")
             print(txt)
