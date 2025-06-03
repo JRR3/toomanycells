@@ -686,6 +686,7 @@ class TooManyCells:
                     draw_modularity = draw_modularity,
                 )
         
+                print("Generating Haskell plot ...")
                 haskell.run()
 
 
