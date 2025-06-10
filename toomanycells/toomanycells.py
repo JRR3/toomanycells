@@ -632,6 +632,7 @@ class TooManyCells:
             store_in_uns_dict: bool = False,
             plot_tree: bool = False,
             draw_modularity: bool = False,
+            draw_node_numbers: bool = False,
             ):
         """
         Store the outputs and plot the branching tree.
@@ -684,6 +685,7 @@ class TooManyCells:
                     tmc_tree_path = self.output,
                     path_to_cell_annotations=labels_path,
                     draw_modularity = draw_modularity,
+                    draw_node_numbers = draw_node_numbers,
                 )
         
                 print("Generating Haskell plot ...")
