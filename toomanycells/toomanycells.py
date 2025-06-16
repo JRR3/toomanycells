@@ -850,7 +850,7 @@ class TooManyCells:
             list_of_genes: List = [],
             path_to_genes: str = "",
             create_matrix: bool = True,
-            ):
+        ):
         """
         Produce the 10X files for a given set of\
             genes.  This function produces the\
@@ -870,30 +870,81 @@ class TooManyCells:
         genes_f = "genes.tsv"
         genes_f = os.path.join(self.tmci_mtx_dir, genes_f)
 
-        var_names = []
+        var_names   = []
         col_indices = []
+        obs_cols    = []
 
         if 0 < len(path_to_genes):
+
             df = pd.read_csv(path_to_genes, header=0)
             #The first column should contain the genes.
             list_of_genes = df.iloc[:,0].to_list()
 
         if 0 < len(list_of_genes):
+
             # Note that if we provided a path then
-            # the list_of_genes variable has 
+            # the list_of_genes variable has a
             # positive length.
 
             for gene in list_of_genes:
-                if gene not in self.A.var.index:
+
+                if gene in self.A.var.index:
+
+                    var_names.append(gene)
+                    col_index = self.A.var.index.get_loc(gene)
+                    col_indices.append(col_index)
+
+                elif gene in self.A.obs:
+
+                    obs_cols.append(gene)
+
+                else:
+                    #Gene is not available
                     continue
-                var_names.append(gene)
-                col_index = self.A.var.index.get_loc(gene)
-                col_indices.append(col_index)
     
-            G_mtx = self.A.X[:,col_indices]
+            if 0 < len(var_names):
+
+                #Use genes from the expression matrix.
+                m1 = self.A.X[:,col_indices]
+
+                if 0 < len(obs_cols):
+
+                    var_names.extend(obs_cols)
+
+                    #Use "genes" from the obs data frame.
+                    m2 = self.A.obs[obs_cols].values
+
+                    if sp.issparse(m1):
+
+                        #Make m2 sparse too
+                        #Concatenate two sparse objects.
+                        m2 = sp.csr_matrix(m2)
+                        G_mtx = sp.hstack((m1,m2))
+
+                    else:
+
+                        #Concatenate two numpy objects
+                        G_mtx = np.hstack((m1,m2))
+
+                else:
+                    #No genes from the obs data frame.
+                    #Just use the expression matrix
+                    G_mtx = m1
+
+            else:
+
+                #Use "genes" only from the obs data frame.
+                if 0 < len(obs_cols):
+                    #Use "genes" from the obs data frame.
+                    var_names = obs_cols.copy()
+                    G_mtx = self.A.obs[obs_cols].values
+                else:
+                    print("No genes were found.")
 
         else:
-            #If not list is provided, use all the genes.
+
+            #If no list is provided, use all the genes.
+            print("Warning: All genes will be used.")
             var_names = self.A.var_names
             G_mtx = self.A.X
 
@@ -908,11 +959,13 @@ class TooManyCells:
         barcodes_f = "barcodes.tsv"
         barcodes_f = os.path.join(self.tmci_mtx_dir,
                                   barcodes_f)
+
         pd.Series(self.A.obs_names).to_csv(
             barcodes_f,
             sep="\t",
             header=False,
-            index=False)
+            index=False,
+        )
 
         # Matrix
         if create_matrix:
@@ -3270,6 +3323,7 @@ class TooManyCells:
         self,
         cell_ann_col: str,
         draw_modularity: bool = False,
+        draw_node_numbers: bool = False,
         ):
         """
         This function can be used to plot 
@@ -3288,6 +3342,7 @@ class TooManyCells:
             tmc_tree_path = self.output,
             path_to_cell_annotations=labels_path,
             draw_modularity = draw_modularity,
+            draw_node_numbers = draw_node_numbers,
         )
 
         haskell.run()

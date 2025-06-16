@@ -9,13 +9,14 @@
 **A Python package for spectral clustering** based on the
 powerful suite of tools named
 [too-many-cells](https://github.com/GregorySchwartz/too-many-cells).
+Note, **this is not a wrapper**.
 In essence, you can use toomanycells to partition a data set
 in the form of a matrix of integers or floating point numbers
 into clusters, where members of a cluster are similar to each
 other under a given similarity function.
 The rows represent observations and the
 columns are the features. However, sometimes just knowing the
-clusters is not sufficient. Often, we are insterested on the
+clusters is not sufficient. Often, we are interested on the
 relationships between the clusters, and this tool can help 
 you visualize the clusters as leaf nodes of a tree, where the
 branches illustrate the trajectories that have to be followed
@@ -80,7 +81,7 @@ pip install toomanycells
 in your home or custom environment 
 should work. However, for reproducibility,
 here is the list of packages I had in my virtual 
-environment:
+environment in 2024:
 ```
 anndata==0.10.9
 array_api_compat==1.8
@@ -177,13 +178,34 @@ then use the following call
    tmc_obj.store_outputs(
        cell_ann_col="name_of_the_column",
        plot_tree=True,
-       )
+   )
    ```
+   or
+   ```
+   tmc_obj.store_outputs(
+       cell_ann_col="name_of_the_column",
+       plot_tree=True,
+       draw_modularity=False,
+       draw_node_numbers=False,
+   )
+   ```
+with the appropriate flags.
 If you already have the outputs and you 
 just want to plot, then simply call
    ```
-   tmc_obj.easy_plot(cell_ann_col="name_of_the_column")
+   tmc_obj.easy_plot(
+      cell_ann_col="name_of_the_column",
+   )
    ```
+   or
+   ```
+   tmc_obj.easy_plot(
+      cell_ann_col="name_of_the_column",
+      draw_modularity=False,
+      draw_node_numbers=False,
+   )
+   ```
+with the appropriate flags,
 where `name_of_the_column` is the name of the AnnData.obs 
 column that contains the cell annotations.
 This function will look for the outputs in the 
@@ -197,7 +219,35 @@ already been installed, and you could load it as follows.
    ```
    module add too-many-cells
    ```
-And make sure your cluster has a recent version.
+Otherwise, I recommend you to install it with Nix.
+
+## Generating a matrix market file
+Sometimes you want to generate a matrix market
+file from a set of genes so that you can visualize
+them with other tools. The function that will help you 
+with this is called `create_data_for_tmci`. 
+Just for context,
+imagine you are interested in two genes, `COL1A1`, and
+`TCF21`. Moreover, imagine that you also want to include
+in your matrix another feature located in the `obs` data
+frame called `total_counts`. Finally, assume that the
+column that contains the labels for your cells is called
+`cell_annotations`. Please use this a template for your
+specific needs.
+   ```
+   from toomanycells import TooManyCells as tmc
+   tmc_obj = tmc(A)
+   tmc_obj.run_spectral_clustering()                                 
+   tmc_obj.store_outputs(cell_ann_col="cell_annotations")            
+   list_of_genes = []                                            
+   list_of_genes.append("COL1A1")                                
+   list_of_genes.append("TCF21")                                 
+   list_of_genes.append("total_counts")                          
+   tmc_obj.create_data_for_tmci(list_of_genes=list_of_genes)    
+   ```
+These lines of code will produce for you
+a folder named `tmci_mtx_data` with the expected outputs.
+
 ## Starting from scratch
 1. First import the module as follows
    ```
