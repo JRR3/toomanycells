@@ -703,10 +703,15 @@ class TMCGraph:
         if load_clusters_file:
             fname = "clusters.csv"
             fname = os.path.join(self.output, fname)
-            df = pd.read_csv(fname, header=0)
+            df = pd.read_csv(fname,
+                             header=0,
+            )
             cell_ids = df["cell"]
-            cluster = df["cluster"]
-            self.A.obs.loc[cell_ids,"sp_cluster"] = cluster
+            clusters = df["cluster"]
+            print(cell_ids)
+            print("=========")
+            print(self.A.obs.index)
+            self.A.obs.loc[cell_ids,"sp_cluster"] = clusters
 
         print(self.G)
 

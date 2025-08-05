@@ -3418,8 +3418,6 @@ class TooManyCells:
         Load graph from JSON file.
         """
 
-        raise ValueError("XXX")
-
         self.tmcGraph.load_graph(json_fname,
                                  load_clusters_file)
         # After loading the graph, the set of leaf
