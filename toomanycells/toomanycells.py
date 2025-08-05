@@ -3410,13 +3410,18 @@ class TooManyCells:
     #=====================================
     def load_graph(
             self,
-            json_fname: str = "",
+            json_fname: str = "graph.json",
+            load_clusters_file: bool = True,
             store_in_uns_dict: bool = False,
         ):
         """
+        Load graph from JSON file.
         """
 
-        self.tmcGraph.load_graph(json_fname)
+        raise ValueError("XXX")
+
+        self.tmcGraph.load_graph(json_fname,
+                                 load_clusters_file)
         # After loading the graph, the set of leaf
         # nodes gets populated internally.
         x = self.tmcGraph.set_of_leaf_nodes
@@ -3443,7 +3448,7 @@ class TooManyCells:
         self.tmcGraph.output = path
 
     #=====================================
-    def create_mask_for_list_of_nodes(
+    def isolate_cells_from_branches(
             self,
             path_to_csv: str,
             fname: str,

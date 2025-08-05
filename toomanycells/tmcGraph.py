@@ -63,13 +63,19 @@ class TMCGraph:
 
     #=====================================
     def find_leaf_nodes(self):
+        """
+        Find all leaf nodes in the graph.
+
+        This function clears and then populates the
+        attribute set_of_leaf_nodes.
+        """
 
         self.set_of_leaf_nodes = set()
 
         for node in self.G.nodes():
 
-            not_leaf_node = 0 < self.G.out_degree(node)
-            is_leaf_node = not not_leaf_node
+            # not_leaf_node = 0 < self.G.out_degree(node)
+            is_leaf_node =  (0 == self.G.out_degree(node))
 
             if is_leaf_node:
                 self.set_of_leaf_nodes.add(node)
@@ -228,6 +234,7 @@ class TMCGraph:
             self,
     ):
         """
+        TODO
         """
 
         DQ = deque()
@@ -334,6 +341,7 @@ class TMCGraph:
             self,
     ):
         """
+        TODO
         """
         S      = []
         self.J = MultiIndexList()
@@ -637,7 +645,8 @@ class TMCGraph:
     #=====================================
     def load_graph(
             self,
-            json_fname: Optional[str]="",
+            json_fname: str = "graph.json",
+            load_clusters_file: bool = False,
         ):
         """
         Load the JSON file. Note that when loading the data,
@@ -647,9 +656,7 @@ class TMCGraph:
         for the modularity.
         """
 
-        if len(json_fname) == 0:
-            fname = "graph.json"
-            json_fname = os.path.join(self.output, fname)
+        json_fname = os.path.join(self.output, json_fname)
 
         if not os.path.exists(json_fname):
             raise ValueError("File does not exists.")
@@ -693,33 +700,48 @@ class TMCGraph:
                 Q = self.G.nodes[node]["Q"]
                 self.G.nodes[node]["Q"] = float(Q)
 
+        if load_clusters_file:
+            fname = "clusters.csv"
+            fname = os.path.join(self.output, fname)
+            df = pd.read_csv(fname, header=0)
+            cell_ids = df["cell"]
+            cluster = df["cluster"]
+            self.A.obs.loc[cell_ids,"sp_cluster"] = cluster
+
         print(self.G)
 
     #=====================================
-    def create_mask_for_list_of_nodes(
+    def isolate_cells_from_branches(
             self,
-            path_to_csv: str,
-            fname: str,
-            ):
+            path_to_csv_file: str,
+            branch_column: str = "node",
+            generate_cell_id_file: bool = False,
+            fname: str = "cell_ids.csv",
+        ):
         """
+        TODO
         """
-        df = pd.read_csv(path_to_csv)
 
-        MSK = "mask"
-        self.A.obs[MSK] = "Background"
+        #This file contains all the branches
+        df = pd.read_csv(path_to_csv_file, header=0)
+        set_of_nodes = set()
 
         for index, row in df.iterrows():
-            node = row["node"]
-            label = row["label"]
-            if 0 < self.G.out_degree(node):
-                nodes = nx.descendants(self.G, node)
+
+            branch = row[branch_column]
+
+            if 0 < self.G.out_degree(branch):
+                #Not a leaf node.
+                nodes = nx.descendants(self.G, branch)
                 nodes = self.set_of_leaf_nodes.intersection(
                     nodes)
+                set_of_nodes.update(nodes)
             else:
-                nodes = [node]
+                #Is a leaf node
+                set_of_nodes.add(branch)
+
+        self.A.obs[""]
             
-            mask = self.A.obs["sp_cluster"].isin(nodes)
-            self.A.obs[MSK].loc[mask] = label
 
         fname = os.path.join(self.output, fname)
         self.A.obs[MSK].to_csv(fname, index=True)
