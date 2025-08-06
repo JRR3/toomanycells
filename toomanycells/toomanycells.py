@@ -2313,10 +2313,12 @@ class TooManyCells:
         self.marker_to_mad_threshold = {}
         self.marker_to_mad_direction = {}
 
+        lower_case_gene_names = self.A.var_names.str.lower()
+
         for index, row in df_cm.iterrows():
 
             cell_type = row["Cell"]
-            marker = row["Marker"]
+            marker    = row["Marker"].lower()
 
             if has_threshold:
                 th = row["Threshold"]
@@ -2338,9 +2340,13 @@ class TooManyCells:
 
             #In case some cell marker is not present
             #in the expression matrix.
-            if marker not in self.A.var_names:
+            if marker not in lower_case_gene_names:
                 print(f"{marker=} not available.")
                 continue
+            else:
+                col_index = lower_case_gene_names.get_loc(
+                    marker)
+                marker = self.A.var_names[col_index]
 
             # In case some cell type is not present
             # in the cell_type_to_group dictionary.
@@ -2362,7 +2368,6 @@ class TooManyCells:
             self.marker_to_cell_types[marker].append(
                 cell_type)
 
-            col_index = self.A.var.index.get_loc(marker)
             #We do the following check to guarantee that 
             #the list of markers and column indices has 
             #no repetitions.
@@ -3448,14 +3453,34 @@ class TooManyCells:
     #=====================================
     def isolate_cells_from_branches(
             self,
-            path_to_csv: str,
-            fname: str,
-            ):
+            path_to_csv_file: str = "",
+            list_of_branches: List[int] = [],
+            branch_column: str = "node",
+            generate_cell_id_file: bool = False,
+            cell_id_fname: str = "cell_ids.csv",
+        ):
+
         """
-        What does this function do?
+        Isolate the cells from all the given
+        branches (collection of nodes).
+        The function returns an AnnData object
+        with only the isolated cells.
         """
-        self.tmcGraph.create_mask_for_list_of_nodes(
-            path_to_csv, fname)
+
+        mask = self.tmcGraph.isolate_cells_from_branches(
+            path_to_csv_file,
+            list_of_branches,
+            branch_column,
+        )
+
+        adata = self.A[mask].copy()
+
+        if generate_cell_id_file:
+
+            fname = os.path.join(self.output, cell_id_fname)
+            adata.obs["sp_cluster"].to_csv(fname, index=True)
+
+        return adata
 
     #=====================================
     def plot_embedding(

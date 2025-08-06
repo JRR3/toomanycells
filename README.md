@@ -483,10 +483,50 @@ type labels on a cluster-by-cluster basis
            use_majority_voting = True,
    )
 ```
-### Median absolute deviation classification
-Work in progress...
 
-## Plotting
+## Graph operations
+
+### Selecting cells through branches
+Imagine you have a tree structure 
+of your data like the one shown below.
+![heterogeneity](https://github.com/JRR3/toomanycells/blob/main/tests/heterogeneity.svg)
+If you want to isolate all the cells that belong to branches
+1183 and 2, and produce an AnnData object with those cells,
+simply use the following call
+```
+   adata = tmc_obj.isolate_cells_from_branches(
+      list_of_branches=[1183,2])
+```
+If you have a CSV file that specifies the branches,
+then use the following call
+```
+   adata = tmc_obj.isolate_cells_from_branches(
+    path_to_csv_file="list_of_branches.csv",
+    branch_column="node",
+   )
+```
+The name of the column that contains the branches
+or nodes is specified through the keyword 
+```branch_column```. Lastly, if you want to store 
+a copy of the indices, use the following call
+```
+   adata = tmc_obj.isolate_cells_from_branches(
+    path_to_csv_file="list_of_branches.csv",
+    branch_column="node",
+    generate_cell_id_file=True,
+   )
+```
+
+### Median absolute deviation classification
+First we introduce the concept of median absolute 
+deviation. Imagine you have a list of $n$ observations
+$L = [z_1,z_2,\ldots,z_n]$. Let 
+$\mathcal{M}:\mathbb{R}^n \to \mathbb{R}$ be
+the function that computes the median of a list.
+Consider a new list $K$, where 
+$K_i = \left| L_i - \mathcal{M}(L) \right|$. Then,
+the median absolute deviation of $L$ is 
+$\text{MAD}(L) = \mathcal{M}(K)$.
 
 ## Heterogeneity quantification
 Imagine you want to compare the heterogeneity of cell 
@@ -637,10 +677,10 @@ following instruction.
 tmc_obj.run_spectral_clustering(
    similarity_function="cosine_sparse")
 ```
-By default we use the Halko-Martinsson-Tropp algorithm 
+By default we use the ARPACK library (written in Fortran)
 to compute the truncated singular value decomposition.
-However, the ARPACK library (written in Fortran)
-is also available.
+The Halko-Martinsson-Tropp algorithm 
+is also available. However, this one is not deterministic.
 ```
 tmc_obj.run_spectral_clustering(
    similarity_function="cosine_sparse",
@@ -701,9 +741,11 @@ The shift transformation can also be applied to any of
 the subsequent similarity matrices.
 
 ### Laplacian
-The similarity matrix is
+The similarity matrix is given by
 
-$$S(x,y)=\exp(-\gamma\cdot ||x-y||_1)$$
+$$
+S(x,y)=\exp(-\gamma\cdot \left\lVert x-y \right\rVert _1).
+$$
 
 This is an example:
 ```
@@ -717,9 +759,11 @@ no convergence. If you obtain poor results, try using
 a smaller value for $\gamma$.
 
 ### Gaussian
-The similarity matrix is
+The similarity matrix is given by
 
-$$S(x,y)=\exp(-\gamma\cdot ||x-y||_2^2)$$
+$$
+S(x,y)=\exp(-\gamma\cdot \left\lVert x-y\right\rVert _2^2).
+$$
 
 This is an example:
 ```
@@ -733,9 +777,16 @@ big differences between $x$ and $y$ into very small
 quantities.
 
 ### Divide by the sum
-The similarity matrix is 
+The similarity matrix is given by
 
-$$S(x,y)=1-\frac{||x-y||_p}{||x||_p+||y||_p},$$
+$$
+S(x,y)=1-\frac{
+   \left\lVert x-y \right\rVert_p
+   }{
+      \left\lVert x \right\rVert_p +
+       \left\lVert y \right\rVert_p
+   },
+$$
 
 where $p =1$ or $p=2$. The rows 
 of the matrix are normalized (unit norm)

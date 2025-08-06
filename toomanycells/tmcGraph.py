@@ -19,6 +19,7 @@ import pandas as pd
 import scanpy as sc
 import networkx as nx
 from typing import Set
+from typing import List
 from typing import Union
 from os.path import dirname
 from typing import Optional
@@ -646,7 +647,7 @@ class TMCGraph:
     def load_graph(
             self,
             json_fname: str = "graph.json",
-            load_clusters_file: bool = False,
+            load_clusters_file: bool = True,
         ):
         """
         Load the JSON file. Note that when loading the data,
@@ -706,11 +707,15 @@ class TMCGraph:
             df = pd.read_csv(fname,
                              header=0,
             )
-            cell_ids = df["cell"]
-            clusters = df["cluster"]
-            print(cell_ids)
-            print("=========")
-            print(self.A.obs.index)
+            cell_ids = df["cell"].values
+            clusters = df["cluster"].values
+            #By default, the constructor of an 
+            #AnnData object will produce indices of 
+            #string type.
+            if "int" in str(type(cell_ids[0])):
+                cell_ids = map(str, cell_ids)
+            # print(list(cell_ids))
+            # print(self.A.obs.index)
             self.A.obs.loc[cell_ids,"sp_cluster"] = clusters
 
         print(self.G)
@@ -718,37 +723,48 @@ class TMCGraph:
     #=====================================
     def isolate_cells_from_branches(
             self,
-            path_to_csv_file: str,
+            path_to_csv_file: str = "",
+            list_of_branches: List[int] = [],
             branch_column: str = "node",
-            generate_cell_id_file: bool = False,
-            fname: str = "cell_ids.csv",
         ):
         """
-        TODO
+        This function produces a mask of booleans
+        that indicate if a cell belongs or not
+        to a leaf node contained in 
+        one of the branches.
         """
 
-        #This file contains all the branches
-        df = pd.read_csv(path_to_csv_file, header=0)
-        set_of_nodes = set()
+        if 0 < len(path_to_csv_file):
+            #This file contains all the branches
+            df = pd.read_csv(path_to_csv_file, header=0)
+            list_of_branches = df[branch_column].values
 
-        for index, row in df.iterrows():
+        elif 0 < len(list_of_branches):
+            pass
 
-            branch = row[branch_column]
+        else:
+            raise ValueError("No source has been specified.")
+
+        set_of_leaf_nodes = set()
+        sp_cluster = "sp_cluster"
+
+        # print(f"{list_of_branches=}")
+
+        for branch in list_of_branches:
 
             if 0 < self.G.out_degree(branch):
                 #Not a leaf node.
                 nodes = nx.descendants(self.G, branch)
                 nodes = self.set_of_leaf_nodes.intersection(
                     nodes)
-                set_of_nodes.update(nodes)
+                set_of_leaf_nodes.update(nodes)
             else:
                 #Is a leaf node
-                set_of_nodes.add(branch)
+                set_of_leaf_nodes.add(branch)
 
-        self.A.obs[""]
-            
+        mask = self.A.obs[sp_cluster].isin(
+            set_of_leaf_nodes)
 
-        fname = os.path.join(self.output, fname)
-        self.A.obs[MSK].to_csv(fname, index=True)
+        return mask
 
     #====END=OF=CLASS=====================
