@@ -489,7 +489,7 @@ type labels on a cluster-by-cluster basis
 ### Selecting cells through branches
 Imagine you have a tree structure 
 of your data like the one shown below.
-![heterogeneity](https://github.com/JRR3/toomanycells/blob/main/tests/heterogeneity.svg)
+![Branches](https://github.com/JRR3/toomanycells/blob/main/tests/heterogeneity.svg)
 If you want to isolate all the cells that belong to branches
 1183 and 2, and produce an AnnData object with those cells,
 simply use the following call
@@ -507,7 +507,7 @@ then use the following call
 ```
 The name of the column that contains the branches
 or nodes is specified through the keyword 
-```branch_column```. Lastly, if you want to store 
+`branch_column`. Lastly, if you want to store 
 a copy of the indices, use the following call
 ```
    adata = tmc_obj.isolate_cells_from_branches(
@@ -516,6 +516,19 @@ a copy of the indices, use the following call
     generate_cell_id_file=True,
    )
 ```
+### Mean expression of a branch
+Imagine we have the following tree.
+![TreeWithLabels](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_data.svg)
+If you want to quantify the mean expression of the marker 
+CD9 on branch 261, you can use the following call
+```
+   m_exp = tmc_obj.compute_cluster_mean_expression(
+        node=261, genes=["CD9"])
+```
+and you would obtain 12.791.
+![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_cd9_exp.svg)
+Looking at the above plot, this suggests that Neuro-2a cells
+highly express this marker.
 
 ### Median absolute deviation classification
 First we introduce the concept of median absolute 
@@ -526,7 +539,57 @@ the function that computes the median of a list.
 Consider a new list $K$, where 
 $K_i = \left| L_i - \mathcal{M}(L) \right|$. Then,
 the median absolute deviation of $L$ is 
-$\text{MAD}(L) = \mathcal{M}(K)$.
+$\text{MAD}(L) = \mathcal{M}(K)$. For this section
+we will be indicating the expression of a gene in terms
+of MADs. The reason is that we want to classify cells
+and using statistics that capture the dispersion of the
+data is a convenient approach for that purpose.
+Based on the previous example, now imagine
+you want to find Neuro-2a cells whose expression
+of two marker, CD9 and SDC1, is 1 MAD above the median.
+First, you need a CSV file containing the following 
+information. 
+```
+     Marker      Cell  Threshold Direction
+       CD9  Neuro-2a        1.0     Above
+      SDC1  Neuro-2a        1.0     Above
+```
+Let's call it `marker_and_cell_info.csv`.
+Then, we quantify the mean expression of those 
+markers for every node of the tree and store 
+that information within each node.
+We can do that using the following call.
+```
+tmc_obj.populate_tree_with_mean_expression_for_all_markers(
+    cell_marker_path="marker_and_cell_info.csv")
+```
+Then we compute basic statistics for each marker using the
+following function
+```
+tmc_obj.compute_node_expression_metadata()
+```
+These are
+the statistics associated to those markers.
+```
+           median        mad       min         max   min_mad      max_mad       delta
+CD9      3.080538   1.918258  0.000890   22.944445 -1.605441    10.355182    0.797375
+SDC1     2.989691   1.165005  0.001669    6.639456 -2.564814     3.132832    0.379843
+
+```
+The plot corresponding to the distribution of those
+markers across all nodes can be generated through this call
+```
+tmc_obj.plot_marker_distributions()
+```
+The plots can be found in the following 
+[link](https://github.com/JRR3/toomanycells/blob/main/tests/marker_mad_dist_for_tree.html).
+If we want to isolate the cells that satisfy the conditions
+```
+     Marker      Cell  Threshold Direction
+       CD9  Neuro-2a        1.0     Above
+      SDC1  Neuro-2a        1.0     Above
+```
+
 
 ## Heterogeneity quantification
 Imagine you want to compare the heterogeneity of cell 

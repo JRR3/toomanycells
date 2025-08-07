@@ -1,0 +1,1398 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="-500 -500 702.41016 556.09619"
+   version="1.1"
+   id="svg464"
+   sodipodi:docname="4plex_data.svg"
+   width="702.41016"
+   height="556.09619"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs468" />
+  <sodipodi:namedview
+     id="namedview466"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     showgrid="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:zoom="0.833"
+     inkscape:cx="622.44898"
+     inkscape:cy="259.30372"
+     inkscape:window-width="1920"
+     inkscape:window-height="1011"
+     inkscape:window-x="0"
+     inkscape:window-y="32"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g462" />
+  <g
+     class="container"
+     stroke-width="1px"
+     transform="matrix(0.85,0,0,0.85,-178.36895,-263.40336)"
+     id="g462">
+    <g
+       class="link-container"
+       fill="none"
+       id="g90">
+      <g
+         class="link"
+         id="g4">
+        <polygon
+           class="link"
+           points="90.46069,5.5498915 89.249274,-15.764041 -1.1349055,-19.967774 1.1349055,19.967774 "
+           stroke="none"
+           fill="url(#n-0-1)"
+           id="polygon2"
+           style="fill:url(#n-0-1)" />
+      </g>
+      <g
+         class="link"
+         id="g8">
+        <polygon
+           class="link"
+           points="-90,10.321671 -90,-10.321671 -2.4492936e-15,-20 2.4492936e-15,20 "
+           stroke="none"
+           fill="url(#n-0-260)"
+           id="polygon6"
+           style="fill:url(#n-0-260)" />
+      </g>
+      <g
+         class="link"
+         id="g12">
+        <polygon
+           class="link"
+           points="128.74355,-129.46366 118.48692,-132.21763 79.545967,-7.87511 100.164,-2.3390392 "
+           stroke="none"
+           fill="url(#n-1-2)"
+           id="polygon10"
+           style="fill:url(#n-1-2)" />
+      </g>
+      <g
+         class="link"
+         id="g16">
+        <polygon
+           class="link"
+           points="143.56043,113.65681 131.72836,118.32613 79.925997,-1.1887749 99.783967,-9.0253742 "
+           stroke="none"
+           fill="url(#n-1-127)"
+           id="polygon14"
+           style="fill:url(#n-1-127)" />
+      </g>
+      <g
+         class="link"
+         id="g20">
+        <polygon
+           class="link"
+           points="-118.52158,132.14929 -128.70889,129.53199 -99.997009,-2.5684055 -80.002991,2.5684055 "
+           stroke="none"
+           fill="url(#n-260-261)"
+           id="polygon18"
+           style="fill:url(#n-260-261)" />
+      </g>
+      <g
+         class="link"
+         id="g24">
+        <polygon
+           class="link"
+           points="-117.74737,-132.3482 -129.4831,-129.33308 -99.997009,2.5684055 -80.002991,-2.5684055 "
+           stroke="none"
+           fill="url(#n-260-386)"
+           id="polygon22"
+           style="fill:url(#n-260-386)" />
+      </g>
+      <g
+         class="link"
+         id="g28">
+        <polygon
+           class="link"
+           points="84.394494,-259.03456 76.632378,-256.39763 118.58748,-129.13262 128.64299,-132.54866 "
+           stroke="none"
+           fill="url(#n-2-3)"
+           id="polygon26"
+           style="fill:url(#n-2-3)" />
+      </g>
+      <g
+         class="link"
+         id="g32">
+        <polygon
+           class="link"
+           points="253.32224,-97.134402 252.14192,-92.881346 122.19527,-125.72406 125.0352,-135.95722 "
+           stroke="none"
+           fill="url(#n-2-72)"
+           id="polygon30"
+           style="fill:url(#n-2-72)" />
+      </g>
+      <g
+         class="link"
+         id="g36">
+        <polygon
+           class="link"
+           points="263.55651,69.93134 260.18267,61.587727 135.26018,110.09522 140.02861,121.88771 "
+           stroke="none"
+           fill="url(#n-127-128)"
+           id="polygon34"
+           style="fill:url(#n-127-128)" />
+      </g>
+      <g
+         class="link"
+         id="g40">
+        <polygon
+           class="link"
+           points="111.98695,247.53993 106.40533,246.32727 131.42934,114.64119 143.85945,117.34174 "
+           stroke="none"
+           fill="url(#n-127-195)"
+           id="polygon38"
+           style="fill:url(#n-127-195)" />
+      </g>
+      <g
+         class="link"
+         id="g44">
+        <polygon
+           class="link"
+           points="-47.799006,263.55583 -53.78842,266.80254 -128.23871,133.34691 -118.99176,128.33437 "
+           stroke="none"
+           fill="url(#n-261-262)"
+           id="polygon42"
+           style="fill:url(#n-261-262)" />
+      </g>
+      <g
+         class="link"
+         id="g48">
+        <polygon
+           class="link"
+           points="-260.6564,63.18229 -263.08279,68.336777 -125.8551,135.59888 -121.37537,126.0824 "
+           stroke="none"
+           fill="url(#n-261-321)"
+           id="polygon46"
+           style="fill:url(#n-261-321)" />
+      </g>
+      <g
+         class="link"
+         id="g52">
+        <polygon
+           class="link"
+           points="-251.76277,-91.515141 -253.70139,-98.500608 -125.23535,-136.67843 -121.99512,-125.00285 "
+           stroke="none"
+           fill="url(#n-386-387)"
+           id="polygon50"
+           style="fill:url(#n-386-387)" />
+      </g>
+      <g
+         class="link"
+         id="g56">
+        <polygon
+           class="link"
+           points="-77.266173,-256.61295 -83.760699,-258.81925 -129.35169,-132.78941 -117.87878,-128.89187 "
+           stroke="none"
+           fill="url(#n-386-518)"
+           id="polygon54"
+           style="fill:url(#n-386-518)" />
+      </g>
+      <g
+         class="link"
+         id="g60">
+        <polygon
+           class="link"
+           points="360.606,-31.870398 356.17291,-36.158897 258.63533,62.630762 265.10386,68.888305 "
+           stroke="none"
+           fill="url(#n-128-129)"
+           id="polygon58"
+           style="fill:url(#n-128-129)" />
+      </g>
+      <g
+         class="link"
+         id="g64">
+        <polygon
+           class="link"
+           points="302.12141,198.6376 297.48132,199.95563 257.54088,66.989124 266.19831,64.529943 "
+           stroke="none"
+           fill="url(#n-128-158)"
+           id="polygon62"
+           style="fill:url(#n-128-158)" />
+      </g>
+      <g
+         class="link"
+         id="g68">
+        <polygon
+           class="link"
+           points="55.721773,354.23074 52.871721,357.53288 -53.019397,267.75792 -48.568029,262.60045 "
+           stroke="none"
+           fill="url(#n-262-263)"
+           id="polygon66"
+           style="fill:url(#n-262-263)" />
+      </g>
+      <g
+         class="link"
+         id="g72">
+        <polygon
+           class="link"
+           points="-181.23596,312.72626 -182.69039,308.52861 -51.908934,261.96051 -49.678492,268.39785 "
+           stroke="none"
+           fill="url(#n-262-296)"
+           id="polygon70"
+           style="fill:url(#n-262-296)" />
+      </g>
+      <g
+         class="link"
+         id="g76">
+        <polygon
+           class="link"
+           points="-297.84043,199.85363 -301.76231,198.7396 -264.60971,64.981193 -259.12948,66.537874 "
+           stroke="none"
+           fill="url(#n-321-322)"
+           id="polygon74"
+           style="fill:url(#n-321-322)" />
+      </g>
+      <g
+         class="link"
+         id="g80">
+        <polygon
+           class="link"
+           points="-357.09155,-35.270222 -359.68737,-32.759073 -263.91691,67.740072 -259.82228,63.778995 "
+           stroke="none"
+           fill="url(#n-321-361)"
+           id="polygon78"
+           style="fill:url(#n-321-361)" />
+      </g>
+      <g
+         class="link"
+         id="g84">
+        <polygon
+           class="link"
+           points="428.69671,140.59234 427.25416,137.52295 298.77551,197.11384 300.82722,201.47939 "
+           stroke="none"
+           fill="url(#n-158-159)"
+           id="polygon82"
+           style="fill:url(#n-158-159)" />
+      </g>
+      <g
+         class="link"
+         id="g88">
+        <polygon
+           class="link"
+           points="295.57774,340.86786 292.15689,340.7244 297.39166,199.19556 302.21108,199.39767 "
+           stroke="none"
+           fill="url(#n-158-176)"
+           id="polygon86"
+           style="fill:url(#n-158-176)" />
+      </g>
+    </g>
+    <g
+       class="node-container"
+       stroke-opacity="0.8"
+       id="g322">
+      <g
+         class="node"
+         opacity="1"
+         id="g98">
+        <circle
+           class="node"
+           stroke="none"
+           fill="#a7636a"
+           r="20"
+           id="circle92"
+           cx="0"
+           cy="0" />
+        <g
+           class="pie"
+           id="g94" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text96">0</text>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(89.85498,-5.1070747)"
+         id="g106">
+        <circle
+           class="node"
+           stroke="none"
+           fill="#8e9279"
+           r="10.674166"
+           id="circle100"
+           cx="0"
+           cy="0" />
+        <g
+           class="pie"
+           id="g102" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text104">1</text>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(-90)"
+         id="g114">
+        <circle
+           class="node"
+           stroke="none"
+           fill="#c1325a"
+           r="10.321671"
+           id="circle108"
+           cx="0"
+           cy="0" />
+        <g
+           class="pie"
+           id="g110" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text112">260</text>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(123.61523,-130.84064)"
+         id="g122">
+        <circle
+           class="node"
+           stroke="none"
+           fill="#e9e137"
+           r="5.3099604"
+           id="circle116"
+           cx="0"
+           cy="0" />
+        <g
+           class="pie"
+           id="g118" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text120">2</text>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(137.64439,115.99146)"
+         id="g130">
+        <circle
+           class="node"
+           stroke="none"
+           fill="#4453af"
+           r="6.3600421"
+           id="circle124"
+           cx="0"
+           cy="0" />
+        <g
+           class="pie"
+           id="g126" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text128">127</text>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(-123.61523,130.84064)"
+         id="g138">
+        <circle
+           class="node"
+           stroke="none"
+           r="5.2590752"
+           fill="#984ea3"
+           id="circle132"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text134">261</text>
+        <g
+           class="pie"
+           id="g136" />
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(-123.61523,-130.84064)"
+         id="g146">
+        <circle
+           class="node"
+           stroke="none"
+           fill="#e41a1c"
+           r="6.0584326"
+           id="circle140"
+           cx="0"
+           cy="0" />
+        <g
+           class="pie"
+           id="g142" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text144">386</text>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(80.513435,-257.71609)"
+         id="g160">
+        <circle
+           class="node"
+           stroke="none"
+           r="0"
+           id="circle148"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text150">3</text>
+        <g
+           class="pie"
+           id="g158">
+          <path
+             stroke="none"
+             d="m 0,-20 a 20,20 0 1 1 -4.5495066,0.524323 L 0,0 Z"
+             fill="#ece633"
+             class="pie"
+             id="path152" />
+          <path
+             stroke="none"
+             d="m -4.5495066,-19.475677 a 20,20 0 0 1 4.53077319,-0.524314 L 0,0 Z"
+             fill="#984ea3"
+             class="pie"
+             id="path154" />
+          <path
+             stroke="none"
+             d="M -0.01873341,-19.999991 A 20,20 0 0 1 0,-20 V 0 Z"
+             fill="#374bb8"
+             class="pie"
+             id="path156" />
+        </g>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(252.73209,-95.007874)"
+         id="g172">
+        <circle
+           class="node"
+           stroke="none"
+           r="0"
+           id="circle162"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text164">72</text>
+        <g
+           class="pie"
+           id="g170">
+          <path
+             stroke="none"
+             d="m 0,-20 a 20,20 0 1 1 -2.6799087,0.180361 L 0,0 Z"
+             fill="#ece633"
+             class="pie"
+             id="path166" />
+          <path
+             stroke="none"
+             d="M -2.6799087,-19.819639 A 20,20 0 0 1 0,-20 V 0 Z"
+             fill="#984ea3"
+             class="pie"
+             id="path168" />
+        </g>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(261.8696,65.759537)"
+         id="g180">
+        <circle
+           class="node"
+           stroke="none"
+           r="4.4999633"
+           fill="#374bb8"
+           id="circle174"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text176">128</text>
+        <g
+           class="pie"
+           id="g178" />
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(109.19614,246.93361)"
+         id="g196">
+        <circle
+           class="node"
+           stroke="none"
+           r="0"
+           id="circle182"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text184">195</text>
+        <g
+           class="pie"
+           id="g194">
+          <path
+             stroke="none"
+             d="M 0,-20 A 20,20 0 1 1 -19.925512,-1.7245208 L 0,0 Z"
+             fill="#374bb8"
+             class="pie"
+             id="path186" />
+          <path
+             stroke="none"
+             d="m -10.186611,-17.211419 a 20,20 0 0 1 7.074128,-2.544908 L 0,0 Z"
+             fill="#984ea3"
+             class="pie"
+             id="path188" />
+          <path
+             stroke="none"
+             d="m -19.925512,-1.7245208 a 20,20 0 0 1 9.738901,-15.4868982 L 0,0 Z"
+             fill="#ece633"
+             class="pie"
+             id="path190" />
+          <path
+             stroke="none"
+             d="M -3.112483,-19.756327 A 20,20 0 0 1 0,-20 V 0 Z"
+             fill="#e41a1c"
+             class="pie"
+             id="path192" />
+        </g>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(-50.793713,265.17917)"
+         id="g204">
+        <circle
+           class="node"
+           stroke="none"
+           fill="#984ea2"
+           r="3.4063983"
+           id="circle198"
+           cx="0"
+           cy="0" />
+        <g
+           class="pie"
+           id="g200" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text202">262</text>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(-261.8696,65.759537)"
+         id="g212">
+        <circle
+           class="node"
+           stroke="none"
+           fill="#984ea3"
+           r="2.8485136"
+           id="circle206"
+           cx="0"
+           cy="0" />
+        <g
+           class="pie"
+           id="g208" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text210">321</text>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(-252.73209,-95.007874)"
+         id="g224">
+        <circle
+           class="node"
+           stroke="none"
+           r="0"
+           id="circle214"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text216">387</text>
+        <g
+           class="pie"
+           id="g222">
+          <path
+             stroke="none"
+             d="m 0,-20 a 20,20 0 1 1 -0.02211221,1.2e-5 L 0,0 Z"
+             fill="#e41a1c"
+             class="pie"
+             id="path218" />
+          <path
+             stroke="none"
+             d="M -0.02211221,-19.999988 A 20,20 0 0 1 0,-20 V 0 Z"
+             fill="#ece633"
+             class="pie"
+             id="path220" />
+        </g>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(-80.513435,-257.71609)"
+         id="g234">
+        <circle
+           class="node"
+           stroke="none"
+           r="0"
+           id="circle226"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text228">518</text>
+        <g
+           class="pie"
+           id="g232">
+          <path
+             stroke="none"
+             d="M 0,-20 A 20,20 0 1 1 0,20 20,20 0 1 1 0,-20 Z"
+             fill="#e41a1c"
+             class="pie"
+             id="path230" />
+        </g>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(358.38947,-34.014648)"
+         id="g246">
+        <circle
+           class="node"
+           stroke="none"
+           r="0"
+           id="circle236"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text238">129</text>
+        <g
+           class="pie"
+           id="g244">
+          <path
+             stroke="none"
+             d="m 0,-20 a 20,20 0 1 1 -0.02783865,1.9e-5 L 0,0 Z"
+             fill="#374bb8"
+             class="pie"
+             id="path240" />
+          <path
+             stroke="none"
+             d="M -0.02783865,-19.999981 A 20,20 0 0 1 0,-20 V 0 Z"
+             fill="#984ea3"
+             class="pie"
+             id="path242" />
+        </g>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(299.80136,199.29662)"
+         id="g254">
+        <circle
+           class="node"
+           stroke="none"
+           fill="#374bb8"
+           r="2.4118278"
+           id="circle248"
+           cx="0"
+           cy="0" />
+        <g
+           class="pie"
+           id="g250" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text252">158</text>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(54.296745,355.88181)"
+         id="g266">
+        <circle
+           class="node"
+           stroke="none"
+           r="0"
+           id="circle256"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text258">263</text>
+        <g
+           class="pie"
+           id="g264">
+          <path
+             stroke="none"
+             d="m 0,-20 a 20,20 0 1 1 -0.73557005,0.01353 L 0,0 Z"
+             fill="#984ea3"
+             class="pie"
+             id="path260" />
+          <path
+             stroke="none"
+             d="M -0.73557005,-19.986469 A 20,20 0 0 1 0,-20 V 0 Z"
+             fill="#e41a1c"
+             class="pie"
+             id="path262" />
+        </g>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(-181.96318,310.62744)"
+         id="g278">
+        <circle
+           class="node"
+           stroke="none"
+           r="0"
+           id="circle268"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text270">296</text>
+        <g
+           class="pie"
+           id="g276">
+          <path
+             stroke="none"
+             d="m 0,-20 a 20,20 0 1 1 -0.2846194,0.002 L 0,0 Z"
+             fill="#984ea3"
+             class="pie"
+             id="path272" />
+          <path
+             stroke="none"
+             d="M -0.2846194,-19.997975 A 20,20 0 0 1 0,-20 V 0 Z"
+             fill="#e41a1c"
+             class="pie"
+             id="path274" />
+        </g>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(-299.80136,199.29662)"
+         id="g290">
+        <circle
+           class="node"
+           stroke="none"
+           r="0"
+           id="circle280"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text282">322</text>
+        <g
+           class="pie"
+           id="g288">
+          <path
+             stroke="none"
+             d="m 0,-20 a 20,20 0 1 1 -0.05575135,7.8e-5 L 0,0 Z"
+             fill="#984ea3"
+             class="pie"
+             id="path284" />
+          <path
+             stroke="none"
+             d="M -0.05575135,-19.999922 A 20,20 0 0 1 0,-20 V 0 Z"
+             fill="#e41a1c"
+             class="pie"
+             id="path286" />
+        </g>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(-358.38947,-34.014648)"
+         id="g300">
+        <circle
+           class="node"
+           stroke="none"
+           r="0"
+           id="circle292"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text294">361</text>
+        <g
+           class="pie"
+           id="g298">
+          <path
+             stroke="none"
+             d="M 0,-20 A 20,20 0 1 1 0,20 20,20 0 1 1 0,-20 Z"
+             fill="#984ea3"
+             class="pie"
+             id="path296" />
+        </g>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(427.97543,139.05765)"
+         id="g310">
+        <circle
+           class="node"
+           stroke="none"
+           r="0"
+           id="circle302"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text304">159</text>
+        <g
+           class="pie"
+           id="g308">
+          <path
+             stroke="none"
+             d="M 0,-20 A 20,20 0 1 1 0,20 20,20 0 1 1 0,-20 Z"
+             fill="#374bb8"
+             class="pie"
+             id="path306" />
+        </g>
+      </g>
+      <g
+         class="node"
+         opacity="1"
+         transform="translate(293.86731,340.79611)"
+         id="g320">
+        <circle
+           class="node"
+           stroke="none"
+           r="0"
+           id="circle312"
+           cx="0"
+           cy="0" />
+        <text
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+           class="original-node-id"
+           text-anchor="middle"
+           id="text314">176</text>
+        <g
+           class="pie"
+           id="g318">
+          <path
+             stroke="none"
+             d="M 0,-20 A 20,20 0 1 1 0,20 20,20 0 1 1 0,-20 Z"
+             fill="#374bb8"
+             class="pie"
+             id="path316" />
+        </g>
+      </g>
+    </g>
+    <defs
+       id="defs434">
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="0"
+         y1="0"
+         x2="89.85498"
+         y2="-5.1070747"
+         id="n-0-1">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(167, 99, 106)"
+           id="stop324" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(142, 146, 121)"
+           id="stop326" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="0"
+         y1="0"
+         x2="-90"
+         y2="1.1021821e-14"
+         id="n-0-260">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(167, 99, 106)"
+           id="stop329" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(193, 50, 90)"
+           id="stop331" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="89.85498"
+         y1="-5.1070747"
+         x2="123.61523"
+         y2="-130.84064"
+         id="n-1-2">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(142, 146, 121)"
+           id="stop334" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(233, 225, 55)"
+           id="stop336" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="89.85498"
+         y1="-5.1070747"
+         x2="137.64439"
+         y2="115.99146"
+         id="n-1-127">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(142, 146, 121)"
+           id="stop339" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(68, 83, 175)"
+           id="stop341" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="-90"
+         y1="1.1021821e-14"
+         x2="-123.61523"
+         y2="130.84064"
+         id="n-260-261">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(193, 50, 90)"
+           id="stop344" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(152, 78, 163)"
+           id="stop346" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="-90"
+         y1="1.1021821e-14"
+         x2="-123.61523"
+         y2="-130.84064"
+         id="n-260-386">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(193, 50, 90)"
+           id="stop349" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(228, 26, 28)"
+           id="stop351" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="123.61523"
+         y1="-130.84064"
+         x2="80.513435"
+         y2="-257.71609"
+         id="n-2-3">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(233, 225, 55)"
+           id="stop354" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(233, 224, 55)"
+           id="stop356" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="123.61523"
+         y1="-130.84064"
+         x2="252.73209"
+         y2="-95.007874"
+         id="n-2-72">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(233, 225, 55)"
+           id="stop359" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(234, 227, 53)"
+           id="stop361" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="137.64439"
+         y1="115.99146"
+         x2="261.8696"
+         y2="65.759537"
+         id="n-127-128">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(68, 83, 175)"
+           id="stop364" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(55, 75, 184)"
+           id="stop366" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="137.64439"
+         y1="115.99146"
+         x2="109.19614"
+         y2="246.93361"
+         id="n-127-195">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(68, 83, 175)"
+           id="stop369" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(93, 97, 159)"
+           id="stop371" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="-123.61523"
+         y1="130.84064"
+         x2="-50.793713"
+         y2="265.17917"
+         id="n-261-262">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(152, 78, 163)"
+           id="stop374" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(152, 78, 162)"
+           id="stop376" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="-123.61523"
+         y1="130.84064"
+         x2="-261.8696"
+         y2="65.759537"
+         id="n-261-321">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(152, 78, 163)"
+           id="stop379" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(152, 78, 163)"
+           id="stop381" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="-123.61523"
+         y1="-130.84064"
+         x2="-252.73209"
+         y2="-95.007874"
+         id="n-386-387">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(228, 26, 28)"
+           id="stop384" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(228, 26, 28)"
+           id="stop386" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="-123.61523"
+         y1="-130.84064"
+         x2="-80.513435"
+         y2="-257.71609"
+         id="n-386-518">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(228, 26, 28)"
+           id="stop389" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(228, 26, 28)"
+           id="stop391" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="261.8696"
+         y1="65.759537"
+         x2="358.38947"
+         y2="-34.014648"
+         id="n-128-129">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(55, 75, 184)"
+           id="stop394" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(55, 75, 184)"
+           id="stop396" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="261.8696"
+         y1="65.759537"
+         x2="299.80136"
+         y2="199.29662"
+         id="n-128-158">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(55, 75, 184)"
+           id="stop399" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(55, 75, 184)"
+           id="stop401" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="-50.793713"
+         y1="265.17917"
+         x2="54.296745"
+         y2="355.88181"
+         id="n-262-263">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(152, 78, 162)"
+           id="stop404" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(152, 78, 162)"
+           id="stop406" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="-50.793713"
+         y1="265.17917"
+         x2="-181.96318"
+         y2="310.62744"
+         id="n-262-296">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(152, 78, 162)"
+           id="stop409" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(152, 78, 163)"
+           id="stop411" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="-261.8696"
+         y1="65.759537"
+         x2="-299.80136"
+         y2="199.29662"
+         id="n-321-322">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(152, 78, 163)"
+           id="stop414" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(152, 78, 163)"
+           id="stop416" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="-261.8696"
+         y1="65.759537"
+         x2="-358.38947"
+         y2="-34.014648"
+         id="n-321-361">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(152, 78, 163)"
+           id="stop419" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(152, 78, 163)"
+           id="stop421" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="299.80136"
+         y1="199.29662"
+         x2="427.97543"
+         y2="139.05765"
+         id="n-158-159">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(55, 75, 184)"
+           id="stop424" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(55, 75, 184)"
+           id="stop426" />
+      </linearGradient>
+      <linearGradient
+         gradientUnits="userSpaceOnUse"
+         x1="299.80136"
+         y1="199.29662"
+         x2="293.86731"
+         y2="340.79611"
+         id="n-158-176">
+        <stop
+           class="start"
+           offset="40%"
+           stop-color="rgb(55, 75, 184)"
+           id="stop429" />
+        <stop
+           class="end"
+           offset="85%"
+           stop-color="rgb(55, 75, 184)"
+           id="stop431" />
+      </linearGradient>
+    </defs>
+    <g
+       class="legend"
+       transform="translate(185.05044,-265.01566)"
+       id="g460">
+      <g
+         id="g440">
+        <circle
+           r="6.6666665"
+           cy="-6.6666665"
+           fill="#e41a1c"
+           id="circle436"
+           cx="0" />
+        <text
+           dx="10"
+           id="text438"
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">3T3</text>
+      </g>
+      <g
+         transform="translate(0,20)"
+         id="g446">
+        <circle
+           r="6.6666665"
+           cy="-6.6666665"
+           fill="#374bb8"
+           id="circle442"
+           cx="0" />
+        <text
+           dx="10"
+           id="text444"
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">A20</text>
+      </g>
+      <g
+         transform="translate(0,40)"
+         id="g452">
+        <circle
+           r="6.6666665"
+           cy="-6.6666665"
+           fill="#ece633"
+           id="circle448"
+           cx="0" />
+        <text
+           dx="10"
+           id="text450"
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">EL4</text>
+      </g>
+      <g
+         transform="translate(0,60)"
+         id="g458">
+        <circle
+           r="6.6666665"
+           cy="-6.6666665"
+           fill="#984ea3"
+           id="circle454"
+           cx="0" />
+        <text
+           dx="10"
+           id="text456"
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Neuro-2a</text>
+      </g>
+    </g>
+  </g>
+</svg>

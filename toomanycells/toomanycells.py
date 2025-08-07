@@ -885,13 +885,16 @@ class TooManyCells:
             # Note that if we provided a path then
             # the list_of_genes variable has a
             # positive length.
+            gene_names_lower = self.A.var_names.str.lower()
 
             for gene in list_of_genes:
 
-                if gene in self.A.var.index:
+                gene_lower = gene.lower()
 
+                if gene_lower in gene_names_lower:
+                    col_index = gene_names_lower.get_loc(
+                        gene_lower)
                     var_names.append(gene)
-                    col_index = self.A.var.index.get_loc(gene)
                     col_indices.append(col_index)
 
                 elif gene in self.A.obs:
@@ -945,6 +948,7 @@ class TooManyCells:
 
             #If no list is provided, use all the genes.
             print("Warning: All genes will be used.")
+            print("Warning: This is a lengthy process.")
             var_names = self.A.var_names
             G_mtx = self.A.X
 
@@ -1337,7 +1341,7 @@ class TooManyCells:
             node: int, 
             genes: Union[List[str], str],
             output_list: bool = False,
-            ):
+        ) -> Union[List[float], float]:
         """
         Compute the mean expression for a specific
         cluster.
@@ -1364,23 +1368,31 @@ class TooManyCells:
 
         is_string = False
 
+        #Select the cells that belong to that node (branch).
+        mask = self.A.obs["sp_cluster"].isin(nodes)
+
         if isinstance(genes, str):
             is_string = True
             list_of_genes = [genes]
+
         else:
             list_of_genes = genes
 
         exp_vec = []
         mean_exp = 0
 
+        gene_names_lower = self.A.var_names.str.lower()
+
         for gene in list_of_genes:
 
-            if gene not in self.A.var.index:
+            gene_lower = gene.lower()
+
+            if gene_lower not in gene_names_lower:
                 raise ValueError(f"{gene=} was not found.")
 
-            col_index = self.A.var.index.get_loc(gene)
+            col_index = gene_names_lower.get_loc(
+                gene_lower)
 
-            mask = self.A.obs["sp_cluster"].isin(nodes)
             mean_exp = self.A.X[mask, col_index].mean()
             exp_vec.append(mean_exp)
 
@@ -2282,7 +2294,12 @@ class TooManyCells:
         # will be considered as strings.
         # If thresholds are present, we need to make
         # sure that they are interpreted as floats.
-        df_cm = pd.read_csv(cell_marker_path, dtype=str)
+        D = {"Marker":str,
+             "Cell":str,
+             "Direction":str,
+             "Threshold":float,
+             }
+        df_cm = pd.read_csv(cell_marker_path, dtype=D)
 
         has_threshold = False
         if "Threshold" in df_cm.columns:
@@ -2313,12 +2330,13 @@ class TooManyCells:
         self.marker_to_mad_threshold = {}
         self.marker_to_mad_direction = {}
 
-        lower_case_gene_names = self.A.var_names.str.lower()
+        gene_names_lower = self.A.var_names.str.lower()
 
         for index, row in df_cm.iterrows():
 
             cell_type = row["Cell"]
-            marker    = row["Marker"].lower()
+            marker    = row["Marker"]
+            marker_lower = marker.lower()
 
             if has_threshold:
                 th = row["Threshold"]
@@ -2340,13 +2358,13 @@ class TooManyCells:
 
             #In case some cell marker is not present
             #in the expression matrix.
-            if marker not in lower_case_gene_names:
+            if marker_lower not in gene_names_lower:
                 print(f"{marker=} not available.")
                 continue
             else:
-                col_index = lower_case_gene_names.get_loc(
-                    marker)
-                marker = self.A.var_names[col_index]
+                col_index = gene_names_lower.get_loc(
+                    marker_lower)
+                # marker = self.A.var_names[col_index]
 
             # In case some cell type is not present
             # in the cell_type_to_group dictionary.
@@ -2449,6 +2467,12 @@ class TooManyCells:
 
         self.mean_exp_mtx = np.zeros(
             (n_nodes, n_markers), dtype=self.FDT)
+        
+        # Mean expression matrix
+        # Node/Marker Marker 1 Marker 2 ...
+        # Node 1
+        # Node 2
+        # ...
 
         print("Computing mean expression for all markers...")
         S = [0]
@@ -2527,8 +2551,6 @@ class TooManyCells:
         print(txt)
 
 
-
-
     #=====================================
     def compute_node_expression_metadata(
             self,
@@ -2579,7 +2601,10 @@ class TooManyCells:
         """
         self.t0 = clock()
 
-        n_nodes, n_markers = self.mean_exp_mtx.shape
+        n_steps = 15
+
+        # n_nodes, n_markers = self.mean_exp_mtx.shape
+        n_markers = self.mean_exp_mtx.shape[1]
         #We create a sparse version of the node
         #expression matrix to eliminate the zeros. 
         #Note that we use a CSC format, since we 
@@ -2606,8 +2631,10 @@ class TooManyCells:
             txt += "_counts"
             L.append(txt)
 
+        #TMCI uses 15 steps, and for each marker 
+            # we store 3 pieces of information.
         self.node_mad_dist_df = pd.DataFrame(
-            data = np.zeros((15,n_markers * 3)), 
+            data = np.zeros((n_steps, n_markers * 3)), 
             index = None,
             columns = L,
             dtype=self.FDT)
@@ -2629,22 +2656,24 @@ class TooManyCells:
                        "max_mad",
                        "delta"],
             dtype = self.FDT,
-            )
+        )
 
         #We use an iterator.
         it = enumerate(zip(indptr[:-1], indptr[1:]))
-        #We iterate over the columns.
+        #We iterate over the columns, i.e., the markers.
         #No zeros.
         for idx, (start, end) in it:
             marker = self.list_of_markers[idx]
             data = mean_exp_mtx_sp.data[start:end]
+            if len(data) == 0:
+                continue
             median = np.median(data)
             min = np.min(data)
             max = np.max(data)
             mad = median_abs_deviation(data)
             min_mad = (min - median) / mad
             max_mad = (max - median) / mad
-            delta =  (max - min) / mad / 15
+            delta =  (max - min) / mad / n_steps
             #Marker x Stats
             self.node_exp_stats_df.iloc[idx,0] = median
             self.node_exp_stats_df.iloc[idx,1] = mad
@@ -2684,6 +2713,7 @@ class TooManyCells:
     #=====================================
     def which_cells_are_above_threshold(
             self,
+            cell_ann_col: str = "",
     ):
         """
 
@@ -2733,17 +2763,26 @@ class TooManyCells:
 	    C2  841	    1.4206275	32.1569
 
         An additional file is also created
-        fname = "cells_with_all_high.csv"
+        fname = "remaining_cells_after_intersection.csv"
         which has the intersection of all the cells
-        whose expression is above the given threshold.
+        whose expression satisfy the given thresholds.
         """
 
         n_cells = self.A.shape[0]
         mask_intersection = np.full(n_cells, True)
+        n_markers = len(self.marker_to_mad_threshold)
 
         dict_iterator = self.marker_to_mad_threshold.items()
+
+        # If we only have two markers, then we can create
+        # a high-high, high-low, low-high and 
+        # low-low classification.
+        list_of_masks = []
+        list_of_markers = []
+
         for marker, threshold in dict_iterator:
             # print(marker, threshold)
+            list_of_markers.append(marker)
             direction = self.marker_to_mad_direction[marker]
             mad = self.node_exp_stats_df.loc[marker,
                                              "mad"]
@@ -2762,6 +2801,10 @@ class TooManyCells:
                 mask = vec <= marker_exp
             else:
                 raise ValueError("Unexpected direction")
+
+            if n_markers == 2:
+                list_of_masks.append(mask)
+
             mask_intersection &= mask
             df = self.A.obs.sp_cluster.loc[mask]
             df = df.to_frame(name="Node")
@@ -2769,6 +2812,9 @@ class TooManyCells:
 
             df["ExpressionAsMADs"] = (vec[mask] - median)
             df["ExpressionAsMADs"] /= mad
+            if 0 < len(cell_ann_col):
+                cell_types = self.A.obs[cell_ann_col]
+                df["CellType"] = cell_types.loc[mask]
 
             fname  = f"{marker}_exp_{direction}"
             fname += f"_MAD_threshold.csv"
@@ -2778,7 +2824,54 @@ class TooManyCells:
         fname = "remaining_cells_after_intersection.csv"
         fname = os.path.join(self.output, fname)
         df = self.A.obs.sp_cluster.loc[mask_intersection]
+        df = df.to_frame(name="Node")
+        if 0 < len(cell_ann_col):
+            cell_types = self.A.obs[cell_ann_col]
+            df["CellType"] = cell_types.loc[mask_intersection]
         df.to_csv(fname, index=True)
+
+        if n_markers == 2:
+
+            # high_1 = list_of_masks[0]
+            # high_2 = list_of_masks[1]
+
+            # low_1  = ~high_1
+            # low_2  = ~high_2
+
+            # high_1_high_2 =  high_1 &  high_2
+            # high_1_low_2  =  high_1 & ~high_2
+            # low_1_high_2  = ~high_1 &  high_2
+            # low_1_low_2   = ~high_1 & ~high_2
+
+            df = self.A.obs.sp_cluster
+            df = df.to_frame(name="Node")
+
+            if 0 < len(cell_ann_col):
+                df["CellType"] = self.A.obs[cell_ann_col]
+
+            df["Class"] = ""
+            states = ["High", "Low"]
+            m1 = list_of_markers[0]
+            m1 = list_of_markers[0]
+
+            for cat_1 in states:
+
+                if cat_1 == "High":
+                    vec = list_of_masks[0]
+                elif cat_1 == "Low":
+                    vec = ~list_of_masks[0]
+
+                cat_name = cat_1 + f"-{m1}"
+
+                for cat_2 in states:
+
+                    if cat_2 == "High":
+                        vec &= list_of_masks[1]
+                    elif cat_2 == "Low":
+                        vec &= ~list_of_masks[1]
+
+
+
 
     #=====================================
     def count_connected_nodes_above_threshold_for_attribute(
@@ -2983,6 +3076,13 @@ class TooManyCells:
             self,
     ):
         """
+        For every marker in the list of markers
+        we create an interactive plot (HTML) of 
+        the marker expression distribution 
+        using MADs (median absolute deviations).
+        The y-axis indicates how many nodes are
+        above a specific threshold. The x-axis
+        describes the thresholds.
         """
         fig = go.Figure()
         n_markers = len(self.list_of_markers)
