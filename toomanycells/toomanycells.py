@@ -2854,6 +2854,27 @@ class TooManyCells:
             m1 = list_of_markers[0]
             m1 = list_of_markers[0]
 
+            def add_category(states, level, vec_bool, state_name):
+
+                if level == n_markers:
+                    return (state_name, vec_bool)
+
+
+                marker_name = list_of_markers[level]
+                new_state_name = state_name + marker_name
+
+                for state in states:
+                    new_state_name += f"-{state}"
+                    new_vec_bool = vec_bool.copy()
+                    if state == "High":
+                        new_vec_bool &= list_of_masks[level]
+                    elif state == "Low":
+                        new_vec_bool &= ~list_of_masks[level]
+
+                    add_category(states, level+1, new_vec_bool, new_state_name)
+
+
+
             for cat_1 in states:
 
                 if cat_1 == "High":
