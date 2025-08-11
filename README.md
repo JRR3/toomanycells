@@ -543,9 +543,19 @@ CD9 on branch 261, you can use the following call
 ```
 
 and you would obtain 12.791.
+
 ![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_cd9_exp.svg)
+
 Looking at the above plot, this suggests that Neuro-2a cells
 highly express this marker.
+If instead we were interested in a different marker, like
+SDC1, this would be the corresponding nodal mean
+expression.
+
+![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_sdc1_exp.svg)
+
+The above plot also illustrates that some Neuro-2a cells
+are rich in SDC1.
 
 ### Median absolute deviation classification
 First we introduce the concept of median absolute 
@@ -688,13 +698,15 @@ CD9-Low-SDC1-High     0.050095
 Name: proportion, dtype: float64
 ```
 
-This indicates that the mojority of the cells,
+This indicates that the majority of the cells,
 i.e., about `70%` of cells,
 are low in CD9 and low in SDC1, and about `10%` of cells
 are high in both. Note that in this particular example
 when we say high it means
 that the expression is above 1 MAD from the median, and
 low is the complement of that.
+
+![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_data_full_marker_class.svg)
 
 
 ## Heterogeneity quantification
