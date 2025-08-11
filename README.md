@@ -433,7 +433,14 @@ you can call
    ```
 
 ## What is the time complexity of toomanycells (à la Python)?
-To answer that question we have created the following benchmark. We tested the performance of toomanycells in 20 data sets having the following number of cells: 6360, 10479, 12751, 16363, 23973, 32735, 35442, 40784, 48410, 53046, 57621, 62941, 68885, 76019, 81449, 87833, 94543, 101234, 107809, 483152. The range goes from thousands of cells to almost half a million cells. These are the results.
+To answer that question we have created the following
+benchmark. We tested the performance of toomanycells in 20
+data sets having the following number of cells: 6,360, 10,479,
+12,751, 16,363, 23,973, 32,735, 35,442, 40,784, 48,410, 53,046,
+57,621, 62,941, 68,885, 76,019, 81,449, 87,833, 94,543, 101,234,
+107,809, and 483,152. The range goes from thousands of cells to
+almost half a million cells. 
+These are the results.
 ![Visualization example](https://github.com/JRR3/toomanycells/blob/main/tests/log_linear_time.png)
 ![Visualization example](https://github.com/JRR3/toomanycells/blob/main/tests/log_linear_iter.png)
 As you can see, the program behaves linearly with respect to the size of the input. In other words, the observations fit the model $T = k\cdot N^p$, where $T$ is the time to process the data set, $N$ is the number of cells, $k$ is a constant, and $p$ is the exponent. In our case $p\approx 1$. Nice!
@@ -476,6 +483,7 @@ cells are likely to cluster together, you can assign the cell
 type labels on a cluster-by-cluster basis
  rather than a cell-by-cell basis. To activate this 
  feature, use the call
+
 ```
    tmc_obj.annotate_with_celltypist(
            column_label_for_cell_annotations,
@@ -487,28 +495,34 @@ type labels on a cluster-by-cluster basis
 ## Graph operations
 
 ### Selecting cells through branches
+
 Imagine you have a tree structure 
 of your data like the one shown below.
-![Branches](https://github.com/JRR3/toomanycells/blob/main/tests/heterogeneity.svg)
+![Branches](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_data_full_2_branches.svg)
 If you want to isolate all the cells that belong to branches
-1183 and 2, and produce an AnnData object with those cells,
+261 and 2, and produce an AnnData object with those cells,
 simply use the following call
+
 ```
    adata = tmc_obj.isolate_cells_from_branches(
-      list_of_branches=[1183,2])
+      list_of_branches=[261,2])
 ```
+
 If you have a CSV file that specifies the branches,
 then use the following call
+
 ```
    adata = tmc_obj.isolate_cells_from_branches(
     path_to_csv_file="list_of_branches.csv",
     branch_column="node",
    )
 ```
+
 The name of the column that contains the branches
 or nodes is specified through the keyword 
 `branch_column`. Lastly, if you want to store 
 a copy of the indices, use the following call
+
 ```
    adata = tmc_obj.isolate_cells_from_branches(
     path_to_csv_file="list_of_branches.csv",
@@ -516,15 +530,18 @@ a copy of the indices, use the following call
     generate_cell_id_file=True,
    )
 ```
+
 ### Mean expression of a branch
 Imagine we have the following tree.
 ![TreeWithLabels](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_data.svg)
 If you want to quantify the mean expression of the marker 
 CD9 on branch 261, you can use the following call
+
 ```
    m_exp = tmc_obj.compute_cluster_mean_expression(
         node=261, genes=["CD9"])
 ```
+
 and you would obtain 12.791.
 ![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_cd9_exp.svg)
 Looking at the above plot, this suggests that Neuro-2a cells
@@ -533,62 +550,151 @@ highly express this marker.
 ### Median absolute deviation classification
 First we introduce the concept of median absolute 
 deviation. Imagine you have a list of $n$ observations
-$L = [z_1,z_2,\ldots,z_n]$. Let 
+$L = [z_0,z_2,\ldots,z_{n-1}]$. Let 
 $\mathcal{M}:\mathbb{R}^n \to \mathbb{R}$ be
 the function that computes the median of a list.
 Consider a new list $K$, where 
 $K_i = \left| L_i - \mathcal{M}(L) \right|$. Then,
-the median absolute deviation of $L$ is 
+the median absolute deviation of $L$ is the 
+median of the absolute differences between the
+original value and the median. Mathematically,
 $\text{MAD}(L) = \mathcal{M}(K)$. For this section
 we will be indicating the expression of a gene in terms
-of MADs. The reason is that we want to classify cells
-and using statistics that capture the dispersion of the
+of MADs. The reason is that we want to classify cells,
+and using quantities that capture the dispersion of the
 data is a convenient approach for that purpose.
+An important point to mention is that
+for each gene,
+instead of considering the raw expression values
+across all cells as the elements of the list $L$, 
+we use the mean expression for each node of the tree.
+In other words, for a given gene,
+the element $z_k$ represents
+the mean expression of that gene for node $k$. Thus,
+$n$ indicates the number of nodes in the tree.
+
 Based on the previous example, now imagine
-you want to find Neuro-2a cells whose expression
-of two marker, CD9 and SDC1, is 1 MAD above the median.
+you want to find cells whose expression
+of two markers, CD9 and SDC1, is 1 MAD above the median.
 First, you need a CSV file containing the following 
 information. 
+
 ```
      Marker      Cell  Threshold Direction
        CD9  Neuro-2a        1.0     Above
       SDC1  Neuro-2a        1.0     Above
 ```
+
 Let's call it `marker_and_cell_info.csv`.
-Then, we quantify the mean expression of those 
+**Note**: For this discussion the cell types indicated in 
+the `Cell` column are not relevant and will not be 
+used. We quantify the mean expression of those 
 markers for every node of the tree and store 
 that information within each node.
 We can do that using the following call.
+
 ```
 tmc_obj.populate_tree_with_mean_expression_for_all_markers(
     cell_marker_path="marker_and_cell_info.csv")
 ```
+
 Then we compute basic statistics for each marker using the
 following function
+
 ```
 tmc_obj.compute_node_expression_metadata()
 ```
+
 These are
 the statistics associated to those markers.
+
 ```
            median        mad       min         max   min_mad      max_mad       delta
 CD9      3.080538   1.918258  0.000890   22.944445 -1.605441    10.355182    0.797375
 SDC1     2.989691   1.165005  0.001669    6.639456 -2.564814     3.132832    0.379843
-
 ```
+
+Note that the maximum expression of CD9 
+is about 10 MADs above the median, while that of
+SDC1 is only about 3 MADs above the median.
 The plot corresponding to the distribution of those
 markers across all nodes can be generated through this call
+
 ```
 tmc_obj.plot_marker_distributions()
 ```
+
 The plots can be found in the following 
 [link](https://github.com/JRR3/toomanycells/blob/main/tests/marker_mad_dist_for_tree.html).
+
 If we want to isolate the cells that satisfy the conditions
+
 ```
      Marker      Cell  Threshold Direction
        CD9  Neuro-2a        1.0     Above
       SDC1  Neuro-2a        1.0     Above
 ```
+
+We can use the call
+
+```
+tmc_obj.select_cells_based_on_inequalities(
+    cell_ann_col="cell_type")
+```
+
+where the cell annotation column in the `.obs` 
+dataframe is specified through the
+`cell_ann_col` keyword. This function will 
+return an AnnData object with all the
+cells satisfying all the constraints.
+
+This function will also produce
+multiple CSV files. One for each inequality
+specified through the file of constraints.
+For example,
+one for all cells whose 
+expression of CD9 was above 1 MAD of the median 
+expression of CD9,
+one for all cells whose 
+expression of SDC1 was above 1 MAD of the median 
+expression of SDC1, 
+and one corresponding to the intersection
+of all of the above. The above function will 
+modify the original AnnData object by adding to
+the `.obs` dataframe a column
+named `Intersection`
+indicating with a boolean value 
+if a cell satisfies all the constraints.
+
+Lastly, if the number of markers is less than or
+equal to three, then the `.obs` dataframe will
+include a column classifying the cells 
+based on whether they express
+highly or not each of the markers. For instance,
+in this example we obtained the following outputs.
+
+```
+Class
+CD9-Low-SDC1-Low      28729
+CD9-High-SDC1-Low      6072
+CD9-High-SDC1-High     4223
+CD9-Low-SDC1-High      2058
+Name: count, dtype: int64
+Class
+CD9-Low-SDC1-Low      0.699309
+CD9-High-SDC1-Low     0.147802
+CD9-High-SDC1-High    0.102794
+CD9-Low-SDC1-High     0.050095
+Name: proportion, dtype: float64
+```
+
+This indicates that the mojority of the cells,
+i.e., about `70%` of cells,
+are low in CD9 and low in SDC1, and about `10%` of cells
+are high in both. Note that in this particular example
+when we say high it means
+that the expression is above 1 MAD from the median, and
+low is the complement of that.
 
 
 ## Heterogeneity quantification

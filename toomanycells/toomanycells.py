@@ -25,6 +25,7 @@ import networkx as nx
 import matplotlib as mpl
 import celltypist as CT
 from typing import List
+from typing import Tuple
 from typing import Union
 from typing import Optional
 from os.path import dirname
@@ -33,6 +34,7 @@ from scipy import sparse as sp
 from scipy.stats import entropy
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from numpy.typing import ArrayLike
 from time import perf_counter as clock
 from collections import defaultdict as ddict
 from scipy.stats import median_abs_deviation
@@ -2554,7 +2556,7 @@ class TooManyCells:
     #=====================================
     def compute_node_expression_metadata(
             self,
-    ):
+        ):
         """
         Before calling this function we need to call:
         populate_tree_with_mean_expression_for_all_markers()
@@ -2711,10 +2713,11 @@ class TooManyCells:
         print(txt)
 
     #=====================================
-    def which_cells_are_above_threshold(
+    def select_cells_based_on_inequalities(
             self,
             cell_ann_col: str = "",
-    ):
+            n_markers_binary_threshold: int = 3,
+        ) -> sc.AnnData:
         """
 
         For every marker we create a CSV file
@@ -2802,7 +2805,7 @@ class TooManyCells:
             else:
                 raise ValueError("Unexpected direction")
 
-            if n_markers == 2:
+            if 1 < n_markers <= n_markers_binary_threshold:
                 list_of_masks.append(mask)
 
             mask_intersection &= mask
@@ -2825,23 +2828,17 @@ class TooManyCells:
         fname = os.path.join(self.output, fname)
         df = self.A.obs.sp_cluster.loc[mask_intersection]
         df = df.to_frame(name="Node")
+
+        self.A.obs["Intersection"] = mask_intersection
+
         if 0 < len(cell_ann_col):
             cell_types = self.A.obs[cell_ann_col]
-            df["CellType"] = cell_types.loc[mask_intersection]
+            df["CellType"]=cell_types.loc[mask_intersection]
+
+        #Write the file of intersections.
         df.to_csv(fname, index=True)
 
-        if n_markers == 2:
-
-            # high_1 = list_of_masks[0]
-            # high_2 = list_of_masks[1]
-
-            # low_1  = ~high_1
-            # low_2  = ~high_2
-
-            # high_1_high_2 =  high_1 &  high_2
-            # high_1_low_2  =  high_1 & ~high_2
-            # low_1_high_2  = ~high_1 &  high_2
-            # low_1_low_2   = ~high_1 & ~high_2
+        if 1 < n_markers <= n_markers_binary_threshold:
 
             df = self.A.obs.sp_cluster
             df = df.to_frame(name="Node")
@@ -2850,46 +2847,83 @@ class TooManyCells:
                 df["CellType"] = self.A.obs[cell_ann_col]
 
             df["Class"] = ""
-            states = ["High", "Low"]
-            m1 = list_of_markers[0]
-            m1 = list_of_markers[0]
+            mask = np.ones(n_cells, dtype=bool)
+            vec_classes = df["Class"].values
+            exp_states  = ("High", "Low")
 
-            def add_category(states, level, vec_bool, state_name):
+            def add_category(states: Tuple[str],
+                             level: int,
+                             vec_bool: ArrayLike,
+                             state_name: str,
+                             vec_str: ArrayLike,
+                ):
 
                 if level == n_markers:
-                    return (state_name, vec_bool)
+                    #Assign the final name
+                    #to the cells that satisfy 
+                    #the class condition.
+                    vec_str[vec_bool] = state_name
+
+                    return None
 
 
                 marker_name = list_of_markers[level]
-                new_state_name = state_name + marker_name
+
 
                 for state in states:
-                    new_state_name += f"-{state}"
+
+                    if 0 == level:
+                        new_state_name = state_name
+                    else:
+                        new_state_name = f"{state_name}-"
+
+                    new_state_name += f"{marker_name}-{state}"
                     new_vec_bool = vec_bool.copy()
+
                     if state == "High":
                         new_vec_bool &= list_of_masks[level]
+
                     elif state == "Low":
                         new_vec_bool &= ~list_of_masks[level]
 
-                    add_category(states, level+1, new_vec_bool, new_state_name)
+                    else:
+                        raise ValueError("Unknown state.")
+
+                    add_category(states,
+                                 level+1,
+                                 new_vec_bool,
+                                 new_state_name,
+                                 vec_str)
+
+            #Initiate the recursive call.
+            add_category(exp_states,
+                         0,
+                         mask,
+                         "",
+                         vec_classes,
+            )
+
+            #Update the column of classes.
+            df["Class"] = vec_classes
+
+            print(df["Class"].value_counts())
+            print(df["Class"].value_counts(normalize=True))
+
+            fname = "cell_classes_from_markers.csv"
+            fname = os.path.join(self.output, fname)
+
+            #Write the file of 
+            df.to_csv(fname, index=True)
+
+            self.A.obs["MarkerClass"] = vec_classes
+
+        #Return an AnnData object whose cells
+        return self.A[mask_intersection].copy()
 
 
 
-            for cat_1 in states:
 
-                if cat_1 == "High":
-                    vec = list_of_masks[0]
-                elif cat_1 == "Low":
-                    vec = ~list_of_masks[0]
 
-                cat_name = cat_1 + f"-{m1}"
-
-                for cat_2 in states:
-
-                    if cat_2 == "High":
-                        vec &= list_of_masks[1]
-                    elif cat_2 == "Low":
-                        vec &= ~list_of_masks[1]
 
 
 
