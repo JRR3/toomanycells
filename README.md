@@ -505,8 +505,8 @@ following call.
 ```
 
 In this case all cells that have the label `Neuro-2a`
-with the column `cell_type` in the `.obs` dataframe 
-will be selected, and the resulting AnnData object
+within the column `cell_type` in the `.obs` dataframe 
+will be selected, and the resulting AnnData object `A`
 will only have these cells.
 
 ## Graph operations
