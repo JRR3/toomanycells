@@ -491,6 +491,23 @@ type labels on a cluster-by-cluster basis
            use_majority_voting = True,
    )
 ```
+## Filtering cells
+
+If you want to select cells 
+that belong to a class defined
+within a specific column of the
+`.obs` dataframe, you can use the
+following call.
+
+```
+ A = tmc_obj.filter_for_cells_with_property(
+   "cell_type", "Neuro-2a")
+```
+
+In this case all cells that have the label `Neuro-2a`
+with the column `cell_type` in the `.obs` dataframe 
+will be selected, and the resulting AnnData object
+will only have these cells.
 
 ## Graph operations
 

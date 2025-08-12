@@ -2921,13 +2921,6 @@ class TooManyCells:
         return self.A[mask_intersection].copy()
 
 
-
-
-
-
-
-
-
     #=====================================
     def count_connected_nodes_above_threshold_for_attribute(
             self,
@@ -3676,6 +3669,23 @@ class TooManyCells:
             change_all,
             labels_to_change,
         )
+
+    #=====================================
+    def filter_for_cells_with_property(
+            self,
+            obs_column: str,
+            kind: str,
+        ) -> sc.AnnData:
+        """
+        Use this function to select cells 
+        that belong to a class defined
+        within a specific column of the
+        .obs dataframe.
+        """
+
+        mask = self.A.obs[obs_column] == kind
+
+        return self.A[mask]
 
 
     #====END=OF=CLASS=====================
