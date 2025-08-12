@@ -2717,12 +2717,21 @@ class TooManyCells:
             self,
             cell_ann_col: str = "",
             n_markers_binary_threshold: int = 3,
+            return_updated_adata = False,
         ) -> sc.AnnData:
         """
 
         For every marker we create a CSV file
         indicating which cells are above or
         below the given MAD threshold.
+
+        The function returns an AnnData object that
+        contains only the cells satisfying all the
+        constraints.  However, if the 
+        return_updated_adata flag
+        is True, then we return the original
+        AnnData object with the updated .obs
+        dataframe. 
 
         In the file that was loaded during the call to
         load_marker_and_cell_type_data()
@@ -2917,7 +2926,9 @@ class TooManyCells:
 
             self.A.obs["MarkerClass"] = vec_classes
 
-        #Return an AnnData object whose cells
+        if return_updated_adata:
+            return self.A
+        
         return self.A[mask_intersection].copy()
 
 
