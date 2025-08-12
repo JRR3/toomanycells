@@ -3,7 +3,7 @@
    viewBox="-500 -500 677.85974 658.39008"
    version="1.1"
    id="svg11051"
-   sodipodi:docname="download(3).svg"
+   sodipodi:docname="4plex_sdc1_exp_full.svg"
    width="677.85974"
    height="658.39008"
    inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
@@ -26,9 +26,9 @@
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     inkscape:zoom="0.833"
-     inkscape:cx="379.95198"
-     inkscape:cy="253.30132"
+     inkscape:zoom="1.666"
+     inkscape:cx="356.54262"
+     inkscape:cy="433.97359"
      inkscape:window-width="1920"
      inkscape:window-height="1011"
      inkscape:window-x="0"
@@ -33644,6 +33644,16 @@
            id="text11043"
            style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">SDC1</text>
       </g>
+    </g>
+    <g
+       id="g24881"
+       transform="translate(217.18604,-353.60533)">
+      <text
+         text-anchor="end"
+         id="text11035-3"
+         x="-213.45825"
+         y="428.49969"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.2549px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-anchor:end">261</text>
     </g>
   </g>
 </svg>

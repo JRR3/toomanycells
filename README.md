@@ -552,7 +552,7 @@ If instead we were interested in a different marker, like
 SDC1, this would be the corresponding nodal mean
 expression.
 
-![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_sdc1_exp.svg)
+![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_sdc1_exp_full.svg)
 
 The above plot also illustrates that some Neuro-2a cells
 are rich in SDC1.
