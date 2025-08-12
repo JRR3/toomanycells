@@ -533,7 +533,7 @@ a copy of the indices, use the following call
 
 ### Mean expression of a branch
 Imagine we have the following tree.
-![TreeWithLabels](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_data.svg)
+![TreeWithLabels](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_data_full.svg)
 If you want to quantify the mean expression of the marker 
 CD9 on branch 261, you can use the following call
 
@@ -544,13 +544,13 @@ CD9 on branch 261, you can use the following call
 
 and you would obtain 12.791.
 
-![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_cd9_exp.svg)
+![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_cd9_exp_full.svg)
 
 Looking at the above plot, this suggests that Neuro-2a cells
 highly express this marker.
 If instead we were interested in a different marker, like
-SDC1, this would be the corresponding nodal mean
-expression.
+SDC1, this would be the corresponding color map
+expression across the nodes.
 
 ![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_sdc1_exp_full.svg)
 
