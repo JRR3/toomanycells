@@ -558,6 +558,7 @@ The above plot also illustrates that some Neuro-2a cells
 are rich in SDC1.
 
 ### Median absolute deviation classification
+
 First we introduce the concept of median absolute 
 deviation. Imagine you have a list of $n$ observations
 $L = [z_0,z_2,\ldots,z_{n-1}]$. Let 
@@ -635,7 +636,7 @@ tmc_obj.plot_marker_distributions()
 ```
 
 The plots can be found in the following 
-[link](https://github.com/JRR3/toomanycells/blob/main/tests/marker_mad_dist_for_tree.html).
+[link](https://github.com/JRR3/toomanycells/blob/main/tests/marker_nodal_distribution/index.html).
 
 If we want to isolate the cells that satisfy the conditions
 
