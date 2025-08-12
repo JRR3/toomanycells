@@ -578,15 +578,15 @@ are rich in SDC1.
 
 First we introduce the concept of median absolute 
 deviation. Imagine you have a list of $n$ observations
-$L = [z_0,z_2,\ldots,z_{n-1}]$. Let 
+$Z = [z_0,z_1,\ldots,z_{n-1}]$. Let 
 $\mathcal{M}:\mathbb{R}^n \to \mathbb{R}$ be
 the function that computes the median of a list.
-Consider a new list $K$, where 
-$K_i = \left| L_i - \mathcal{M}(L) \right|$. Then,
-the median absolute deviation of $L$ is the 
+Consider a new list $K=[k_0,k_1,\ldots,k_{n-1}]$, where 
+$k_i = \left| z_i - \mathcal{M}(Z) \right|$. Then,
+the median absolute deviation of $Z$ is the 
 median of the absolute differences between the
 original value and the median. Mathematically,
-$\text{MAD}(L) = \mathcal{M}(K)$. For this section
+$\text{MAD}(Z) = \mathcal{M}(K)$. For this section
 we will be indicating the expression of a gene in terms
 of MADs. The reason is that we want to classify cells,
 and using quantities that capture the dispersion of the
@@ -594,7 +594,7 @@ data is a convenient approach for that purpose.
 An important point to mention is that
 for each gene,
 instead of considering the raw expression values
-across all cells as the elements of the list $L$, 
+across all cells as the elements of the list $Z$, 
 we use the mean expression for each node of the tree.
 In other words, for a given gene,
 the element $z_k$ represents

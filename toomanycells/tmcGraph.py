@@ -647,8 +647,10 @@ class TMCGraph:
     def load_graph(
             self,
             json_fname: str = "graph.json",
-            load_clusters_file: bool = True,
+            load_clusters_file: bool = False,
+            load_from_uns: bool = False,
         ):
+
         """
         Load the JSON file. Note that when loading the data,
         the attributes of each node are assumed to be 
@@ -657,23 +659,29 @@ class TMCGraph:
         for the modularity.
         """
 
-        json_fname = os.path.join(self.output, json_fname)
+        if load_from_uns:
+            self.G = self.A.uns["tmc_graph"].copy()
 
-        if not os.path.exists(json_fname):
-            raise ValueError("File does not exists.")
+        else:
 
-        # Avoid dependencies with GraphViz
-        # dot_fname = "graph.dot"
-        # dot_fname = os.path.join(self.output, dot_fname)
-        # self.G = nx.nx_agraph.read_dot(dot_fname)
+            json_fname = os.path.join(self.output,
+                                      json_fname)
 
-        print("Reading JSON file ...")
+            if not os.path.exists(json_fname):
+                raise ValueError("File does not exists.")
 
-        with open(json_fname, encoding="utf-8") as f:
-            json_graph = json.load(f)
-        self.G = nx.node_link_graph(json_graph)
-        
-        print("Finished reading JSON file.")
+            # Avoid dependencies with GraphViz
+            # dot_fname = "graph.dot"
+            # dot_fname = os.path.join(self.output, dot_fname)
+            # self.G = nx.nx_agraph.read_dot(dot_fname)
+
+            print("Reading JSON file ...")
+
+            with open(json_fname, encoding="utf-8") as f:
+                json_graph = json.load(f)
+            self.G = nx.node_link_graph(json_graph)
+            
+            print("Finished reading JSON file.")
 
         n_nodes = self.G.number_of_nodes()
 

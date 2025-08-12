@@ -3564,15 +3564,18 @@ class TooManyCells:
     def load_graph(
             self,
             json_fname: str = "graph.json",
-            load_clusters_file: bool = True,
+            load_clusters_file: bool = False,
             store_in_uns_dict: bool = False,
+            load_from_uns: bool = False
         ):
         """
         Load graph from JSON file.
         """
 
         self.tmcGraph.load_graph(json_fname,
-                                 load_clusters_file)
+                                 load_clusters_file,
+                                 load_from_uns,
+        )
         # After loading the graph, the set of leaf
         # nodes gets populated internally.
         x = self.tmcGraph.set_of_leaf_nodes
