@@ -635,8 +635,20 @@ markers across all nodes can be generated through this call
 tmc_obj.plot_marker_distributions()
 ```
 
-The plots can be found in the following 
-[link](https://github.com/JRR3/toomanycells/blob/main/tests/marker_nodal_distribution/index.html).
+The plots will be all contained in a dynamic html file. 
+Here are some examples.
+
+This is the distribution for CD9:
+
+![nodalDist](https://github.com/JRR3/toomanycells/blob/main/tests/marker_nodal_distribution/cd9_nodal_distribution_homemade.png)
+
+and with TooManyCellsInteractive
+
+![nodalDist](https://github.com/JRR3/toomanycells/blob/main/tests/marker_nodal_distribution/cd9_nodal_distribution_tmci.png)
+
+The distribution for SDC1 looks as follows.
+
+![nodalDist](https://github.com/JRR3/toomanycells/blob/main/tests/marker_nodal_distribution/sdc1_nodal_distribution_homemade.png)
 
 If we want to isolate the cells that satisfy the conditions
 
