@@ -42,7 +42,7 @@ class CellAnnotation:
             cell_ann_col: str = "cell_annotations",
             upper_threshold: float = 0.80,
             change_below_this: float = 0.50,
-            minimum_level: int = 0,
+            max_n_up_steps: int = 1,
             change_all: bool = True,
             labels_to_change: List[str] = [],
     ):
@@ -56,6 +56,7 @@ class CellAnnotation:
         CA = cell_ann_col
         nodes_to_relabel = set()
 
+        #Iterate over all nodes.
         for node in self.G.nodes:
 
             if 0 < self.G.out_degree(node):
@@ -66,13 +67,14 @@ class CellAnnotation:
                 node,
                 CA,
                 upper_threshold,
-                minimum_level,
+                max_n_up_steps,
                 labels_to_change,
             )
 
             if majority is None:
-                print(f"Error at {node=}")
-                raise ValueError("No majority candidate.")
+                print(f"No majority found at {node=}.")
+                continue
+                # raise ValueError("No majority candidate.")
 
 
             #Child
@@ -101,15 +103,17 @@ class CellAnnotation:
         S.name       = "label"
         S.to_csv(fname, index=True)
 
+        return self.A
+
     #=====================================
     def find_majority_from_node(
             self,
             starting_node: int,
             cell_ann_col: str = "cell_annotations",
             threshold: float = 0.80,
-            minimum_level: int = 0,
+            max_n_up_steps: float = np.inf,
             cell_types_to_avoid: List[str] = [],
-    ) -> Optional[str]:
+        ) -> Optional[str]:
         """
         Find an ancestor node whose majority is
         above the threshold.
@@ -117,15 +121,14 @@ class CellAnnotation:
 
         CA = cell_ann_col
 
-        keep_looking = True
-        level = -1
+        level = 0
         best_candidate_label = None
         best_candidate_ratio = 0
         best_candidate_node  = -1
 
         node = starting_node
 
-        while keep_looking:
+        while level <= max_n_up_steps:
 
             if 0 < self.G.out_degree(node):
                 #This is not a leaf node.
@@ -144,25 +147,37 @@ class CellAnnotation:
                 if child_majority in cell_types_to_avoid:
                     pass
                 else:
-                    if minimum_level <= level:
-                        return child_majority
+                    return child_majority
 
             #Find a best candidate in case we 
             #are not able to satisfy all the
-            #conditions.
+            #conditions. Notice that we iterate
+            #over the cell types because some 
+            #of them could be in the list of 
+            #cell types to avoid.
             for cell_type, ratio in vc.items():
+
                 # print(f"-----------")
                 # print(f"{node=}")
                 # print(f"{cell_type=}")
                 # print(f"{ratio=}")
                 # print(f"-----------")
+
                 if cell_type in cell_types_to_avoid:
                     continue
+
+                #If we are here that means that
+                #we have a valid cell type. Since
+                #the ratios are decreasing, either
+                #this cell type is above the ratio
+                #or none are.
                 if best_candidate_ratio < ratio:
+
                     best_candidate_ratio = ratio
                     best_candidate_label = cell_type
                     best_candidate_node  = node
-                    break
+
+                break
 
             if 0 == self.G.in_degree(node):
                 #This is a root node.
@@ -175,7 +190,8 @@ class CellAnnotation:
         print(f"{best_candidate_label=}")
         print(f"{best_candidate_ratio=}")
         print(f"{best_candidate_node=}")
-        return best_candidate_label
+        # return best_candidate_label
+        return None
 
     #=====================================
     def check_leaf_homogeneity(
