@@ -511,6 +511,12 @@ will only have these cells.
 
 ## Graph operations
 
+### Using MEDUSA
+If you use `MEDUSA`, please refer to 
+[this YAML file](https://github.com/JRR3/toomanycells/blob/main/tests/medusa_example_aug_28_2025.yaml)
+to have an idea of how you can use some of 
+the following functions from TooManyCells à la Python.
+
 ### Selecting cells through branches
 
 Imagine you have a tree structure 

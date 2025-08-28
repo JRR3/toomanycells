@@ -1,0 +1,95 @@
+####################################################
+#TooManyCells à la Python
+#JRR @ PMH August 28 2025
+#This is a simple example of a YAML file to
+#be used with MEDUSA (dev branch)
+#If you are using the tower server (Luigi), then
+#simply change the output folder to a folder
+#within Luigi where you have write permission.
+####################################################
+set:
+  output: "/mnt/data0/javier/py_exp/schmelzen/august_5_2025/med_out"
+
+
+####################################################
+#1
+  input:
+    4plex:
+      scRNAseq: 
+        data: "/mnt/data0/javier/py_exp/schmelzen/august_5_2025/matrix.h5ad"
+####################################################
+#The fun starts here.
+####################################################
+run:
+  GenerateTMC:
+    prev_step: "None"
+    generate_tmc:
+      command:
+        - "exec sc.read_h5ad {input}"
+        - "|> tl.generate_tmc {output}"
+        - "--cell_ann_col=cell_type"
+        - "--generate_matrix_of_genes=True"
+        - "--list_of_genes=['CD9','SDC1']"
+        - "--plot_tree=False"
+        - "--draw_modularity=False"
+        - "--draw_node_numbers=False"
+        - "|> write {output}"
+        - "--force_all=True"
+      modality: ["scRNAseq"]
+  ####################################################
+  MatrixMarket:
+    prev_step: "GenerateTMC"
+    matrixmarket:
+      command:
+        - "exec read {input}"
+        - "|> tl.generate_matrix_market_for_genes {output}"
+        - "--list_of_genes=['CD9','SDC1']"
+        - "|> write {output}"
+      modality: ["scRNAseq"]
+  ####################################################
+  HomogenizeCells:
+    prev_step: "GenerateTMC"
+    homogenize:
+      command:
+        - "exec read {input}"
+        - "|> tl.homogenize_labels {output}"
+        - "--cell_ann_col=cell_type"
+        - "--change_all=True"
+        - "|> write {output}"
+      modality: ["scRNAseq"]
+  ####################################################
+  Branches:
+    prev_step: "GenerateTMC"
+    isolatecells:
+      command:
+        - "exec read {input}"
+        - "|> tl.isolate_cells_from_branches {output}"
+        - "--list_of_branches=[261,2]"
+        - "|> write {output}"
+      modality: ["scRNAseq"]
+  ####################################################
+  Inequalities:
+    prev_step: "GenerateTMC"
+    ineqextract:
+      command:
+        - "exec read {input}"
+        - "|> tl.select_cells_based_on_inequalities {output}"
+        - "--cell_ann_col=cell_type"
+        - "--return_updated_adata=True"
+        - "--create_interactive_plots=True"
+        - "--cell_marker_path=/home/javier/medusa/markers_for_4plex.csv"
+        - "|> write {output}"
+      modality: ["scRNAseq"]
+  ####################################################
+  FilterCells:
+    prev_step: "Inequalities"
+    filtercells:
+      command:
+        - "exec read {input}"
+        - "|> tl.filter_for_cells_with_property {output}"
+        - "--obs_column=Intersection"
+        - "--kind=True"
+        - "|> write {output}"
+      modality: ["scRNAseq"]
+  ####################################################
+
