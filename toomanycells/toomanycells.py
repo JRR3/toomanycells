@@ -437,7 +437,7 @@ class TooManyCells:
         p_node_id = node_id
 
         if similarity_function == "cosine_sparse":
-            Q,S = simMat.compute_partition_for_cosp(rows)
+            Q,S = simMat.compute_partition_for_cosine_sparse(rows)
         elif similarity_function == "norm_sparse":
             Q,S = simMat.compute_partition_for_normsp(rows)
         else:
@@ -519,7 +519,7 @@ class TooManyCells:
                 # We need to know the modularity to 
                 # determine if the node will be partitioned.
                 if similarity_function == "cosine_sparse":
-                    Q,S=simMat.compute_partition_for_cosp(
+                    Q,S=simMat.compute_partition_for_cosine_sparse(
                             rows)
                 elif similarity_function == "norm_sparse":
                     Q,S=simMat.compute_partition_for_normsp(
