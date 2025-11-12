@@ -10,6 +10,9 @@
 #########################################################
 #Questions? Email me at: javier.ruizramirez@uhn.ca
 #########################################################
+
+from anndata import AnnData
+
 import os
 import re
 import sys
@@ -46,9 +49,7 @@ from toomanycells import cellAnnotation
 #Matplotlib parameters.
 mpl.use("agg")
 mpl.rcParams["figure.dpi"]=600
-# mpl.rcParams["pdf.fonttype"]=42
 mpl.rc("pdf", fonttype=42)
-
 font = {'weight' : 'normal', 'size'   : 18}
 mpl.rc("font", **font)
 
@@ -67,7 +68,7 @@ class TooManyCells:
         Too-Many-Cells tool, the clustering.
         Features such as normalization,
         dimensionality reduction and many others can be
-        applied using functions from libraries like
+        executed using functions from libraries like
         Scanpy, or they can be implemented locally. This
         implementation also allows the possibility of
         new features with respect to the original
@@ -80,7 +81,7 @@ class TooManyCells:
         with a few conditions using the cell annotations
         in the .obs data frame of the AnnData object.
 
-    With regards to visualization, we recommend
+    With regards to visualization, I recommend
         using the too-many-cells-interactive tool.
         You can find more information about it at:
         https://doi.org/10.1093/gigascience/giae056
@@ -94,11 +95,12 @@ class TooManyCells:
     """
     #=================================================
     def __init__(self,
-            input: Optional[Union[sc.AnnData, str]] = None,
+            input: Optional[Union[AnnData, str]] = None,
             output: str = "",
             input_is_matrix_market: bool = False,
             use_full_matrix: bool = False,
             use_raw: bool = False,
+            use_rep: Optional[str] = None,
             ):
         """
         The constructor takes the following inputs.
@@ -123,7 +125,7 @@ class TooManyCells:
 
         if input is None:
             matrix = np.array([[]])
-            self.A = sc.AnnData(matrix)
+            self.A = AnnData(matrix)
 
         elif isinstance(input, TooManyCells):
 
@@ -171,7 +173,7 @@ class TooManyCells:
                             print(txt)
                             break
 
-        elif isinstance(input, sc.AnnData):
+        elif isinstance(input, AnnData):
             self.A = input
         else:
             raise ValueError('Unexpected input type.')
@@ -356,7 +358,6 @@ class TooManyCells:
             normalize_rows: bool = False,
             similarity_function: str = "cosine_sparse",
             similarity_norm: float = 2,
-            similarity_power: float = 1,
             similarity_gamma: Optional[float] = None,
             use_tf_idf: bool = False,
             tf_idf_norm: Optional[str] = None,
@@ -396,7 +397,6 @@ class TooManyCells:
             normalize_rows,
             similarity_function,
             similarity_norm,
-            similarity_power,
             similarity_gamma,
             use_tf_idf,
             tf_idf_norm,
@@ -438,10 +438,10 @@ class TooManyCells:
 
         if similarity_function == "cosine_sparse":
             Q,S = simMat.compute_partition_for_cosine_sparse(rows)
-        elif similarity_function == "norm_sparse":
-            Q,S = simMat.compute_partition_for_normsp(rows)
+        elif similarity_function == "dnes_sparse":
+            Q,S = simMat.compute_partition_for_dnes_sparse(rows)
         else:
-            Q,S = simMat.compute_partition_for_full(rows)
+            Q,S = simMat.compute_partition_for_dense_matrix(rows)
 
         if modularity_threshold < Q:
             #Modularity is above threshold, and
@@ -519,16 +519,11 @@ class TooManyCells:
                 # We need to know the modularity to 
                 # determine if the node will be partitioned.
                 if similarity_function == "cosine_sparse":
-                    Q,S=simMat.compute_partition_for_cosine_sparse(
-                            rows)
-                elif similarity_function == "norm_sparse":
-                    Q,S=simMat.compute_partition_for_normsp(
-                            rows)
-                    #Q = 0
+                    Q,S = simMat.compute_partition_for_cosine_sparse(rows)
+                elif similarity_function == "dnes_sparse":
+                    Q,S = simMat.compute_partition_for_dnes_sparse(rows)
                 else:
-                    Q,S=simMat.compute_partition_for_full(
-                            rows)
-                    #Q = 0
+                    Q,S = simMat.compute_partition_for_dense_matrix(rows)
 
                 # If the parent node is 0, then the path is
                 # "0".
@@ -768,7 +763,7 @@ class TooManyCells:
         #genes for rows and cells for columns.
         #Thus, just transpose.
         self.A = mat.T.tocsr()
-        self.A = sc.AnnData(self.A)
+        self.A = AnnData(self.A)
 
         # ==================== BARCODES ================
         fname = None
@@ -1248,13 +1243,14 @@ class TooManyCells:
 
 
     #=====================================
-    def get_path_from_root_to_node(
+    def get_path_from_node_to_root(
             self,
             target: int,
             ):
         """
         For a given node, we find the path from the root 
         to that node.
+        The first 
         """
 
         node = target
@@ -1295,8 +1291,8 @@ class TooManyCells:
         corresponding nodes, and then we remove the
         intersection except at the branching point.
         """
-        x_path, x_dist = self.get_path_from_root_to_node(x)
-        y_path, y_dist = self.get_path_from_root_to_node(y)
+        x_path, x_dist = self.get_path_from_node_to_root(x)
+        y_path, y_dist = self.get_path_from_node_to_root(y)
 
         x_set = set(x_path)
         y_set = set(y_path)
@@ -1316,6 +1312,10 @@ class TooManyCells:
         intersection = np.array(intersection)
         n_intersection = len(intersection)
         
+        #Because the path starts from the node
+        #in question, we count backwards from the
+        #root node (0) until the last node that is
+        #common to the x_path and the y_path.
         pivot_node = x_path[-n_intersection]
         pivot_dist = x_dist[-n_intersection]
 
@@ -2718,7 +2718,7 @@ class TooManyCells:
             cell_ann_col: str = "",
             n_markers_binary_threshold: int = 3,
             return_updated_adata = False,
-        ) -> sc.AnnData:
+        ) -> AnnData:
         """
 
         For every marker we create a CSV file
@@ -3321,7 +3321,7 @@ class TooManyCells:
         we facilitate its use through TMC 
         a la Python.
         """
-        B = sc.AnnData(self.A.X.copy())
+        B = AnnData(self.A.X.copy())
 
         vec = B.X.expm1().sum(axis=1) - 1e4
         vec = np.abs(vec)
@@ -3689,7 +3689,7 @@ class TooManyCells:
             self,
             obs_column: str,
             kind: str,
-        ) -> sc.AnnData:
+        ) -> AnnData:
         """
         Use this function to select cells 
         that belong to a class defined

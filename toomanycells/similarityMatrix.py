@@ -120,7 +120,6 @@ class SimilarityMatrix:
             normalize_rows: bool = False,
             similarity_function: str = "cosine_sparse",
             similarity_norm: float = 2,
-            similarity_power: float = 1,
             similarity_gamma: Optional[float] = None,
             use_tf_idf: bool = False,
             tf_idf_norm: Optional[str] = None,
@@ -140,12 +139,9 @@ class SimilarityMatrix:
         elif similarity_gamma <= 0:
             raise ValueError("Unexpected similarity gamma.")
 
-        if similarity_power <= 0:
-            raise ValueError("Unexpected similarity power.")
-
         similarity_functions = []
         similarity_functions.append("cosine_sparse")
-        similarity_functions.append("norm_sparse")
+        similarity_functions.append("dnes_sparse")
         similarity_functions.append("cosine")
         similarity_functions.append("laplacian")
         similarity_functions.append("gaussian")
@@ -173,7 +169,8 @@ class SimilarityMatrix:
 
             tf_idf_obj = TfidfTransformer(
                 norm=tf_idf_norm,
-                smooth_idf=tf_idf_smooth)
+                smooth_idf=tf_idf_smooth,
+            )
 
             self.X = tf_idf_obj.fit_transform(self.X)
             if self.is_sparse:
@@ -268,11 +265,7 @@ class SimilarityMatrix:
                     n_workers = 25
             print(f"Using {n_workers=}.")
 
-        if similarity_function == "cosine_sparse":
-            # This function is not translation invariant.
-            pass
-
-        elif similarity_function == "cosine":
+        if similarity_function == "cosine":
 
             #( x @ y ) / ( ||x|| * ||y|| )
             # This function is not translation invariant.
@@ -412,7 +405,6 @@ class SimilarityMatrix:
             if plot_similarity_matrix:
                 self.plot_similarity_matrix()
 
-            
             print("Similarity matrix has been built.")
             tf = clock()
             delta = tf - t0
@@ -493,7 +485,7 @@ class SimilarityMatrix:
         if n_rows == 1:
             Q = -np_inf
             partition = []
-            return (Q, partition, None)
+            return (Q, partition)
 
         B = self.X[rows,:]
         ones = np_ones(n_rows, dtype=self.FDT)
@@ -548,6 +540,10 @@ class SimilarityMatrix:
             if similarity_op[0,1] <= 0:
                 #Since the similarity is nonpositive
                 #we separate the cells.
+                #Note that for nonnegative data, this
+                #condition will be satisfied only when
+                #the vectors are orthogonal.
+
                 partition = [np_array([rows[0]]),
                              np_array([rows[1]])]
                 #By assigning each cell to a separate
@@ -559,7 +555,7 @@ class SimilarityMatrix:
                 Q         = -np_inf
                 partition = []
 
-            return (Q, partition, similarity_op)
+            return (Q, partition)
 
         elif has_neg_row_sums or condition:
 
@@ -600,7 +596,7 @@ class SimilarityMatrix:
         """
         Generate a linear operator that describes
         the matrix:
-        S(x,y) = <x,y>
+        S(x,y) = <x,y> / sqrt( <x,x> * <y,y> )
         """
         B               = self.X[rows,:]
         n_rows          = len(rows)
@@ -628,6 +624,55 @@ class SimilarityMatrix:
             L_op = D_op - S_op
 
             return (S_op, D_op, L_op)
+
+        #-------------------------------------------
+        #Similarity operator
+
+        def mat_vec_prod_for_sim_op(vec: ArrayLike):
+            return B @ (B.T @ vec)
+
+        S_op = LinearOperator(
+            dtype=float_data_type,
+            shape=(n_rows,n_rows),
+            matvec=mat_vec_prod_for_sim_op,
+            rmatvec=mat_vec_prod_for_sim_op,
+        )
+        #-------------------------------------------
+
+        if only_similarity:
+            return S_op
+
+        #-------------------------------------------
+        # Diagonal operator
+        row_sums = S_op @ ones
+
+        def mat_vec_prod_for_diag_op(vec: ArrayLike):
+            return row_sums * vec
+
+        D_op = LinearOperator(
+            dtype=float_data_type,
+            shape=(n_rows,n_rows),
+            matvec=mat_vec_prod_for_diag_op,
+            rmatvec=mat_vec_prod_for_diag_op,
+        )
+        #-------------------------------------------
+
+        #-------------------------------------------
+        # Laplace operator
+
+        def mat_vec_prod_for_lap_op(vec: ArrayLike):
+            return row_sums * vec - B @ (B.T @ vec)
+
+        L_op =  LinearOperator(
+            dtype=float_data_type,
+            shape=(n_rows,n_rows),
+            matvec=mat_vec_prod_for_lap_op,
+            rmatvec=mat_vec_prod_for_lap_op,
+        )
+        #-------------------------------------------
+
+        return (S_op, D_op, L_op)
+
 
     #=====================================
     def generate_dnes_operators(
