@@ -17,7 +17,10 @@ import json
 import numpy as np
 import pandas as pd
 import scanpy as sc
-import networkx as nx
+
+from networkx import descendants as nx_descendants
+from networkx import DiGraph
+
 from typing import Set
 from typing import List
 from typing import Union
@@ -32,7 +35,7 @@ from common import JEncoder
 class TMCGraph:
     #=====================================
     def __init__(self,
-                 graph: nx.DiGraph,
+                 graph: DiGraph,
                  adata: sc.AnnData,
                  output: str,
         ):
@@ -125,7 +128,7 @@ class TMCGraph:
             if is_leaf_node:
                 nodes = [node]
             else:
-                nodes = nx.descendants(self.G, node)
+                nodes = nx_descendants(self.G, node)
                 x = self.set_of_leaf_nodes.intersection(
                     nodes)
                 # nodes = list(x)
@@ -255,7 +258,7 @@ class TMCGraph:
                 if node_id in self.set_of_red_clusters:
                     flag_to_erase = True
             else:
-                nodes = nx.descendants(self.G, node_id)
+                nodes = nx_descendants(self.G, node_id)
                 mask = self.A.obs["sp_cluster"].isin(nodes)
                 n_viable_cells = mask.sum()
                 if n_viable_cells == 0:
@@ -342,7 +345,7 @@ class TMCGraph:
             self,
     ):
         """
-        TODO
+        TODO: Finish and test.
         """
         S      = []
         self.J = MultiIndexList()
@@ -374,7 +377,7 @@ class TMCGraph:
             not_leaf_node = 0 < self.G.out_degree(node_id)
             is_leaf_node = not not_leaf_node
 
-            nodes = nx.descendants(self.G, node_id)
+            nodes = nx_descendants(self.G, node_id)
             mask = self.A.obs["sp_cluster"].isin(nodes)
             n_viable_cells = mask.sum()
 
@@ -397,10 +400,11 @@ class TMCGraph:
                 self.node_to_j_index[node_id] = j_index
                 children = self.G.successors(node_id)
                 children = sorted(children, reverse=True)
-                for child in children:
 
+                for child in children:
                     T = (node_id, child)
                     S.append(T)
+
             else:
                 #Leaf node
                 mask = self.A.obs["sp_cluster"] == node_id
@@ -447,7 +451,7 @@ class TMCGraph:
             not_leaf_node = 0 < self.G.out_degree(node_id)
             is_leaf_node = not not_leaf_node
 
-            nodes = nx.descendants(self.G, node_id)
+            nodes = nx_descendants(self.G, node_id)
             mask = self.A.obs["sp_cluster"].isin(nodes)
             n_viable_cells = mask.sum()
 
@@ -611,7 +615,8 @@ class TMCGraph:
         The graph is stored in the JSON format.
         """
         # Write graph "self.G" to JSON file.
-        nld = nx.node_link_data(self.G)
+        from networkx import node_link_data
+        nld = node_link_data(self.G)
         fname = "graph.json"
         fname = os.path.join(self.output, fname)
         with open(fname, "w", encoding="utf-8") as f:
@@ -670,16 +675,13 @@ class TMCGraph:
             if not os.path.exists(json_fname):
                 raise ValueError("File does not exists.")
 
-            # Avoid dependencies with GraphViz
-            # dot_fname = "graph.dot"
-            # dot_fname = os.path.join(self.output, dot_fname)
-            # self.G = nx.nx_agraph.read_dot(dot_fname)
-
             print("Reading JSON file ...")
 
             with open(json_fname, encoding="utf-8") as f:
                 json_graph = json.load(f)
-            self.G = nx.node_link_graph(json_graph)
+
+            from networkx import node_link_graph
+            self.G = node_link_graph(json_graph)
             
             print("Finished reading JSON file.")
 
@@ -690,7 +692,8 @@ class TMCGraph:
         for k in range(n_nodes):
             D[str(k)] = k
 
-        self.G = nx.relabel_nodes(self.G, D, copy=True)
+        from networkx import relabel_nodes
+        self.G = relabel_nodes(self.G, D, copy=True)
 
         #We convert the number of cells of each node to
         #integer. We also convert the modularity to float.
@@ -762,7 +765,7 @@ class TMCGraph:
 
             if 0 < self.G.out_degree(branch):
                 #Not a leaf node.
-                nodes = nx.descendants(self.G, branch)
+                nodes = nx_descendants(self.G, branch)
                 nodes = self.set_of_leaf_nodes.intersection(
                     nodes)
                 set_of_leaf_nodes.update(nodes)

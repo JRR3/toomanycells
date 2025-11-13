@@ -14,45 +14,34 @@
 from anndata import AnnData
 
 import os
-import re
 import sys
-import gzip
-import json
-import subprocess
-import numpy as np
-import scanpy as sc
-import pandas as pd
-# import seaborn as sb
+
+from numpy import abs as np_abs
+from numpy import array as np_array
+from numpy import zeros as np_zeros
+from numpy import max as np_max
+from numpy import min as np_min
+
+from pandas import Series
+from pandas import DataFrame
+from pandas import read_csv
+
 from tqdm import tqdm
-import networkx as nx
-import matplotlib as mpl
-import celltypist as CT
 from typing import List
 from typing import Tuple
 from typing import Union
 from typing import Optional
-from os.path import dirname
-from collections import deque
-from scipy import sparse as sp
-from scipy.stats import entropy
-import matplotlib.pyplot as plt
-import plotly.graph_objects as go
 from numpy.typing import ArrayLike
-from time import perf_counter as clock
-from collections import defaultdict as ddict
-from scipy.stats import median_abs_deviation
-from scipy.io import mmread as matrix_market_read
-from scipy.io import mmwrite as matrix_market_write
 
-from toomanycells import cellAnnotation
+from scipy.sparse import issparse
+
+from time import perf_counter as clock
+
+# from toomanycells import cellAnnotation
 
 #Matplotlib parameters.
-mpl.use("agg")
-mpl.rcParams["figure.dpi"]=600
-mpl.rc("pdf", fonttype=42)
-font = {'weight' : 'normal', 'size'   : 18}
-mpl.rc("font", **font)
 
+from os.path import dirname
 sys.path.insert(0, dirname(__file__))
 from common import MultiIndexList
 from tmcHaskell import TMCHaskell
@@ -120,11 +109,14 @@ class TooManyCells:
 
         #We use a directed graph to enforce the parent
         #to child relation.
-        self.G = nx.DiGraph()
+
+        from networkx import DiGraph
+        self.G = DiGraph()
+
         self.set_of_leaf_nodes = set()
 
         if input is None:
-            matrix = np.array([[]])
+            matrix = np_array([[]])
             self.A = AnnData(matrix)
 
         elif isinstance(input, TooManyCells):
@@ -146,7 +138,10 @@ class TooManyCells:
             self.source = os.path.abspath(input)
             if self.source.endswith(".h5ad"):
                 self.t0 = clock()
+
+                from scanpy import read_h5ad
                 self.A = sc.read_h5ad(self.source)
+
                 self.tf = clock()
                 delta = self.tf - self.t0
                 txt = ("Elapsed time for loading: " +
@@ -155,7 +150,8 @@ class TooManyCells:
             else:
                 if input_is_matrix_market:
                     try:
-                        self.A = sc.read_10x_mtx(self.source)
+                        from scanpy import read_10x_mtx
+                        self.A = read_10x_mtx(self.source)
                     except:
                         self.convert_mm_from_source_to_adata()
                 else:
@@ -164,7 +160,10 @@ class TooManyCells:
                             fname = os.path.join(
                                 self.source, f)
                             self.t0 = clock()
+
+                            from scanpy import read_h5ad
                             self.A = sc.read_h5ad(fname)
+
                             self.tf = clock()
                             delta = self.tf - self.t0
                             txt = ('Elapsed time for ' +
@@ -207,8 +206,7 @@ class TooManyCells:
         self.delta_clustering = 0
         self.final_n_iter     = 0
 
-        #self.FDT = np.float64
-        self.FDT = np.float32
+        self.FDT = float
         txt = f"Data will be treated as: {self.FDT}."
         print(txt)
 
@@ -218,8 +216,6 @@ class TooManyCells:
         #sparse matrix has the CSR format. This
         #is relevant when we normalize.
 
-        self.is_sparse = False
-        self.X : Union[sp.spmatrix, sp.sparray, np.ndarray]
 
         if use_raw:
             if "raw" not in self.A.layers:
@@ -232,36 +228,41 @@ class TooManyCells:
 
             self.X = self.A.X.copy()
 
-        if sp.issparse(self.X):
+        if issparse(self.X):
             #Compute the density of the matrix
-            rho = self.X.nnz / np.prod(self.X.shape)
+            from numpy import prod as np_prod
+            rho = self.X.nnz / np_prod(self.X.shape)
             #If more than 50% of the matrix is occupied,
             #we generate a dense version of the matrix.
             sparse_threshold = 0.50
             if use_full_matrix or sparse_threshold < rho:
-                self.is_sparse = False
+                #The matrix will not be sparse
                 self.X = self.X.toarray()
                 txt = ("Using a dense representation" 
                        " of the count matrix.")
                 print(txt)
                 self.X = self.X.astype(self.FDT)
             else:
-                self.is_sparse = True
+                #The matrix is sparse
                 #Make sure we use a CSR array format.
-                if not isinstance(self.X, sp.csr_array):
-                    self.X = sp.csr_array(self.X,
-                                          dtype=self.FDT,
-                                          copy=True)
+
+                from scipy.sparse import csr_array
+
+                if not isinstance(self.X, csr_array):
+                    self.X = csr_array(
+                        self.X,
+                        dtype=self.FDT,
+                        copy=True,
+                    )
         else:
             #The matrix is dense.
             print("The matrix is dense.")
-            self.is_sparse = False
-            # self.X = self.X.copy()
             self.X = self.X.astype(self.FDT)
 
         self.n_cells, self.n_genes = self.A.shape
 
         self.too_few_observations = False
+
         if self.n_cells < 2:
             print("Warning: Too few observations (cells).")
             self.too_few_observations = True
@@ -273,12 +274,12 @@ class TooManyCells:
 
         self.spectral_clustering_has_been_called = False
 
-        self.cells_to_be_eliminated = None
-
         # We use a deque to offer the possibility of breadth-
         # versus depth-first. Our current implementation
         # uses depth-first to be consistent with the 
         # numbering scheme of too-many-cells interactive.
+
+        from collections import deque
         self.DQ = deque()
 
         #Map a node to the path in the
@@ -323,12 +324,14 @@ class TooManyCells:
         """
 
         #Average number of cells per leaf node
-        k = np.power(10, -0.6681664297844971)
+        from numpy import power as np_power
+
+        k = np_power(10, -0.6681664297844971)
         exponent = 0.86121348
         #exponent = 0.9
-        q1 = k * np.power(self.n_cells, exponent)
+        q1 = k * np_power(self.n_cells, exponent)
         q2 = 2
-        iter_estimates = np.array([q1,q2], dtype=int)
+        iter_estimates = np_array([q1,q2], dtype=int)
         
         return iter_estimates.max()
 
@@ -414,7 +417,7 @@ class TooManyCells:
         node_id = self.tmcGraph.node_counter
 
         #Initialize the array of cells to partition
-        rows = np.array(range(self.X.shape[0]))
+        rows = np_array(range(self.X.shape[0]))
 
         #Initialize the deque
         # self.DQ.append((rows, None))
@@ -651,10 +654,9 @@ class TooManyCells:
 
         """
 
-        self.t0 = clock()
+        from numpy import nan as np_nan
 
-        # nx.drawing.nx_pydot.write_dot(self.G, dot_fname)
-        # nx.nx_agraph.write_dot(self.G, dot_fname)
+        self.t0 = clock()
 
         #Write graph data to file.
         self.tmcGraph.set_of_leaf_nodes
@@ -704,11 +706,11 @@ class TooManyCells:
             if "Q" in attr:
                 Q_list.append(attr["Q"])
             else:
-                Q_list.append(np.nan)
+                Q_list.append(np_nan)
 
         #Write node information to CSV
         D = {"node": node_list, "size":size_list, "Q":Q_list}
-        df = pd.DataFrame(D)
+        df = DataFrame(D)
         fname = "node_info.csv"
         fname = os.path.join(self.output, fname)
         df.to_csv(fname, index=False)
@@ -758,7 +760,10 @@ class TooManyCells:
             raise ValueError(txt)
 
         fname = os.path.join(self.source, fname)
-        mat = matrix_market_read(fname)
+
+        from scipy.io import mmread
+        mat = mmread(fname)
+
         #Remember that the input matrix has
         #genes for rows and cells for columns.
         #Thus, just transpose.
@@ -777,7 +782,7 @@ class TooManyCells:
         if fname is not None:
             fname = os.path.join(self.source, fname)
             print(f"Loading {fname}")
-            df_barcodes = pd.read_csv(
+            df_barcodes = read_csv(
                     fname, delimiter="\t", header=None)
             barcodes = df_barcodes.loc[:,0].tolist()
 
@@ -797,7 +802,7 @@ class TooManyCells:
         if fname is not None:
             fname = os.path.join(self.source, fname)
             print(f"Loading {fname}")
-            df_genes = pd.read_csv(
+            df_genes = read_csv(
                     fname, delimiter="\t", header=None)
             genes = df_genes.loc[:,0].tolist()
 
@@ -873,7 +878,7 @@ class TooManyCells:
 
         if 0 < len(path_to_genes):
 
-            df = pd.read_csv(path_to_genes, header=0)
+            df = read_csv(path_to_genes, header=0)
             #The first column should contain the genes.
             list_of_genes = df.iloc[:,0].to_list()
 
@@ -914,17 +919,22 @@ class TooManyCells:
                     #Use "genes" from the obs data frame.
                     m2 = self.A.obs[obs_cols].values
 
-                    if sp.issparse(m1):
+                    if issparse(m1):
 
                         #Make m2 sparse too
                         #Concatenate two sparse objects.
-                        m2 = sp.csr_matrix(m2)
-                        G_mtx = sp.hstack((m1,m2))
+                        from scipy.sparse import csr_matrix
+                        from scipy.sparse import hstack
+
+                        m2 = csr_matrix(m2)
+                        G_mtx = hstack((m1,m2))
 
                     else:
 
                         #Concatenate two numpy objects
-                        G_mtx = np.hstack((m1,m2))
+                        from numpy import hstack
+
+                        G_mtx = hstack((m1,m2))
 
                 else:
                     #No genes from the obs data frame.
@@ -950,7 +960,7 @@ class TooManyCells:
             G_mtx = self.A.X
 
         L = [var_names, var_names]
-        pd.DataFrame(L).transpose().to_csv(
+        DataFrame(L).transpose().to_csv(
             genes_f,
             sep="\t",
             header=False,
@@ -961,7 +971,7 @@ class TooManyCells:
         barcodes_f = os.path.join(self.tmci_mtx_dir,
                                   barcodes_f)
 
-        pd.Series(self.A.obs_names).to_csv(
+        Series(self.A.obs_names).to_csv(
             barcodes_f,
             sep="\t",
             header=False,
@@ -973,8 +983,10 @@ class TooManyCells:
             matrix_f = "matrix.mtx"
             matrix_f = os.path.join(self.tmci_mtx_dir,
                                     matrix_f)
-            matrix_market_write(matrix_f,
-                                sp.coo_matrix(G_mtx.T))
+
+            from scipy.io import mmwrite
+            from scipy.sparse import coo_matrix
+            mmwrite(matrix_f, coo_matrix(G_mtx.T))
 
     #=====================================
     def visualize_with_tmc_interactive(self,
@@ -1064,12 +1076,14 @@ class TooManyCells:
         txt="The app will start loading after pressing Enter."
         print(txt)
         pause = input('Press Enter to continue ...')
+
+        import subprocess
         p = subprocess.call(final_command, shell=True)
 
     #=====================================
     def update_cell_annotations(
             self,
-            df: pd.DataFrame,
+            df: DataFrame,
             column: str = "cell_annotations"):
         """
         Insert a column of cell annotations in the \
@@ -1122,12 +1136,16 @@ class TooManyCells:
             genes for columns.
         """
 
-        df_signature = pd.read_csv(signature_path, header=0)
+        from scanpy.pp import scale
+        from numpy import squeeze as np_squeeze
 
-        Z = sc.pp.scale(self.A, copy=True)
-        Z_is_sparse = sp.issparse(Z)
+        df_signature = read_csv(signature_path, header=0)
 
-        vec = np.zeros(Z.X.shape[0])
+        Z = scale(self.A, copy=True)
+
+        Z_is_sparse = issparse(Z)
+
+        vec = np_zeros(Z.X.shape[0])
 
         up_reg = vec * 0
         down_reg = vec * 0
@@ -1148,7 +1166,7 @@ class TooManyCells:
 
             if Z_is_sparse:
                 gene_col = Z.X.getcol(col_index)
-                gene_col = np.squeeze(gene_col.toarray())
+                gene_col = np_squeeze(gene_col.toarray())
             else:
                 gene_col = Z.X[:,col_index]
 
@@ -1158,7 +1176,7 @@ class TooManyCells:
                 up_count += 1
             else:
                 down_reg += weight * gene_col
-                down_weight += np.abs(weight)
+                down_weight += np_abs(weight)
                 down_count += 1
         
         total_counts = up_count + down_count
@@ -1224,7 +1242,8 @@ class TooManyCells:
             list_of_gvecs.append(AdjSign)
             list_of_names.append("AdjSign")
 
-        m = np.vstack(list_of_gvecs)
+        from numpy import vstack
+        m = vstack(list_of_gvecs)
 
         #This function will produce the 
         #barcodes.tsv and the genes.tsv file.
@@ -1238,8 +1257,9 @@ class TooManyCells:
         mtx_path = os.path.join(
             self.tmci_mtx_dir, "matrix.mtx")
 
-        matrix_market_write(mtx_path,
-                            sp.coo_matrix(m))
+        from scipy.io import mmwrite
+        from scipy.sparse import coo_matrix
+        mmwrite(mtx_path, coo_matrix(m))
 
 
     #=====================================
@@ -1271,9 +1291,9 @@ class TooManyCells:
         # nodes is equal to the modularity of the parent node.
         # Hence, the distance from a child to a parent is 
         # half the modularity.
-        modularity_vec = 0.5 * np.array(
+        modularity_vec = 0.5 * np_array(
             modularity_vec, dtype=self.FDT)
-        path_vec = np.array(path_vec, dtype=int)
+        path_vec = np_array(path_vec, dtype=int)
 
         return (path_vec, modularity_vec)
 
@@ -1309,7 +1329,7 @@ class TooManyCells:
 
         intersection = x_set.intersection(y_set)
         intersection = list(intersection)
-        intersection = np.array(intersection)
+        intersection = np_array(intersection)
         n_intersection = len(intersection)
         
         #Because the path starts from the node
@@ -1327,9 +1347,11 @@ class TooManyCells:
         y_dist = y_dist[1:-n_intersection]
         y_dist = y_dist[::-1]
 
-        full_path = np.hstack((x_path,pivot_node,y_path))
-        full_dist = np.hstack(
-            (x_dist, pivot_dist, pivot_dist, y_dist))
+        from numpy import hstack
+        full_path = hstack((x_path,pivot_node,y_path))
+        full_dist = hstack(
+            (x_dist, pivot_dist, pivot_dist, y_dist)
+        )
         full_dist = full_dist.cumsum()
 
         # print(full_path) 
@@ -1358,7 +1380,9 @@ class TooManyCells:
 
         #Get all the descendants for a given node.
         #This is a set.
-        nodes = nx.descendants(self.G, node)
+        from networkx import descendants as nx_descendants
+
+        nodes = nx_descendants(self.G, node)
 
         if len(nodes) == 0:
             #This is a leaf node.
@@ -1428,7 +1452,7 @@ class TooManyCells:
         if not os.path.exists(cluster_fname):
             raise ValueError("File does not exists.")
 
-        df = pd.read_csv(cluster_fname, index_col=0)
+        df = read_csv(cluster_fname, index_col=0)
         self.A.obs["sp_cluster"] = df["cluster"]
 
         # This set should  be equal to the one
@@ -1467,6 +1491,14 @@ class TooManyCells:
         populate_tree_with_mean_expression_for_all_markers()
         """
 
+        import matplotlib as mpl
+        import matplotlib.pyplot as plt
+        mpl.use("agg")
+        mpl.rcParams["figure.dpi"]=600
+        mpl.rc("pdf", fonttype=42)
+        font = {'weight' : 'normal', 'size'   : 18}
+        mpl.rc("font", **font)
+
         if isinstance(genes, str):
             list_of_genes = [genes]
         else:
@@ -1476,7 +1508,7 @@ class TooManyCells:
         path_vec, dist_vec = T
         n_nodes = len(path_vec)
         n_genes = len(list_of_genes)
-        exp_mat = np.zeros((n_genes,n_nodes))
+        exp_mat = np_zeros((n_genes,n_nodes))
 
         for col,node in enumerate(path_vec):
             g_exp = self.compute_cluster_mean_expression(
@@ -1546,13 +1578,15 @@ class TooManyCells:
             (marker, cell type).
         """
 
+        from numpy import median as np_median
+
         CA = cell_ann_col
 
         col_index = self.marker_to_column_idx[marker]
         mask = self.A.obs[CA] == cell_type
         values = self.A.X[mask, col_index]
 
-        if sp.issparse(values):
+        if issparse(values):
             if ignore_zero:
                 values = values.data
             else:
@@ -1561,48 +1595,7 @@ class TooManyCells:
             if ignore_zero:
                 values = values[self.eps < values]
 
-        return np.median(values)
-
-    #=====================================
-    def compute_marker_median_and_mad_for_all_cells(
-            self,
-            marker: str,
-    ):
-        """
-        TODO: Remove this function since
-        it appears that it is not being used.
-        """
-
-        if marker not in self.A.var_names:
-            return None
-
-        col_index = self.A.var.index.get_loc(marker)
-        values = self.A.X[:, col_index]
-
-        if sp.issparse(self.A.X):
-            values = values.toarray().squeeze()
-
-        median = np.median(values)
-        mad    = np.median(values-median)
-
-        return (median, mad)
-
-    #=====================================
-    def compute_mean_expression_from_indices(
-            self,
-            marker: str,
-            indices: List,
-    ):
-        """
-        TODO: Remove this function since
-        it appears that it is not being used.
-        """
-
-        col_index = self.marker_to_column_idx[marker]
-        mask = self.A.obs_names.isin(indices)
-        vec = self.A.X[mask, col_index]
-
-        return vec.mean()
+        return np_median(values)
 
     #=====================================
     def compute_median_and_mad_exp_from_indices(
@@ -1620,11 +1613,13 @@ class TooManyCells:
         compute the gene expression at each node.
         """
 
+        from numpy import median as np_median
+
         col_index = self.marker_to_column_idx[marker]
         mask = self.A.obs_names.isin(indices)
         values = self.A.X[mask, col_index]
 
-        if sp.issparse(values):
+        if issparse(values):
             if ignore_zero:
                 values = values.data
             else:
@@ -1633,100 +1628,20 @@ class TooManyCells:
             if ignore_zero:
                 values = values[values.min() < values]
 
-        median = np.median(values)
+        median = np_median(values)
         values -= median
-        mad = np.median(np.abs(values))
+        mad = np_median(np_abs(values))
 
         if only_median:
             return median
 
         return (median, mad)
 
-    #=====================================
-    def find_stable_tree(
-            self,
-            cell_group_path: str,
-            cell_marker_path: str,
-            cell_ann_col: str = "cell_annotations",
-            clean_threshold: float = 0.8,
-            favor_minorities: bool = False,
-            conversion_threshold: float = 0.9,
-            confirmation_threshold: float = 0.9,
-            elimination_ratio: float = -1.,
-            homogeneous_leafs: bool = False,
-            follow_parent: bool = False,
-            follow_majority: bool = False,
-            no_mixtures: bool = False,
-            storage_path: str = "stable_tree",
-            max_n_iter: int = 100,
-    ):
-        """
-        This function will identify outliers in the
-        cell annotation labels based on the main branches
-        and subsequently will remove those outliers and
-        recompute the tree until no more outliers are found.
-        """
-        CA = cell_ann_col
-        tmc_obj = TooManyCells(self, storage_path)
-
-        something_has_changed = False
-        iteration = 0
-
-        while iteration < max_n_iter:
-
-            tmc_obj.annotate_using_tree(
-            cell_group_path,
-            cell_marker_path,
-            cell_ann_col,
-            clean_threshold,
-            favor_minorities,
-            conversion_threshold,
-            confirmation_threshold,
-            elimination_ratio,
-            homogeneous_leafs,
-            follow_parent,
-            follow_majority,
-            no_mixtures,
-            )
-
-            iteration += 1
-
-            if not tmc_obj.labels_have_changed:
-                #No cells have changed their label
-                #and no cell has been tagged for 
-                #elimination.
-                print("Nothing has changed.")
-                break
-
-            something_has_changed = True
-
-            #We know the labels have changed.
-            #We will only recompute the tree if 
-            #cells have been eliminated.
-
-            S = tmc_obj.cells_to_be_eliminated
-
-            if 0 == len(S):
-                print("No cells have been eliminated.")
-                break
-
-            #Cells have been eliminated.
-            #A new tree will be generated with the
-            #remaining cells.
-            mask = tmc_obj.A.obs_names.isin(S)
-            A = tmc_obj.A[~mask].copy()
-            tmc_obj = TooManyCells(A, storage_path)
-            tmc_obj.run_spectral_clustering()
-            tmc_obj.store_outputs()
-
-        if something_has_changed:
-            print(f"{iteration=}")
-            
 
     #=================================================
     def check_if_cells_belong_to_group(
             self,
-            cells: pd.Series,
+            cells: Series,
             group: str,
             conversion_threshold: float = 0.9,
             cell_ann_col: str = "cell_annotations",
@@ -1818,344 +1733,6 @@ class TooManyCells:
             print("===============================")
             return False
 
-    #=====================================
-    def annotate_using_tree(
-            self,
-            cell_group_path: str,
-            cell_marker_path: str,
-            cell_ann_col: str = "cell_annotations",
-            clean_threshold: float = 0.8,
-            favor_minorities: bool = False,
-            conversion_threshold: float = 0.9,
-            confirmation_threshold: float = 0.9,
-            elimination_ratio: float = -1.,
-            homogeneous_leafs: bool = False,
-            follow_parent: bool = False,
-            follow_majority: bool = False,
-            no_mixtures: bool = False,
-    ):
-        """
-        Use the tree structure with the current labels
-        to improve the cell annotation.
-        TODO: This function needs to be relocated.
-        """
-        if not os.path.exists(cell_group_path):
-            print(cell_group_path)
-            raise ValueError("File does not exists.")
-
-        if not os.path.exists(cell_marker_path):
-            print(cell_marker_path)
-            raise ValueError("File does not exists.")
-
-        if homogeneous_leafs:
-            if follow_majority == follow_parent:
-                print("Homogeneous leafs strategy:")
-                raise ValueError("Strategy is not unique.")
-        
-
-        CA = cell_ann_col
-
-        # Make the connection between the cell groups and the 
-        # cell types.
-        self.load_group_and_cell_type_data(cell_group_path)
-
-        # Make the connection between the markers and the 
-        # cell types.
-        self.load_marker_and_cell_type_data(cell_marker_path)
-
-        self.marker_to_median_value_for_cell_type = ddict(
-            dict)
-
-
-        #Define an iterator.
-        it = self.marker_to_cell_types.items()
-        for marker, cell_types in it:
-            for cell_type in cell_types:
-                #In case some cell types have been erased.
-                if cell_type not in self.cell_type_to_group:
-                    continue
-
-                #Note that we ignore the zeros for the
-                #median.  This is to require higher standards
-                #for a cell to classified as a member of a
-                #given cell type.
-                x = self.compute_marker_median_value_for_cell_type(
-                    marker, cell_type, ignore_zero=True)
-                self.marker_to_median_value_for_cell_type[
-                    marker][cell_type] = x
-
-        #Eliminate cells that belong to the erase category.
-        if 0 < len(self.cell_types_to_erase):
-            mask = self.A.obs[CA].isin(
-                self.cell_types_to_erase)
-            n_cells = mask.sum()
-            vc = self.A.obs[CA].loc[mask].value_counts()
-            #Take the complement of the cells we 
-            #want to erase.
-            self.A = self.A[~mask].copy()
-            print("===============================")
-            print(f"{n_cells} cells have been deleted.")
-            print(vc)
-
-        #Create a series where the original cell 
-        #annotations have been mapped to their 
-        #corresponding group.
-
-        #To allow modifications to the series.
-        #Categories cannot be directly modified.
-        S = self.A.obs[CA].astype(str)
-
-        for cell, group in self.cell_type_to_group.items():
-
-            if cell == group:
-                continue
-
-            mask = S == cell
-            S.loc[mask] = group
-
-        S = S.astype("category")
-        OCA = "original_cell_annotations"
-        self.A.obs[OCA] = self.A.obs[CA].copy()
-        self.A.obs[CA] = S
-        vc = self.A.obs[CA].value_counts()
-        print("===============================")
-        print("Relabeled cell counts")
-        print(vc)
-
-        node = 0
-        parent_majority = None
-        parent_ratio = None
-        # We use a deque to do a breadth-first traversal.
-        DQ = deque()
-
-        T = (node, parent_majority, parent_ratio)
-        DQ.append(T)
-
-        iteration = 0
-
-        # Elimination container
-        elim_set = set()
-
-        self.labels_have_changed = False
-
-        MNL = "majority_node_label"
-        self.A.obs[MNL] = ""
-
-        while 0 < len(DQ):
-            print("===============================")
-            T = DQ.popleft()
-            node, parent_majority, parent_ratio = T
-            children = self.G.successors(node)
-            nodes = nx.descendants(self.G, node)
-            is_leaf_node = False
-            if len(nodes) == 0:
-                is_leaf_node = True
-                nodes = [node]
-            else:
-                x = self.set_of_leaf_nodes.intersection(
-                    nodes)
-                nodes = list(x)
-
-            mask = self.A.obs["sp_cluster"].isin(nodes)
-            S = self.A.obs[CA].loc[mask]
-            node_size = mask.sum()
-            print(f"Working with {node=}")
-            print(f"Size of {node=}: {node_size}")
-            vc = S.value_counts(normalize=True)
-            print("===============================")
-            print(vc)
-
-            majority_group = vc.index[0]
-            majority_ratio = vc.iloc[0]
-
-            if majority_ratio == 1:
-                #The cluster is homogeneous.
-                #Nothing to do here.
-                continue
-
-
-            if majority_ratio < clean_threshold:
-                #We are below clean_threshold, so we add 
-                #these nodes to the deque for 
-                #further processing.
-                print("===============================")
-                for child in children:
-                    print(f"Adding node {child} to DQ.")
-                    T = (child,
-                         majority_group,
-                         majority_ratio)
-                    DQ.append(T)
-            else:
-                #We are above the cleaning threshold. 
-                #Hence, we can star cleaning this node.
-                print("===============================")
-                print(f"Cleaning {node=}.")
-                print(f"{majority_group=}.")
-                print(f"{majority_ratio=}.")
-
-                self.A.obs.loc[mask, MNL] = majority_group
-
-                if no_mixtures:
-                    #We do not allow minorities.
-                    mask = S != majority_group
-                    Q = S.loc[mask]
-                    elim_set.update(Q.index)
-                    continue
-
-                #We are going to iterate over all the 
-                #groups below the majority group.
-                #We call these the minority_groups.
-
-                #We have two options. Start checking if
-                #the minority actually belongs to the 
-                #majority or first check if the minority
-                #is indeed a true minority.
-                iter = vc.iloc[1:].items()
-                for minority_group, minority_ratio in iter:
-
-
-                    #These are the cells that belong to one
-                    #of the minorities. We label them as
-                    #Q because their current status 
-                    #is under question.
-                    mask = S == minority_group
-                    minority_size = mask.sum()
-                    if minority_size == 0:
-                        #Nothing to be done with this and 
-                        #subsequent minorities because the
-                        #cell ratios are sorted in 
-                        #decreasing order. If one is zero,
-                        #the rest are zero too.
-                        break
-                    Q = S.loc[mask]
-
-                    if minority_ratio < elimination_ratio:
-                        #If the ratio is below the 
-                        #given threshold, then we 
-                        #remove these cells.
-                        elim_set.update(Q.index)
-                        continue
-
-                    #Check membership
-                    if favor_minorities:
-                        #We first check if the minority is
-                        #indeed a true minority.
-                        x=self.check_if_cells_belong_to_group(
-                            Q, 
-                            minority_group, 
-                            conversion_threshold,
-                            cell_ann_col,
-                        )
-                        belongs_to_minority = x
-                        if belongs_to_minority:
-                            #Move to the next minority.
-                            continue
-                        #Otherwise, check if belongs to 
-                        #the majority group.
-                        x=self.check_if_cells_belong_to_group(
-                            Q, 
-                            majority_group, 
-                            conversion_threshold,
-                            cell_ann_col,
-                        )
-                        identity_was_determined = x
-                        belongs_to_majority = x
-
-                        if belongs_to_majority:
-                            self.labels_have_changed = True
-
-                    else:
-                        #We first check if the minority is
-                        #actually part of the majority.
-                        x=self.check_if_cells_belong_to_group(
-                            Q, 
-                            majority_group, 
-                            conversion_threshold,
-                            cell_ann_col,
-                        )
-                        belongs_to_majority = x
-                        if belongs_to_majority:
-                            #Move to the next minority.
-                            self.labels_have_changed = True
-                            continue
-                        #Otherwise, check if belongs to 
-                        #the minority group.
-                        x=self.check_if_cells_belong_to_group(
-                            Q, 
-                            minority_group, 
-                            conversion_threshold,
-                            cell_ann_col,
-                        )
-                        identity_was_determined = x
-
-                    if identity_was_determined:
-                        #Nothing to be done.
-                        #Move to the next minority.
-                        continue
-                    else:
-                        #Cells could not be classified
-                        #and therefore will be eliminated.
-                        elim_set.update(Q.index)
-
-
-            if iteration == 1:
-                pass
-                #break
-            else:
-                iteration += 1
-            
-
-        #Elimination phase 1
-        print("Elimination set size before homogenization:",
-              len(elim_set))
-
-        #Homogenization
-        if homogeneous_leafs:
-
-            if follow_parent:
-                print("Using parent node majority.")
-
-            if follow_majority:
-                print("Using leaf node majority.")
-            
-            S = self.homogenize_leaf_nodes(
-                CA,
-                follow_parent,
-                follow_majority)
-
-            if 0 < len(S):
-                print("Cells lost through homogenization:",
-                    len(S))
-                elim_set.update(S)
-
-        #If there are cells to be eliminated, then
-        #we label them with an X.
-        if 0 < len(elim_set):
-            print("Total cells lost:", len(elim_set))
-            remaining_cells = self.A.X.shape[0]
-            remaining_cells -= len(elim_set)
-            print("Remaining cells:", remaining_cells)
-
-            #Create a new category.
-            x = self.A.obs[CA].cat.add_categories("X")
-            self.A.obs[CA] = x
-            #Label the cells to be eliminated with "X".
-            mask = self.A.obs_names.isin(elim_set)
-            self.A.obs[CA].loc[mask] = "X"
-
-            self.labels_have_changed = True
-
-        if self.labels_have_changed:
-            self.generate_cell_annotation_file(
-                cell_ann_col=CA, tag = "updated_cell_labels")
-        else:
-            print("Nothing has changed.")
-
-        #This set constains the cells to be eliminated
-        #and can be used for subsequent processing 
-        #in other functions.
-
-        self.cells_to_be_eliminated = elim_set
 
     #=====================================
     def count_nodes_above_threshold_for_marker(
@@ -2198,6 +1775,9 @@ class TooManyCells:
         For a given group we generate a list of 
         cell types.
         """
+        from pandas import isna
+        from collections import defaultdict as ddict
+
         self.t0 = clock()
 
         if not os.path.exists(cell_group_path):
@@ -2207,7 +1787,7 @@ class TooManyCells:
         # We assume all the fields in the data frame 
         # are strings. Hence, number used as labels 
         # will be considered as strings.
-        df_cg = pd.read_csv(cell_group_path, dtype=str)
+        df_cg = read_csv(cell_group_path, dtype=str)
         print("===============================")
         print("Cell to Group file")
         print(df_cg)
@@ -2217,10 +1797,8 @@ class TooManyCells:
         self.cell_types_to_erase = []
         self.group_to_cell_types = ddict(list)
 
-        self.cells_to_be_eliminated = None
-
         #Cell types
-        self.CT = set(self.A.obs[CA])
+        set_of_cell_types = set(self.A.obs[CA])
 
         #Create the cell to group dictionary and
         #the group to cell dictionary
@@ -2228,11 +1806,11 @@ class TooManyCells:
             cell_type = row["Cell"]
             group = row["Group"]
 
-            if cell_type not in self.CT:
+            if cell_type not in set_of_cell_types:
                 print(f"{cell_type=} not in data set.")
                 continue
 
-            if pd.isna(group):
+            if isna(group):
                 # If the group is not present, we 
                 # assume that the cell type is its
                 # own group.
@@ -2285,6 +1863,9 @@ class TooManyCells:
 
         """
 
+        from pandas import notna
+        from collections import defaultdict as ddict
+
         self.t0 = clock()
 
         if not os.path.exists(cell_marker_path):
@@ -2301,7 +1882,7 @@ class TooManyCells:
              "Direction":str,
              "Threshold":float,
              }
-        df_cm = pd.read_csv(cell_marker_path, dtype=D)
+        df_cm = read_csv(cell_marker_path, dtype=D)
 
         has_threshold = False
         if "Threshold" in df_cm.columns:
@@ -2343,7 +1924,7 @@ class TooManyCells:
             if has_threshold:
                 th = row["Threshold"]
 
-                if pd.notna(th):
+                if notna(th):
                     th = self.FDT(th)
                     dr = row["Direction"]
                     self.marker_to_mad_threshold[marker] = th
@@ -2409,12 +1990,12 @@ class TooManyCells:
         for rank, marker in enumerate(list_of_markers):
             self.marker_to_rank[marker] = rank
 
-        self.list_of_column_idx = np.array(
+        self.list_of_column_idx = np_array(
             list_of_column_idx, dtype=int)
 
-        self.list_of_markers = np.array(list_of_markers)
+        self.list_of_markers = np_array(list_of_markers)
 
-        self.list_of_cell_types = np.array(
+        self.list_of_cell_types = np_array(
             list_of_cell_types)
 
         self.tf = clock()
@@ -2465,9 +2046,9 @@ class TooManyCells:
         if n_markers == 0:
             raise ValueError("Empty list of markers.")
         
-        marker_sum_vec = np.zeros(n_markers, dtype=self.FDT)
+        marker_sum_vec = np_zeros(n_markers, dtype=self.FDT)
 
-        self.mean_exp_mtx = np.zeros(
+        self.mean_exp_mtx = np_zeros(
             (n_nodes, n_markers), dtype=self.FDT)
         
         # Mean expression matrix
@@ -2475,6 +2056,8 @@ class TooManyCells:
         # Node 1
         # Node 2
         # ...
+
+        from numpy import ix_ as np_ix
 
         print("Computing mean expression for all markers...")
         S = [0]
@@ -2496,8 +2079,8 @@ class TooManyCells:
                 mask = self.A.obs["sp_cluster"].isin(nodes)
                 #Generate indices for cells 
                 #times list of markers.
-                indices = np.ix_(mask,
-                                 self.list_of_column_idx)
+                indices = np_ix(
+                    mask, self.list_of_column_idx)
                 values = self.X[indices]
                 sum_exp_vec = values.sum(axis=0)
                 mean_exp_vec = sum_exp_vec / n_cells
@@ -2576,8 +2159,8 @@ class TooManyCells:
             col = marker + "_mad_bounds"
             col = marker + "_exp_bounds"
             col = marker + "_counts"
-        self.node_mad_dist_df = pd.DataFrame(
-            data = np.zeros((15,n_markers * 3)), 
+        self.node_mad_dist_df = DataFrame(
+            data = np_zeros((15,n_markers * 3)), 
             index = None,
             columns = L,
             dtype=self.FDT)
@@ -2588,8 +2171,8 @@ class TooManyCells:
 
         >>> (2)
         self.node_exp_stats_df
-        self.node_exp_stats_df = pd.DataFrame(
-            np.zeros((n_markers, 7)),
+        self.node_exp_stats_df = DataFrame(
+            np_zeros((n_markers, 7)),
             index = self.list_of_markers,
             columns = ["median",
                        "mad",
@@ -2601,6 +2184,11 @@ class TooManyCells:
             dtype = self.FDT,
             )
         """
+
+        from numpy import median as np_median
+        from numpy import arange as np_arange
+        from scipy.stats import median_abs_deviation
+
         self.t0 = clock()
 
         n_steps = 15
@@ -2612,14 +2200,15 @@ class TooManyCells:
         #Note that we use a CSC format, since we 
         #plan to operate on the columns because they 
         #represent the genes for all the nodes.
-        mean_exp_mtx_sp = sp.csc_array(self.mean_exp_mtx)
+        from scipy.sparse import csc_array
+        mean_exp_mtx_sp = csc_array(self.mean_exp_mtx)
 
         #Vector with the pointers to identify the 
         #data for each column.
         indptr = mean_exp_mtx_sp.indptr
-        # self.median_for_markers = np.zeros(n_markers,
+        # self.median_for_markers = np_zeros(n_markers,
         #                                   dtype=float)
-        # self.mad_for_markers = np.zeros(n_markers,
+        # self.mad_for_markers = np_zeros(n_markers,
         #                                   dtype=float)
         L = []
         for marker in self.list_of_markers:
@@ -2635,8 +2224,8 @@ class TooManyCells:
 
         #TMCI uses 15 steps, and for each marker 
             # we store 3 pieces of information.
-        self.node_mad_dist_df = pd.DataFrame(
-            data = np.zeros((n_steps, n_markers * 3)), 
+        self.node_mad_dist_df = DataFrame(
+            data = np_zeros((n_steps, n_markers * 3)), 
             index = None,
             columns = L,
             dtype=self.FDT)
@@ -2647,8 +2236,8 @@ class TooManyCells:
         if n_unique_cols != n_cols:
             raise ValueError("Columns are not unique.")
 
-        self.node_exp_stats_df = pd.DataFrame(
-            np.zeros((n_markers, 7)),
+        self.node_exp_stats_df = DataFrame(
+            np_zeros((n_markers, 7)),
             index = self.list_of_markers,
             columns = ["median",
                        "mad",
@@ -2669,9 +2258,9 @@ class TooManyCells:
             data = mean_exp_mtx_sp.data[start:end]
             if len(data) == 0:
                 continue
-            median = np.median(data)
-            min = np.min(data)
-            max = np.max(data)
+            median = np_median(data)
+            min = np_min(data)
+            max = np_max(data)
             mad = median_abs_deviation(data)
             min_mad = (min - median) / mad
             max_mad = (max - median) / mad
@@ -2684,7 +2273,7 @@ class TooManyCells:
             self.node_exp_stats_df.iloc[idx,4] = min_mad
             self.node_exp_stats_df.iloc[idx,5] = max_mad
             self.node_exp_stats_df.iloc[idx,6] = delta
-            madR = np.arange(min_mad,
+            madR = np_arange(min_mad,
                              max_mad - delta/4,
                              delta)
             col = marker + "_mad_bounds"
@@ -2720,6 +2309,8 @@ class TooManyCells:
             return_updated_adata = False,
         ) -> AnnData:
         """
+
+        TODO: Fix interpretation.
 
         For every marker we create a CSV file
         indicating which cells are above or
@@ -2780,8 +2371,10 @@ class TooManyCells:
         whose expression satisfy the given thresholds.
         """
 
+        from numpy import full as np_full
+
         n_cells = self.A.shape[0]
-        mask_intersection = np.full(n_cells, True)
+        mask_intersection = np_full(n_cells, True)
         n_markers = len(self.marker_to_mad_threshold)
 
         dict_iterator = self.marker_to_mad_threshold.items()
@@ -2804,7 +2397,7 @@ class TooManyCells:
             matrix_col = self.marker_to_column_idx[marker]
             vec = self.A.X[:,matrix_col]
 
-            if sp.issparse(self.A.X):
+            if issparse(self.A.X):
                 vec = vec.toarray().squeeze()
 
             if direction == "above":
@@ -2856,7 +2449,7 @@ class TooManyCells:
                 df["CellType"] = self.A.obs[cell_ann_col]
 
             df["Class"] = ""
-            mask = np.ones(n_cells, dtype=bool)
+            mask = np_full(n_cells, True)
             vec_classes = df["Class"].values
             exp_states  = ("High", "Low")
 
@@ -2944,6 +2537,7 @@ class TooManyCells:
         above the threshold, we increase the count by one
         and add the children to the deque.
         """
+        from collections import deque
         DQ = deque()
         DQ.append(0)
         count = 0
@@ -2968,30 +2562,36 @@ class TooManyCells:
             mad_threshold: float = 1.,
     ):
         """
+        TODO: Review this function.
         TODO: Identify questionable cells and doublets.
         This function aims to fully annotate a collection
         of cells based on the provided cell markers.
         """
+
+        from numpy import unique as np_unique
+        from numpy import arange as np_arange
+        from numpy import argsort as np_argsort
+
         n_markers = len(self.list_of_markers)
-        mad_exp_df = pd.DataFrame(
+        mad_exp_df = DataFrame(
             index=self.A.obs_names,
             columns=self.list_of_markers,
             )
-        above_threshold_df = pd.DataFrame(
+        above_threshold_df = DataFrame(
             index=self.A.obs_names,
             columns=self.list_of_markers,
             )
-        sorted_marker_df = pd.DataFrame(
+        sorted_marker_df = DataFrame(
             index=self.A.obs_names,
-            columns=np.arange(1,n_markers+1),
+            columns=np_arange(1,n_markers+1),
             )
-        sorted_cell_type_df = pd.DataFrame(
+        sorted_cell_type_df = DataFrame(
             index=self.A.obs_names,
-            columns=np.arange(1,n_markers+1),
+            columns=np_arange(1,n_markers+1),
             )
-        sorted_groups_df = pd.DataFrame(
+        sorted_groups_df = DataFrame(
             index=self.A.obs_names,
-            columns=np.arange(1,n_markers+1),
+            columns=np_arange(1,n_markers+1),
             )
 
         for k, marker in enumerate(self.list_of_markers):
@@ -3007,7 +2607,7 @@ class TooManyCells:
             group = self.cell_type_to_group[cell_type]
             list_of_groups.append(group)
 
-        self.list_of_groups = np.array(list_of_groups)
+        self.list_of_groups = np_array(list_of_groups)
 
 
         list_of_status = []
@@ -3024,7 +2624,7 @@ class TooManyCells:
             #Normal status
             status = "Normal"
 
-            if sp.issparse(self.X):
+            if issparse(self.X):
                 vec = row.toarray().squeeze()
             else:
                 vec = row.copy()
@@ -3042,7 +2642,7 @@ class TooManyCells:
             # Get the indices going 
             # from the highest to the lowest
             # deviation from the median.
-            indices = np.argsort(m_exp)
+            indices = np_argsort(m_exp)
             indices = indices[::-1]
 
             sorted_markers = self.list_of_markers[indices]
@@ -3082,7 +2682,7 @@ class TooManyCells:
             # threshold.
 
             filtered_groups = sorted_groups[above_th]
-            unique_groups = np.unique(filtered_groups)
+            unique_groups = np_unique(filtered_groups)
 
             if 1 < len(unique_groups):
                 status = "MultipleGroups"
@@ -3143,6 +2743,8 @@ class TooManyCells:
         above a specific threshold. The x-axis
         describes the thresholds.
         """
+
+        import plotly.graph_objects as go
         fig = go.Figure()
         n_markers = len(self.list_of_markers)
         max_markers = n_markers
@@ -3324,12 +2926,15 @@ class TooManyCells:
         B = AnnData(self.A.X.copy())
 
         vec = B.X.expm1().sum(axis=1) - 1e4
-        vec = np.abs(vec)
+        vec = np_abs(vec)
 
-        if 0.01 < np.max(vec):
+        if 0.01 < np_max(vec):
             print("Pre-processing matrix.")
-            sc.pp.normalize_total(B, target_sum=1e4)
-            sc.pp.log1p(B)
+
+            from scanpy.pp import normalize_total
+            from scanpy.pp import log1p
+            normalize_total(B, target_sum=1e4)
+            log1p(B)
 
         print("Matrix is ready.")
             
@@ -3342,10 +2947,19 @@ class TooManyCells:
         else:
             model_str += ".pkl"
 
-        CT.models.download_models(force_update=False,
-                                  model = model_str)
-        ct_model = CT.models.Model.load(model = model_str)
-        prediction = CT.annotate(
+        from celltypist.models import download_models
+
+        download_models(
+            force_update=False,
+            model = model_str,
+        )
+
+        from celltypist.models.Model import load
+
+        ct_model = load(model = model_str)
+
+        from celltypist import annotate
+        prediction = annotate(
             B,
             model = ct_model,
             majority_voting = use_majority_voting,
@@ -3353,7 +2967,10 @@ class TooManyCells:
         col = "predicted_labels"
         if use_majority_voting:
             col = "majority_voting"
-        B.obs[cell_ann_col] = prediction.predicted_labels[col]
+
+        predictions = prediction.predicted_labels[col]
+        B.obs[cell_ann_col] = predictions
+
         fname = "celltypist_annotations.csv"
         fname = os.path.join(self.output, fname)
         B.obs[cell_ann_col].to_csv(fname, index = True)
@@ -3376,9 +2993,19 @@ class TooManyCells:
         specified in the list of branches.
         """
 
+        import matplotlib as mpl
+        import matplotlib.pyplot as plt
+        mpl.use("agg")
+        mpl.rcParams["figure.dpi"]=600
+        mpl.rc("pdf", fonttype=42)
+        font = {'weight' : 'normal', 'size'   : 18}
+        mpl.rc("font", **font)
+
         if 0 == len(list_of_branches):
             print("Nothing to be done.")
             return
+
+        from networkx import descendants as nx_descendants
 
         nodes = set()
         total_n_cells = 0
@@ -3387,7 +3014,7 @@ class TooManyCells:
             print(branch)
             nodes.add(branch)
             nodes.update(
-                list(nx.descendants(self.G, branch))
+                list(nx_descendants(self.G, branch))
             )
             # total_n_cells += self.G.nodes[branch]["size"]
         
@@ -3410,7 +3037,7 @@ class TooManyCells:
         print(f"Total # of cells: {total_n_cells}")
         
         # ============== Diversity ==============
-        vec_cells  = np.array(vec_cells, dtype=self.FDT)
+        vec_cells  = np_array(vec_cells, dtype=self.FDT)
         vec_cells /= total_n_cells
 
         # q = 0 ==> Total number of species
@@ -3418,16 +3045,19 @@ class TooManyCells:
         q_0 = n_species
 
         # q = 1 ==> Shannon's diversity index
+        from scipy.stats import entropy
         shannon = entropy(vec_cells)
-        q_1 = np.exp(shannon)
+        from numpy import exp as np_exp
+        q_1 = np_exp(shannon)
 
         # q = 2 ==> Simpson's diversity index
-        simpson = np.sum(vec_cells**2)
+        from numpy import sum as np_sum
+        simpson = np_sum(vec_cells**2)
         q_2 = 1 / simpson
 
         # q = infty ==> Max
-        max_p = np.max(vec_cells)
-        q_inf = 1 / np.max(vec_cells)
+        max_p = np_max(vec_cells)
+        q_inf = 1 / np_max(vec_cells)
 
         indices = ["Richness",
                    "Shannon",
@@ -3442,7 +3072,7 @@ class TooManyCells:
         results = [n_species, shannon, simpson, max_p,
                    q_0, q_1, q_2, q_inf]
 
-        df = pd.DataFrame(results,
+        df = DataFrame(results,
                           index=indices,
                           columns = ["value"])
 
@@ -3453,7 +3083,7 @@ class TooManyCells:
 
 
         # ============== Modularity ==============
-        df = pd.DataFrame(list_of_Q,
+        df = DataFrame(list_of_Q,
                           index = list_of_nodes,
                           columns = ["modularity"] )
         df.index.name = "node"
@@ -3648,7 +3278,7 @@ class TooManyCells:
     def plot_embedding(
         self,
         color_column: str,
-        color_map: pd.DataFrame,
+        color_map: DataFrame,
         file_name: str,
         ):
         """
