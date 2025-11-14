@@ -439,12 +439,14 @@ class TooManyCells:
 
         p_node_id = node_id
 
-        if similarity_function == "cosine_sparse":
-            Q,S = simMat.compute_partition_for_cosine_sparse(rows)
-        elif similarity_function == "dnes_sparse":
-            Q,S = simMat.compute_partition_for_dnes_sparse(rows)
-        else:
-            Q,S = simMat.compute_partition_for_dense_matrix(rows)
+        Q,S = simMat.compute_partition(rows)
+
+        # if similarity_function == "cosine_sparse":
+        #     Q,S = simMat.compute_partition_for_cosine_sparse(rows)
+        # elif similarity_function == "dnes_sparse":
+        #     Q,S = simMat.compute_partition_for_dnes_sparse(rows)
+        # else:
+        #     Q,S = simMat.compute_partition_for_dense_matrix(rows)
 
         if modularity_threshold < Q:
             #Modularity is above threshold, and
@@ -521,12 +523,15 @@ class TooManyCells:
 
                 # We need to know the modularity to 
                 # determine if the node will be partitioned.
-                if similarity_function == "cosine_sparse":
-                    Q,S = simMat.compute_partition_for_cosine_sparse(rows)
-                elif similarity_function == "dnes_sparse":
-                    Q,S = simMat.compute_partition_for_dnes_sparse(rows)
-                else:
-                    Q,S = simMat.compute_partition_for_dense_matrix(rows)
+
+                Q,S = simMat.compute_partition(rows)
+
+                # if similarity_function == "cosine_sparse":
+                #     Q,S = simMat.compute_partition_for_cosine_sparse(rows)
+                # elif similarity_function == "dnes_sparse":
+                #     Q,S = simMat.compute_partition_for_dnes_sparse(rows)
+                # else:
+                #     Q,S = simMat.compute_partition_for_dense_matrix(rows)
 
                 # If the parent node is 0, then the path is
                 # "0".
@@ -714,10 +719,6 @@ class TooManyCells:
         fname = "node_info.csv"
         fname = os.path.join(self.output, fname)
         df.to_csv(fname, index=False)
-
-        # Eliminate dependencies with GraphViz
-        # if self.use_twopi_cmd and store_tree_svg:
-        #     self.plot_radial_tree_from_dot_file()
 
         self.tf = clock()
         delta = self.tf - self.t0

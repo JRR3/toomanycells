@@ -19,7 +19,7 @@ from typing import Optional
 from numpy.typing import ArrayLike
 
 from anndata import AnnData
-import networkx import DiGraph
+from networkx import DiGraph
 
 
 class CellAnnotation:
@@ -255,13 +255,10 @@ class CellAnnotation:
         TODO: Test this function
         """
         from collections import defaultdict as ddict
-        from networkx import descendants nx_descendants
+        from networkx import descendants as nx_descendants
 
         f_name = "compute_marker_median_value_for_cell_type"
         cmmv_for_cell_type = getattr(self, f_name)
-
-                x = self.compute_marker_median_value_for_cell_type(
-                    marker, cell_type, ignore_zero=True)
 
         if not os.path.exists(cell_group_path):
             print(cell_group_path)
@@ -276,7 +273,6 @@ class CellAnnotation:
                 print("Homogeneous leafs strategy:")
                 raise ValueError("Strategy is not unique.")
         
-
         CA = cell_ann_col
 
         # Make the connection between the cell groups and the 
