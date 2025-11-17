@@ -15,8 +15,7 @@ import re
 import sys
 import json
 import numpy as np
-import pandas as pd
-import scanpy as sc
+from anndata import AnnData
 
 from networkx import descendants as nx_descendants
 from networkx import DiGraph
@@ -36,7 +35,7 @@ class TMCGraph:
     #=====================================
     def __init__(self,
                  graph: DiGraph,
-                 adata: sc.AnnData,
+                 adata: AnnData,
                  output: str,
         ):
 
@@ -216,9 +215,14 @@ class TMCGraph:
         #Compare side-by-side the cells to be eliminated
         #for each cluster with the total number of cells
         #for that cluster.
-        df = pd.merge(cluster_ref, cluster_vc,
-                      left_index=True, right_index=True,
-                      how="inner")
+        from pandas import merge
+        df = merge(
+            cluster_ref,
+            cluster_vc,
+            left_index=True,
+            right_index=True,
+            how="inner",
+        )
 
         df["status"] = df.count_x == df.count_y
 
@@ -345,7 +349,8 @@ class TMCGraph:
             self,
     ):
         """
-        TODO: Finish and test.
+        This function has been tested on simple examples.
+        Nov 16, 2025.
         """
         S      = []
         self.J = MultiIndexList()
@@ -389,6 +394,7 @@ class TMCGraph:
             #stored, then the new j_index is (1,0).
             #Otherwise, it is (1,1).
             j_index += (n_stored_blocks,)
+            print(f"{j_index=}")
 
             if not_leaf_node:
                 #This is not a leaf node.
@@ -715,7 +721,8 @@ class TMCGraph:
         if load_clusters_file:
             fname = "clusters.csv"
             fname = os.path.join(self.output, fname)
-            df = pd.read_csv(fname,
+            from pandas import read_csv
+            df = read_csv(fname,
                              header=0,
             )
             cell_ids = df["cell"].values
@@ -747,7 +754,8 @@ class TMCGraph:
 
         if 0 < len(path_to_csv_file):
             #This file contains all the branches
-            df = pd.read_csv(path_to_csv_file, header=0)
+            from pandas import read_csv
+            df = read_csv(path_to_csv_file, header=0)
             list_of_branches = df[branch_column].values
 
         elif 0 < len(list_of_branches):
