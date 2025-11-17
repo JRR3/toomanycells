@@ -61,6 +61,7 @@ class TMCGraph:
         self.node_to_j_index = {}
 
         self.node_counter = 0
+        self.set_of_red_clusters = set()
 
 
 
@@ -242,7 +243,15 @@ class TMCGraph:
             self,
     ):
         """
-        TODO
+        Use this function once cells have been removed
+        from the AnnData object. This function will
+        rearrange the tree to take into consideration
+        the potential elimination of leaf nodes 
+        or branches.
+
+        Note that this function only works on the graph
+        and will not create the TMC structure necessary
+        to visualize it in TMCI.
         """
 
         DQ = deque()
@@ -260,6 +269,9 @@ class TMCGraph:
             flag_to_erase = False
             if is_leaf_node:
                 if node_id in self.set_of_red_clusters:
+                    #If this node has been flagged to 
+                    #be erased, then we proceed with the
+                    #rearrangement and subsequent elimination.
                     flag_to_erase = True
             else:
                 nodes = nx_descendants(self.G, node_id)
@@ -345,12 +357,14 @@ class TMCGraph:
         return None
 
     #=====================================
-    def rebuild_tree_from_graph(
+    def generate_tmci_files_from_graph(
             self,
     ):
         """
         This function has been tested on simple examples.
         Nov 16, 2025.
+        This function will create the required files in 
+        order to run TMCI and visualize the tree.
         """
         S      = []
         self.J = MultiIndexList()
@@ -385,6 +399,23 @@ class TMCGraph:
             nodes = nx_descendants(self.G, node_id)
             mask = self.A.obs["sp_cluster"].isin(nodes)
             n_viable_cells = mask.sum()
+
+            #---------------------------------
+            #This section will only be relevant when
+            #cells have been removed through another
+            #process.
+            #---------------------------------
+            # Non-leaf nodes with zero viable cells
+            # are eliminated.
+            if not_leaf_node and n_viable_cells == 0:
+                # print(f"Cluster {node_id} has to "
+                #       "be eliminated.")
+                continue
+
+            if node_id in self.set_of_red_clusters:
+                continue
+            #---------------------------------
+
 
             j_index = self.node_to_j_index[p_node_id]
             n_stored_blocks = len(self.J[j_index])
@@ -490,8 +521,8 @@ class TMCGraph:
                 self.node_to_j_index[node_id] = j_index
                 children = self.G.successors(node_id)
                 children = sorted(children, reverse=True)
-                for child in children:
 
+                for child in children:
                     T = (node_id, child)
                     S.append(T)
             else:
@@ -605,15 +636,6 @@ class TMCGraph:
                 ensure_ascii=False,
                 separators=(",", ":"),
                 )
-
-        # s = str(master_list)
-        # replace_dict = {" ":"", "'":'"'}
-        # pattern = "|".join(replace_dict.keys())
-        # regexp  = re.compile(pattern)
-        # fun = lambda x: replace_dict[x.group(0)] 
-        # obj = regexp.sub(fun, s)
-        # with open(fname, "w") as output_file:
-        #     output_file.write(obj)
 
     #=====================================
     def convert_graph_to_json(self):
