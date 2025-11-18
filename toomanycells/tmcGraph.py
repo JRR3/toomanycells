@@ -796,29 +796,39 @@ class TMCGraph:
     #=====================================
     def label_nodes_by_depth_first(
             self,
-            source_col = "sp_cluster"
-            mapped_col = "sp_cluster_pruned"
+            source_col: str = "sp_cluster",
+            mapped_col: str = "sp_cluster_pruned",
         ):
         S = [0]
-        node_counter = 0
+        node_counter = -1
         map_ori_to_pruned_id = {0:0}
+        set_of_leaf_nodes = set()
 
         while 0 < len(S):
 
             node_id = S.pop()
+            node_counter += 1
+            map_ori_to_pruned_id[node_id] = node_counter
+
+            if self.G.out_degree(node_id) == 0:
+                set_of_leaf_nodes.add(node_id)
 
             children = self.G.successors(node_id)
             children = sorted(children, reverse=True)
 
             # We append the children from largest to smallest
             # so that the smallest comes first from the stack.
-            for child in children
-                DQ.append(child)
-                node_counter += 1
-                map_ori_to_pruned_id[child] = node_counter
+            for child in children:
+                S.append(child)
+
+        # print(map_ori_to_pruned_id)
+        # x = self.A.obs[source_col]
+        # print(x)
 
         x = self.A.obs[source_col].map(map_ori_to_pruned_id)
         self.A.obs[mapped_col] = x
+
+        # print(self.A.obs[mapped_col].value_counts())
 
 
         
@@ -894,7 +904,6 @@ class TMCGraph:
                     print(f"Branch {node_id}: {feature}={value}")
                     self.collapse_branch(
                         node_id,
-                        node_counter,
                         modify_adata,
                     )
             else:

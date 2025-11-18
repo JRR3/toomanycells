@@ -3331,8 +3331,13 @@ class TooManyCells:
             feature,
             mad_multiplier,
         )
+        self.tmcGraph.label_nodes_by_depth_first()
         self.tmcGraph.generate_tmci_structures_from_graph()
         self.store_outputs(cell_ann_col=cell_ann_col)
+
+        # fname = "modified_anndata.h5ad"
+        # fname = os_path_join(self.output, fname)
+        # self.A.write(fname)
 
 
 
