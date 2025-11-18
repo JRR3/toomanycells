@@ -140,7 +140,7 @@ class TooManyCells:
                 self.t0 = clock()
 
                 from scanpy import read_h5ad
-                self.A = sc.read_h5ad(self.source)
+                self.A = read_h5ad(self.source)
 
                 self.tf = clock()
                 delta = self.tf - self.t0
@@ -162,7 +162,7 @@ class TooManyCells:
                             self.t0 = clock()
 
                             from scanpy import read_h5ad
-                            self.A = sc.read_h5ad(fname)
+                            self.A = read_h5ad(fname)
 
                             self.tf = clock()
                             delta = self.tf - self.t0
@@ -1435,32 +1435,18 @@ class TooManyCells:
     #=====================================
     def load_cluster_info(
             self,
-            cluster_file_path: str ="",
-            ):
+            clusters_file_path: str,
+        ):
         """
         Load the cluster file.
         """
 
         self.t0 = clock()
 
-        if 0 < len(cluster_file_path):
-            cluster_fname = cluster_file_path
-
-        else:
-            fname = "clusters.csv"
-            cluster_fname = os.path.join(self.output, fname)
-
-        if not os.path.exists(cluster_fname):
-            raise ValueError("File does not exists.")
-
-        df = read_csv(cluster_fname, index_col=0)
-        self.A.obs["sp_cluster"] = df["cluster"]
-
-        # This set should  be equal to the one
-        # stored in the tmcGraph object.
-        self.set_of_leaf_nodes = set(df["cluster"])
+        self.tmcGraph.load_cluster_info(clusters_file_path)
 
         self.tf = clock()
+
         delta = self.tf - self.t0
         txt = ("Elapsed time to load cluster file: " + 
                 f"{delta:.2f} seconds.")
@@ -3199,24 +3185,24 @@ class TooManyCells:
             cell_ann_col)
         self.A = self.tmcGraph.A
         self.tmcGraph.rebuild_graph_after_removing_cells()
-        self.tmcGraph.rebuild_tree_from_graph()
+        self.tmcGraph.generate_tmci_structures_from_graph()
         self.tmcGraph.store_outputs()
 
     #=====================================
     def load_graph(
             self,
-            json_fname: str = "graph.json",
-            load_clusters_file: bool = False,
+            json_file_path: str,
             store_in_uns_dict: bool = False,
-            load_from_uns: bool = False
+            load_from_uns: bool = False,
+            clusters_file_path: Optional[str] = None,
         ):
         """
         Load graph from JSON file.
         """
 
-        self.tmcGraph.load_graph(json_fname,
-                                 load_clusters_file,
+        self.tmcGraph.load_graph(json_file_path,
                                  load_from_uns,
+                                 clusters_file_path,
         )
         # After loading the graph, the set of leaf
         # nodes gets populated internally.
@@ -3331,6 +3317,23 @@ class TooManyCells:
         mask = self.A.obs[obs_column] == kind
 
         return self.A[mask]
+
+    #=====================================
+    def prune_tree_by_feature(
+            self,
+            feature: str,
+            mad_multiplier: float,
+            modify_adata: bool = True,
+            cell_ann_col: Optional[str] = None,
+        ):
+
+        self.tmcGraph.prune_tree_by_feature(
+            feature,
+            mad_multiplier,
+        )
+        self.tmcGraph.generate_tmci_structures_from_graph()
+        self.store_outputs(cell_ann_col=cell_ann_col)
+
 
 
     #====END=OF=CLASS=====================

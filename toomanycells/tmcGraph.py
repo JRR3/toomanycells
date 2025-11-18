@@ -2,7 +2,7 @@
 #Princess Margaret Cancer Research Tower
 #Schwartz Lab
 #Javier Ruiz Ramirez
-#October 2024
+#November 2025
 #########################################################
 #This is a Python script to produce TMC trees using
 #the original too-many-cells tool.
@@ -10,24 +10,26 @@
 #########################################################
 #Questions? Email me at: javier.ruizramirez@uhn.ca
 #########################################################
-import os
-import re
-import sys
-import json
-import numpy as np
+
 from anndata import AnnData
 
-from networkx import descendants as nx_descendants
 from networkx import DiGraph
+from networkx import descendants as nx_descendants
 
 from typing import Set
 from typing import List
 from typing import Union
-from os.path import dirname
 from typing import Optional
+
+from os.path import dirname
+from os.path import join as os_path_join
+from os.path import exists as os_path_exists
+
 from collections import deque
 
+import sys
 sys.path.insert(0, dirname(__file__))
+
 from common import MultiIndexList
 from common import JEncoder
 
@@ -87,10 +89,10 @@ class TMCGraph:
     #=====================================
     def eliminate_cell_type_outliers(
             self,
-            cell_ann_col: Optional[str] = "cell_annotations",
-            clean_threshold: Optional[float] = 0.8,
-            no_mixtures: Optional[bool] = True,
-            batch_ann_col: Optional[str] = "",
+            cell_ann_col: str = "cell_annotations",
+            clean_threshold: float = 0.8,
+            no_mixtures: bool = True,
+            batch_ann_col: str = "",
     ):
         """
         Eliminate all cells that do not belong to the
@@ -129,16 +131,16 @@ class TMCGraph:
                 nodes = [node]
             else:
                 nodes = nx_descendants(self.G, node)
-                x = self.set_of_leaf_nodes.intersection(
-                    nodes)
-                # nodes = list(x)
 
-            mask = self.A.obs["sp_cluster"].isin(x)
-            S = self.A.obs[CA].loc[mask]
+            #Leaf nodes
+            LN = self.set_of_leaf_nodes.intersection(nodes)
+
+            mask = self.A.obs["sp_cluster"].isin(LN)
+            subgroup = self.A.obs[CA].loc[mask]
             node_size = mask.sum()
             print(f"Working with {node=}")
             print(f"Size of {node=}: {node_size}")
-            vc = S.value_counts(normalize=True)
+            vc = subgroup.value_counts(normalize=True)
             print("===============================")
             print(vc)
 
@@ -172,8 +174,8 @@ class TMCGraph:
 
                 if no_mixtures:
                     #We do not allow minorities.
-                    mask = S != majority_group
-                    Q = S.loc[mask]
+                    mask = subgroup != majority_group
+                    Q = subgroup.loc[mask]
                     elim_set.update(Q.index)
                     continue
 
@@ -250,8 +252,11 @@ class TMCGraph:
         or branches.
 
         Note that this function only works on the graph
-        and will not create the TMC structure necessary
+        and will not create the TMC structures necessary
         to visualize it in TMCI.
+
+        For such purpose, please use the 
+        generate_tmci_structures_from_graph().
         """
 
         DQ = deque()
@@ -357,8 +362,9 @@ class TMCGraph:
         return None
 
     #=====================================
-    def generate_tmci_files_from_graph(
+    def generate_tmci_structures_from_graph(
             self,
+            show_stubs: bool = False,
     ):
         """
         This function has been tested on simple examples.
@@ -366,6 +372,7 @@ class TMCGraph:
         This function will create the required files in 
         order to run TMCI and visualize the tree.
         """
+        from numpy import nonzero as np_nonzero
         S      = []
         self.J = MultiIndexList()
         node_id= 0
@@ -400,22 +407,22 @@ class TMCGraph:
             mask = self.A.obs["sp_cluster"].isin(nodes)
             n_viable_cells = mask.sum()
 
-            #---------------------------------
-            #This section will only be relevant when
-            #cells have been removed through another
-            #process.
-            #---------------------------------
-            # Non-leaf nodes with zero viable cells
-            # are eliminated.
-            if not_leaf_node and n_viable_cells == 0:
-                # print(f"Cluster {node_id} has to "
-                #       "be eliminated.")
-                continue
+            if show_stubs:
+                #---------------------------------
+                #This section will only be relevant when
+                #cells have been removed through another
+                #process.
+                #---------------------------------
+                # Non-leaf nodes with zero viable cells
+                # are eliminated.
+                if not_leaf_node and n_viable_cells == 0:
+                    # print(f"Cluster {node_id} has to "
+                    #       "be eliminated.")
+                    continue
 
-            if node_id in self.set_of_red_clusters:
-                continue
-            #---------------------------------
-
+                if node_id in self.set_of_red_clusters:
+                    continue
+                #---------------------------------
 
             j_index = self.node_to_j_index[p_node_id]
             n_stored_blocks = len(self.J[j_index])
@@ -425,7 +432,8 @@ class TMCGraph:
             #stored, then the new j_index is (1,0).
             #Otherwise, it is (1,1).
             j_index += (n_stored_blocks,)
-            print(f"{j_index=}")
+
+            # print(f"{j_index=}")
 
             if not_leaf_node:
                 #This is not a leaf node.
@@ -445,90 +453,7 @@ class TMCGraph:
             else:
                 #Leaf node
                 mask = self.A.obs["sp_cluster"] == node_id
-                rows = np.nonzero(mask)[0]
-                L = self.cells_to_json(rows)
-                self.J[j_index].append(L)
-                self.J[j_index].append([])
-
-    #=====================================
-    def rebuild_tree_without_rearrangements(
-            self,
-    ):
-        """
-        To show the stubs you need to modify the
-        """
-
-        S      = []
-        self.J = MultiIndexList()
-        node_id= 0
-
-        self.node_to_j_index = {}
-        self.node_to_j_index[node_id] = (1,)
-
-        Q = self.G.nodes[node_id]["Q"]
-        D = self.modularity_to_json(Q)
-
-        self.J.append(D)
-        self.J.append([])
-
-        children = self.G.successors(node_id)
-
-        # The largest index goes first so that 
-        # when we pop an element, we get the smallest
-        # of the two that were inserted.
-        children = sorted(children, reverse=True)
-        for child in children:
-            T = (node_id, child)
-            S.append(T)
-
-        while 0 < len(S):
-
-            p_node_id, node_id = S.pop()
-            cluster_size = self.G.nodes[node_id]["size"]
-            not_leaf_node = 0 < self.G.out_degree(node_id)
-            is_leaf_node = not not_leaf_node
-
-            nodes = nx_descendants(self.G, node_id)
-            mask = self.A.obs["sp_cluster"].isin(nodes)
-            n_viable_cells = mask.sum()
-
-            # Non-leaf nodes with zero viable cells
-            # are eliminated.
-            if not_leaf_node and n_viable_cells == 0:
-                # print(f"Cluster {node_id} has to "
-                #       "be eliminated.")
-                continue
-
-            if node_id in self.set_of_red_clusters:
-                continue
-
-            j_index = self.node_to_j_index[p_node_id]
-            n_stored_blocks = len(self.J[j_index])
-            self.J[j_index].append([])
-            #Update the j_index. For example, if
-            #j_index = (1,) and no blocks have been
-            #stored, then the new j_index is (1,0).
-            #Otherwise, it is (1,1).
-            j_index += (n_stored_blocks,)
-
-            if not_leaf_node:
-                #This is not a leaf node.
-                Q = self.G.nodes[node_id]["Q"]
-                D = self.modularity_to_json(Q)
-                self.J[j_index].append(D)
-                self.J[j_index].append([])
-                j_index += (1,)
-                self.node_to_j_index[node_id] = j_index
-                children = self.G.successors(node_id)
-                children = sorted(children, reverse=True)
-
-                for child in children:
-                    T = (node_id, child)
-                    S.append(T)
-            else:
-                #Leaf node
-                mask = self.A.obs["sp_cluster"] == node_id
-                rows = np.nonzero(mask)[0]
+                rows = np_nonzero(mask)[0]
                 L = self.cells_to_json(rows)
                 self.J[j_index].append(L)
                 self.J[j_index].append([])
@@ -568,16 +493,17 @@ class TMCGraph:
         """
 
         fname = "cluster_tree.json"
-        fname = os.path.join(self.output, fname)
+        fname = os_path_join(self.output, fname)
 
         with open(fname,"w",encoding="utf-8") as output_file:
-            json.dump(
+            from json import dump as json_dump 
+            json_dump(
                 self.J,
                 output_file,
                 cls=JEncoder,
                 ensure_ascii=False,
                 separators=(",", ":"),
-                )
+            )
 
     #=====================================
     def write_cell_assignment_to_csv(self):
@@ -590,7 +516,7 @@ class TMCGraph:
             node to the given node.
         """
         fname = 'clusters.csv'
-        fname = os.path.join(self.output, fname)
+        fname = os_path_join(self.output, fname)
         labels = ['sp_cluster','sp_path']
         df = self.A.obs[labels]
         df.index.names = ['cell']
@@ -627,15 +553,16 @@ class TMCGraph:
             master_list.append([main_dict, list_of_nodes])
 
         fname = "cluster_list.json"
-        fname = os.path.join(self.output, fname)
+        fname = os_path_join(self.output, fname)
         with open(fname,"w",encoding="utf-8") as output_file:
-            json.dump(
+            from json import dump as json_dump 
+            json_dump(
                 master_list,
                 output_file,
                 cls=JEncoder,
                 ensure_ascii=False,
                 separators=(",", ":"),
-                )
+            )
 
     #=====================================
     def convert_graph_to_json(self):
@@ -646,14 +573,16 @@ class TMCGraph:
         from networkx import node_link_data
         nld = node_link_data(self.G)
         fname = "graph.json"
-        fname = os.path.join(self.output, fname)
+        fname = os_path_join(self.output, fname)
         with open(fname, "w", encoding="utf-8") as f:
-            json.dump(nld, f, ensure_ascii=False, indent=4)
+            from json import dump as json_dump 
+            json_dump(nld, f, ensure_ascii=False, indent=4)
 
     #=====================================
     def store_outputs(self,
                       store_in_uns_dict = False):
         """
+        S
         """
         self.write_cell_assignment_to_csv()
         self.convert_graph_to_tmc_json()
@@ -666,12 +595,15 @@ class TMCGraph:
             x = self.set_of_leaf_nodes
             #The list of leaf nodes is stored in the dict.
             self.A.uns["tmc_leaf_nodes"] = x
-            S = json.dumps(
+
+            from json import dumps as json_dumps 
+            S = json_dumps(
                 self.J,
                 cls=JEncoder,
                 ensure_ascii=False,
                 separators=(",", ":"),
-                )
+            )
+
             #The cluster_tree.json is stored in the
             #dictionary as a string.
             self.A.uns["tmc_json"] = S
@@ -679,9 +611,9 @@ class TMCGraph:
     #=====================================
     def load_graph(
             self,
-            json_fname: str = "graph.json",
-            load_clusters_file: bool = False,
+            json_file_path: str,
             load_from_uns: bool = False,
+            clusters_file_path: Optional[str] = None,
         ):
 
         """
@@ -697,16 +629,14 @@ class TMCGraph:
 
         else:
 
-            json_fname = os.path.join(self.output,
-                                      json_fname)
-
-            if not os.path.exists(json_fname):
+            if not os_path_exists(json_file_path):
                 raise ValueError("File does not exists.")
 
             print("Reading JSON file ...")
 
-            with open(json_fname, encoding="utf-8") as f:
-                json_graph = json.load(f)
+            with open(json_file_path, encoding="utf-8") as f:
+                from json import load as json_load 
+                json_graph = json_load(f)
 
             from networkx import node_link_graph
             self.G = node_link_graph(json_graph)
@@ -736,29 +666,50 @@ class TMCGraph:
 
             size = self.G.nodes[node]["size"]
             self.G.nodes[node]["size"] = int(size)
+
             if "Q" in self.G.nodes[node]:
                 Q = self.G.nodes[node]["Q"]
                 self.G.nodes[node]["Q"] = float(Q)
 
-        if load_clusters_file:
-            fname = "clusters.csv"
-            fname = os.path.join(self.output, fname)
-            from pandas import read_csv
-            df = read_csv(fname,
-                             header=0,
-            )
-            cell_ids = df["cell"].values
-            clusters = df["cluster"].values
-            #By default, the constructor of an 
-            #AnnData object will produce indices of 
-            #string type.
-            if "int" in str(type(cell_ids[0])):
-                cell_ids = map(str, cell_ids)
-            # print(list(cell_ids))
-            # print(self.A.obs.index)
-            self.A.obs.loc[cell_ids,"sp_cluster"] = clusters
+        if clusters_file_path is not None:
+            self.load_cluster_info(clusters_file_path)
 
         print(self.G)
+
+    #=====================================
+    def load_cluster_info(
+            self,
+            clusters_file_path: str,
+            ):
+        """
+        Load the cluster file.
+        """
+
+        if not os_path_exists(clusters_file_path):
+            raise ValueError("File does not exists.")
+
+        from pandas import read_csv
+        df = read_csv(
+            clusters_file_path,
+            header=0,
+            index_col=0,
+        )
+
+        # We force the indices of the dataframe to be 
+        # strings in order to be compatible with the 
+        # indices of the AnnData object, which are 
+        # always strings.
+        df.index = map(str, df.index)
+
+        #Sort them in the same order as the AnnData object.
+        df = df.loc[self.A.obs_names].copy()
+
+        self.A.obs["sp_cluster"] = df["cluster"].values
+        self.A.obs["sp_path"] = df["path"].values
+
+        # This set should  be equal to the one
+        # stored in the tmcGraph object.
+        self.set_of_leaf_nodes = set(df["cluster"])
 
     #=====================================
     def isolate_cells_from_branches(
@@ -777,35 +728,157 @@ class TMCGraph:
         if 0 < len(path_to_csv_file):
             #This file contains all the branches
             from pandas import read_csv
-            df = read_csv(path_to_csv_file, header=0)
-            list_of_branches = df[branch_column].values
+            df = read_csv(
+            clusters_file_path,
+            header=0,
+            index_col=0,
+        )
 
-        elif 0 < len(list_of_branches):
-            pass
+        # We force the indices of the dataframe to be 
+        # strings in order to be compatible with the 
+        # indices of the AnnData object, which are 
+        # always strings.
+        df.index = map(str, df.index)
 
-        else:
-            raise ValueError("No source has been specified.")
+        #Sort them in the same order as the AnnData object.
+        df = df.loc[self.A.obs_names].copy()
 
-        set_of_leaf_nodes = set()
-        sp_cluster = "sp_cluster"
+        self.A.obs["sp_cluster"] = df["cluster"].values
+        self.A.obs["sp_path"] = df["path"].values
 
-        # print(f"{list_of_branches=}")
+        # This set should  be equal to the one
+        # stored in the tmcGraph object.
+        self.set_of_leaf_nodes = set(df["cluster"])
 
-        for branch in list_of_branches:
+        self.tf = clock()
+        delta = self.tf - self.t0
+        txt = ("Elapsed time to load cluster file: " + 
+                f"{delta:.2f} seconds.")
+        print(txt)
 
-            if 0 < self.G.out_degree(branch):
-                #Not a leaf node.
-                nodes = nx_descendants(self.G, branch)
-                nodes = self.set_of_leaf_nodes.intersection(
-                    nodes)
-                set_of_leaf_nodes.update(nodes)
+    #=====================================
+    def collapse_branch(
+            self,
+            branch: int,
+            modify_adata: bool = True,
+        ):
+        """
+        All cells belonging to a branch are to be
+        collapsed into one leaf node.
+        """
+        not_leaf_node = 0 < self.G.out_degree(branch)
+        is_leaf_node = not not_leaf_node
+
+        if is_leaf_node:
+            #Nothing to be done
+            return
+
+        nodes = nx_descendants(self.G, branch)
+        nodes = self.set_of_leaf_nodes.intersection(nodes)
+
+        if modify_adata:
+            #We are going to relabel the clusters
+            #using the branch number.
+            sp_cluster = "sp_cluster"
+            mask = self.A.obs[sp_cluster].isin(nodes)
+            self.A.obs.loc[mask, sp_cluster] = branch
+
+        children = self.G.successors(branch)
+        # We convert the dictionary into a list to avoid 
+        # an error when deleting nodes.
+        children = list(children)
+        n_cells  = 0
+        s_feature = "size"
+
+        for child in children:
+            if s_feature in self.G.nodes[child]:
+                n_cells += self.G.nodes[child][s_feature]
+            self.G.remove_node(child)
+
+        if 0 < n_cells:
+            print(f"{n_cells} cells have been relocated.")
+
+        
+    #=====================================
+    def prune_tree_by_feature(
+            self,
+            feature: str,
+            mad_multiplier: float,
+            modify_adata: bool = True,
+        ):
+        """
+        Prune the tree based on a feature like modularity
+        or size.
+
+        If the value of the feature at a given node is 
+        below the threshold, then the node in question
+        will be collapsed, i.e., all the cells belonging
+        to the descendants of that node will be transfered
+        to that node, essentially converting a branch node
+        into a leaf node. The AnnData object will also
+        be modified.
+
+        """
+        list_of_values = []
+        for node in self.G.nodes:
+            if feature in self.G.nodes[node]:
+                value = self.G.nodes[node][feature]
+                list_of_values.append(value)
+        
+        from scipy.stats import median_abs_deviation
+        from numpy import median as np_median
+        median_abs_dev = median_abs_deviation(list_of_values)
+
+        median = np_median(list_of_values)
+        threshold = median + mad_multiplier * median_abs_dev
+
+        DQ = deque()
+
+        DQ.append(0)
+
+        while 0 < len(DQ):
+            # print("===============================")
+            node_id = DQ.popleft()
+
+            not_leaf_node = 0 < self.G.out_degree(node_id)
+            is_leaf_node = not not_leaf_node
+            has_feature = feature in self.G.nodes[node_id]
+
+            if has_feature:
+                #There is work to do.
+                pass
             else:
-                #Is a leaf node
-                set_of_leaf_nodes.add(branch)
+                #Nothing to do since we cannot 
+                #compare this node against the threshold.
+                #We assume the children of this node, if
+                #any, also lack this feature.
+                continue
 
-        mask = self.A.obs[sp_cluster].isin(
-            set_of_leaf_nodes)
+            value = self.G.nodes[node_id][feature]
 
-        return mask
+            if value < threshold:
+                #This branch has to be collapsed into
+                #one node.
+                if is_leaf_node:
+                    #Nothing to be done.
+                    #It already consists of one
+                    #single cluster.
+                    continue
+                else:
+                    #We have to collapse the branch.
+                    print(f"--------------------------")
+                    print(f"Branch {node_id}: {feature}={value}")
+                    self.collapse_branch(
+                        node_id,
+                        modify_adata,
+                    )
+            else:
+                #The value was above threshold.
+                #Hence, we will add the children
+                #for further inspection.
+                for child in self.G.successors(node_id):
+                    DQ.append(child)
+
+
 
     #====END=OF=CLASS=====================
