@@ -443,6 +443,7 @@ class TMCGraph:
                 self.J[j_index].append([])
                 j_index += (1,)
                 self.node_to_j_index[node_id] = j_index
+
                 children = self.G.successors(node_id)
                 children = sorted(children, reverse=True)
 
@@ -773,30 +774,52 @@ class TMCGraph:
             #Nothing to be done
             return
 
-        nodes = nx_descendants(self.G, branch)
-        nodes = self.set_of_leaf_nodes.intersection(nodes)
+        descendants = nx_descendants(self.G, branch)
+        leaf_nodes = self.set_of_leaf_nodes.intersection(
+            descendants)
 
         if modify_adata:
             #We are going to relabel the clusters
             #using the branch number.
             sp_cluster = "sp_cluster"
-            mask = self.A.obs[sp_cluster].isin(nodes)
+            mask = self.A.obs[sp_cluster].isin(leaf_nodes)
             self.A.obs.loc[mask, sp_cluster] = branch
 
-        children = self.G.successors(branch)
-        # We convert the dictionary into a list to avoid 
-        # an error when deleting nodes.
-        children = list(children)
-        n_cells  = 0
         s_feature = "size"
-
-        for child in children:
-            if s_feature in self.G.nodes[child]:
-                n_cells += self.G.nodes[child][s_feature]
-            self.G.remove_node(child)
-
-        if 0 < n_cells:
+        if s_feature in self.G.nodes[branch]:
+            n_cells = self.G.nodes[branch][s_feature]
             print(f"{n_cells} cells have been relocated.")
+
+        self.G.remove_nodes_from(descendants)
+            
+
+    #=====================================
+    def label_nodes_by_depth_first(
+            self,
+            source_col = "sp_cluster"
+            mapped_col = "sp_cluster_pruned"
+        ):
+        S = [0]
+        node_counter = 0
+        map_ori_to_pruned_id = {0:0}
+
+        while 0 < len(S):
+
+            node_id = S.pop()
+
+            children = self.G.successors(node_id)
+            children = sorted(children, reverse=True)
+
+            # We append the children from largest to smallest
+            # so that the smallest comes first from the stack.
+            for child in children
+                DQ.append(child)
+                node_counter += 1
+                map_ori_to_pruned_id[child] = node_counter
+
+        x = self.A.obs[source_col].map(map_ori_to_pruned_id)
+        self.A.obs[mapped_col] = x
+
 
         
     #=====================================
@@ -835,6 +858,7 @@ class TMCGraph:
         DQ = deque()
 
         DQ.append(0)
+        node_counter = 0
 
         while 0 < len(DQ):
             # print("===============================")
@@ -850,8 +874,8 @@ class TMCGraph:
             else:
                 #Nothing to do since we cannot 
                 #compare this node against the threshold.
-                #We assume the children of this node, if
-                #any, also lack this feature.
+                #We assume that the children of this node,
+                # if any, also lack this feature.
                 continue
 
             value = self.G.nodes[node_id][feature]
@@ -870,12 +894,16 @@ class TMCGraph:
                     print(f"Branch {node_id}: {feature}={value}")
                     self.collapse_branch(
                         node_id,
+                        node_counter,
                         modify_adata,
                     )
             else:
-                #The value was above threshold.
-                #Hence, we will add the children
-                #for further inspection.
+                # The value was above threshold.
+                # Hence, we will add the children
+                # for further inspection.
+                # Note that we are doing a breadth-first
+                # search. However, the order of the 
+                # children is irrelevant.
                 for child in self.G.successors(node_id):
                     DQ.append(child)
 
