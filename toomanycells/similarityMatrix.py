@@ -151,6 +151,9 @@ class SimilarityMatrix:
         if similarity_function not in similarity_functions:
             raise ValueError("Unexpected similarity fun.")
 
+        t0_build_sim_matrix = clock()
+        print("building similarity matrix ...")
+
         #TF-IDF section
         if use_tf_idf:
 
@@ -227,8 +230,12 @@ class SimilarityMatrix:
             fun_name = "compute_partition_for_dnes_sparse"
             self.compute_partition = getattr(self, fun_name)
 
+            print(fun_name)
+
             vec = self.compute_vector_of_norms()
             self.norm_sq_vec = vec * vec
+
+            print("Vector of norms has been computed.")
 
             self.use_exact_diameter = use_exact_diameter
             self.use_adaptive_diameter = use_adaptive_diameter
@@ -244,8 +251,6 @@ class SimilarityMatrix:
             #Use a similarity function different from
             #the cosine_sparse similarity function.
 
-            t0 = clock()
-            print("Building similarity matrix ...")
             n_rows = self.X.shape[0]
 
             import os.cpu_count as cpu_count
@@ -397,21 +402,21 @@ class SimilarityMatrix:
 
                 matrix_fname = "similarity_matrix.npy"
 
-                import os.path.join as join
-                matrix_fname = join(
+                from os.path import join as os_path_join
+                matrix_fname = os_path_join(
                     self.output, matrix_fname)
                 np_save(matrix_fname, self.X)
 
             if plot_similarity_matrix:
                 self.plot_similarity_matrix()
 
-            print("Similarity matrix has been built.")
-            tf = clock()
-            delta = tf - t0
-            delta /= 60
-            txt = ("Elapsed time for similarity build: " +
-                    f"{delta:.2f} minutes.")
-            print(txt)
+        print("Similarity matrix has been built.")
+        tf_build_sim_matrix = clock()
+        delta = tf_build_sim_matrix - t0_build_sim_matrix
+        delta /= 60
+        txt = ("Elapsed time for similarity build: " +
+                f"{delta:.2f} minutes.")
+        print(txt)
 
     #=====================================
     def normalize_sparse_rows(self):
@@ -1079,7 +1084,7 @@ class SimilarityMatrix:
 
         diameter_sq =  4 * max_norm_sq
 
-        print(f"Approx. sq_diam: {diameter_sq}")
+        # print(f"Approx. sq_diam: {diameter_sq}")
 
         return diameter_sq
 
@@ -1170,8 +1175,8 @@ class SimilarityMatrix:
         #ax.colorbar()
         fname = "matrix.png"
 
-        import os.path.join as join
-        fname = join(self.output, fname)
+        from os.path import join as os_path_join
+        fname = os_path_join(self.output, fname)
 
         fig.savefig(fname, bbox_inches="tight")
         print("Matrix image has been produced.")

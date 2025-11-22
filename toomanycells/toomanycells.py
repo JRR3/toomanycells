@@ -224,6 +224,10 @@ class TooManyCells:
 
             self.X = self.A.layers["raw"].copy()
 
+        elif use_rep:
+
+            self.X = self.A.obsm[use_rep].copy()
+
         else:
 
             self.X = self.A.X.copy()
