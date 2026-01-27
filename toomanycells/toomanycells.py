@@ -642,6 +642,7 @@ class TooManyCells:
             plot_tree: bool = False,
             draw_modularity: bool = False,
             draw_node_numbers: bool = False,
+            annotation_colors: Optional[List[str]] = None,
             ):
         """
         Store the outputs and plot the branching tree.
@@ -694,6 +695,7 @@ class TooManyCells:
                     path_to_cell_annotations=labels_path,
                     draw_modularity = draw_modularity,
                     draw_node_numbers = draw_node_numbers,
+                    annotation_colors = annotation_colors,
                 )
         
                 print("Generating Haskell plot ...")
@@ -3144,7 +3146,7 @@ class TooManyCells:
                                           "blue",
                                           "aqua"],
             gene_colors: List[str] = [],
-            annotation_colors: List[str] = [],
+            annotation_colors: Optional[List[str]] = None,
             method: str = "MadMedian",
             tree_file_name: str = "tree.svg",
             threshold: float = 1.5,
@@ -3154,7 +3156,7 @@ class TooManyCells:
             draw_modularity: bool = False,
             path_to_cell_annotations: str = "",
             draw_node_numbers: bool = False,
-                                   ):
+        ):
         haskell = TMCHaskell(
             self.output,
             tmc_tree_path,
@@ -3328,12 +3330,28 @@ class TooManyCells:
             feature: str,
             mad_multiplier: float,
             modify_adata: bool = True,
+            ignore_leaf_nodes: bool = False,
             cell_ann_col: Optional[str] = None,
         ):
+        """
+        Docstring for prune_tree_by_feature
+        
+        :param self: Description
+        :param feature: Description
+        :type feature: str
+        :param mad_multiplier: Description
+        :type mad_multiplier: float
+        :param modify_adata: Description
+        :type modify_adata: bool
+        :param cell_ann_col: Description
+        :type cell_ann_col: Optional[str]
+        """
 
         self.tmcGraph.prune_tree_by_feature(
             feature,
             mad_multiplier,
+            modify_adata,
+            ignore_leaf_nodes,
         )
         self.tmcGraph.label_nodes_by_depth_first()
         self.tmcGraph.generate_tmci_structures_from_graph()

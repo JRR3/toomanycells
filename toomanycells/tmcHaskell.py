@@ -302,8 +302,7 @@ class TMCHaskell:
     def populate_annotation_colors(self):
 
         c1= self.path_to_cell_annotations is not None
-        c2= os.path.exists(
-            self.path_to_cell_annotations)
+        c2= os.path.exists(self.path_to_cell_annotations)
         if c1 and c2:
             df = pd.read_csv(self.path_to_cell_annotations)
         else:

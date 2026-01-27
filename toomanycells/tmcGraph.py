@@ -625,6 +625,8 @@ class TMCGraph:
         for the modularity.
         """
 
+        self.set_of_leaf_nodes = set()
+
         if load_from_uns:
             self.G = self.A.uns["tmc_graph"].copy()
 
@@ -710,7 +712,7 @@ class TMCGraph:
 
         # This set should  be equal to the one
         # stored in the tmcGraph object.
-        self.set_of_leaf_nodes = set(df["cluster"])
+        # self.set_of_leaf_nodes = set(df["cluster"])
 
     #=====================================
     def isolate_cells_from_branches(
@@ -838,6 +840,7 @@ class TMCGraph:
             feature: str,
             mad_multiplier: float,
             modify_adata: bool = True,
+            ignore_leaf_nodes: bool = False,
         ):
         """
         Prune the tree based on a feature like modularity
@@ -846,7 +849,7 @@ class TMCGraph:
         If the value of the feature at a given node is 
         below the threshold, then the node in question
         will be collapsed, i.e., all the cells belonging
-        to the descendants of that node will be transfered
+        to the descendants of that node will be transferred
         to that node, essentially converting a branch node
         into a leaf node. The AnnData object will also
         be modified.
@@ -856,23 +859,32 @@ class TMCGraph:
         for node in self.G.nodes:
             if feature in self.G.nodes[node]:
                 value = self.G.nodes[node][feature]
+                if feature == "size":
+                    if value < 1:
+                        raise ValueError("XXX")
+                    if ignore_leaf_nodes:
+                        if node in self.set_of_leaf_nodes:
+                            continue
                 list_of_values.append(value)
         
         from scipy.stats import median_abs_deviation
         from numpy import median as np_median
         median_abs_dev = median_abs_deviation(list_of_values)
+        print(f"{median_abs_dev=}")
 
         median = np_median(list_of_values)
+        print(f"{median=}")
         threshold = median + mad_multiplier * median_abs_dev
+        print(f"{threshold=}")
 
         DQ = deque()
 
-        DQ.append(0)
+        DQ.append((0, None))
         node_counter = 0
 
         while 0 < len(DQ):
             # print("===============================")
-            node_id = DQ.popleft()
+            node_id, parent_id = DQ.popleft()
 
             not_leaf_node = 0 < self.G.out_degree(node_id)
             is_leaf_node = not not_leaf_node
@@ -891,6 +903,13 @@ class TMCGraph:
             value = self.G.nodes[node_id][feature]
 
             if value < threshold:
+
+                node_to_modify = node
+                if feature == "size":
+                    if parent_id is not None:
+                        node_to_modify = parent_id
+                    else:
+                        continue
                 #This branch has to be collapsed into
                 #one node.
                 if is_leaf_node:
