@@ -669,7 +669,7 @@ class TooManyCells:
         self.t0 = clock()
 
         #Write graph data to file.
-        self.tmcGraph.set_of_leaf_nodes
+        # self.tmcGraph.set_of_leaf_nodes
         self.tmcGraph.store_outputs(store_in_uns_dict)
 
         #Store the cell annotations in the output folder.
@@ -3329,8 +3329,8 @@ class TooManyCells:
             self,
             feature: str,
             mad_multiplier: float,
-            modify_adata: bool = True,
-            ignore_leaf_nodes: bool = False,
+            # modify_adata: bool = False,
+            update_graph: bool = False,
             cell_ann_col: Optional[str] = None,
         ):
         """
@@ -3350,10 +3350,20 @@ class TooManyCells:
         self.tmcGraph.prune_tree_by_feature(
             feature,
             mad_multiplier,
-            modify_adata,
-            ignore_leaf_nodes,
         )
-        self.tmcGraph.label_nodes_by_depth_first()
+
+        # self.tmcGraph.find_leaf_nodes()
+
+        if self.A.obs["sp_cluster"].isna().any():
+            raise ValueError("NAN! @ prune_tree_by_feature TMC")
+
+        self.tmcGraph.label_nodes_by_depth_first(
+            mapped_col="sp_cluster",
+            update_graph=update_graph,
+        )
+
+        self.G = self.tmcGraph.G
+
         self.tmcGraph.generate_tmci_structures_from_graph()
         self.store_outputs(cell_ann_col=cell_ann_col)
 

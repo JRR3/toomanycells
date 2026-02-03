@@ -763,7 +763,7 @@ class TMCGraph:
     def collapse_branch(
             self,
             branch: int,
-            modify_adata: bool = True,
+            # modify_adata: bool = False,
         ):
         """
         All cells belonging to a branch are to be
@@ -777,15 +777,15 @@ class TMCGraph:
             return
 
         descendants = nx_descendants(self.G, branch)
-        leaf_nodes = self.set_of_leaf_nodes.intersection(
-            descendants)
+        #We are going to relabel the clusters
+        #using the branch number.
+        sp_cluster = "sp_cluster"
+        mask = self.A.obs[sp_cluster].isin(descendants)
+        self.A.obs.loc[mask, sp_cluster] = branch
 
-        if modify_adata:
-            #We are going to relabel the clusters
-            #using the branch number.
-            sp_cluster = "sp_cluster"
-            mask = self.A.obs[sp_cluster].isin(leaf_nodes)
-            self.A.obs.loc[mask, sp_cluster] = branch
+        # The set of leaf nodes is not updated.
+        # leaf_nodes = self.set_of_leaf_nodes.intersection(
+        #     descendants)
 
         s_feature = "size"
         if s_feature in self.G.nodes[branch]:
@@ -800,6 +800,7 @@ class TMCGraph:
             self,
             source_col: str = "sp_cluster",
             mapped_col: str = "sp_cluster_pruned",
+            update_graph: bool = False,
         ):
         S = [0]
         node_counter = -1
@@ -814,6 +815,7 @@ class TMCGraph:
 
             if self.G.out_degree(node_id) == 0:
                 set_of_leaf_nodes.add(node_id)
+                continue
 
             children = self.G.successors(node_id)
             children = sorted(children, reverse=True)
@@ -827,8 +829,34 @@ class TMCGraph:
         # x = self.A.obs[source_col]
         # print(x)
 
+        set_A = set(self.A.obs[source_col].values)
+        set_B = set(map_ori_to_pruned_id.keys())
+        print(f"{max(set_A)=}")
+        print(f"{max(set_B)=}")
+        A_B = set_A - set_B
+        # B_A = set_B - set_A
+
+        print("---------")
+        print(f"{set_A.issubset(set_B)=}")
+        print("---------")
+        print(A_B)
+
         x = self.A.obs[source_col].map(map_ori_to_pruned_id)
         self.A.obs[mapped_col] = x
+
+        if self.A.obs[mapped_col].isna().any():
+            raise ValueError("NAN! @ label_nodes_by_depth_first")
+
+        x = self.A.obs[mapped_col].astype(int)
+        self.A.obs[mapped_col] = x
+
+        if update_graph:
+            from networkx import relabel_nodes
+            self.G = relabel_nodes(
+                self.G,
+                map_ori_to_pruned_id,
+                copy=True,
+            )
 
         # print(self.A.obs[mapped_col].value_counts())
 
@@ -839,8 +867,6 @@ class TMCGraph:
             self,
             feature: str,
             mad_multiplier: float,
-            modify_adata: bool = True,
-            ignore_leaf_nodes: bool = False,
         ):
         """
         Prune the tree based on a feature like modularity
@@ -853,18 +879,15 @@ class TMCGraph:
         to that node, essentially converting a branch node
         into a leaf node. The AnnData object will also
         be modified.
-
         """
+
         list_of_values = []
         for node in self.G.nodes:
             if feature in self.G.nodes[node]:
                 value = self.G.nodes[node][feature]
-                if feature == "size":
-                    if value < 1:
-                        raise ValueError("XXX")
-                    if ignore_leaf_nodes:
-                        if node in self.set_of_leaf_nodes:
-                            continue
+                # if feature == "size":
+                #     if value < 1:
+                #         raise ValueError("XXX")
                 list_of_values.append(value)
         
         from scipy.stats import median_abs_deviation
@@ -886,6 +909,9 @@ class TMCGraph:
             # print("===============================")
             node_id, parent_id = DQ.popleft()
 
+            if node_id not in self.G:
+                continue
+
             not_leaf_node = 0 < self.G.out_degree(node_id)
             is_leaf_node = not not_leaf_node
             has_feature = feature in self.G.nodes[node_id]
@@ -904,27 +930,16 @@ class TMCGraph:
 
             if value < threshold:
 
-                node_to_modify = node
+                node_to_remove = node_id
+
                 if feature == "size":
                     if parent_id is not None:
-                        node_to_modify = parent_id
+                        node_to_remove = parent_id
                     else:
-                        continue
-                #This branch has to be collapsed into
-                #one node.
-                if is_leaf_node:
-                    #Nothing to be done.
-                    #It already consists of one
-                    #single cluster.
-                    continue
-                else:
-                    #We have to collapse the branch.
-                    print(f"--------------------------")
-                    print(f"Branch {node_id}: {feature}={value}")
-                    self.collapse_branch(
-                        node_id,
-                        modify_adata,
-                    )
+                        pass
+                #We have to collapse the branch.
+                print(f"Branch {node_to_remove}: {feature}={value}")
+                self.collapse_branch(node_to_remove)
             else:
                 # The value was above threshold.
                 # Hence, we will add the children
@@ -933,8 +948,12 @@ class TMCGraph:
                 # search. However, the order of the 
                 # children is irrelevant.
                 for child in self.G.successors(node_id):
-                    DQ.append(child)
+                    # Note that we include the parent node
+                    # in the second position of the tuple.
+                    DQ.append((child, node_id))
 
 
+        if self.A.obs["sp_cluster"].isna().any():
+            raise ValueError("NAN! @ prune_tree_by_feature G")
 
     #====END=OF=CLASS=====================
