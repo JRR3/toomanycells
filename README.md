@@ -248,122 +248,6 @@ And this is the resulting tree.
 
 ![Pruned tree v2](https://github.com/JRR3/toomanycells/blob/main/tests/pruned_tree_v2.svg)
     
-
-## ATAC-seq matrix construction and clustering workflow
-This tool implements a preprocessing and clustering pipeline
-for single-cell ATAC-seq data inspired by the Too Many Peaks
-framework. The goal is to construct a cell-level
-representation of chromatin accessibility that supports
-hierarchical, cluster-aware peak discovery while remaining
-scalable to large datasets.
-
-### Input data
-The pipeline starts from a standard scATAC-seq fragments file
-,e.g., fragments.tsv.gz, where each row represents a
-sequenced DNA fragment associated with a single cell barcode.
-Each fragment corresponds to two Tn5 transposase insertion
-events in the accessible chromatin.
-
-### Fragment preprocessing
-* Fragments are first standardized and filtered to remove
-technical artifacts
-* Only standard chromosomes (based on the selected genome
-build) are retained.
-* Fragments are sorted by genomic coordinate.
-* Genome blacklist regions are downloaded (e.g. ENCODE
-blacklist) and fragments overlapping blacklist intervals are
-removed.
-
-These steps ensure consistent genomic coordinates and reduce
-spurious signal arising from low-mapping regions.
-
-### Genome binning and fragment assignment
-The genome is partitioned into fixed-width bins (e.g. 5 kb).
-Chromatin accessibility is quantified at the level of bins
-rather than predefined peaks to avoid bias toward globally
-dominant regulatory elements.
-
-* Fragments are assigned to bins using a cut-site-based
-strategy
-* Each fragment contributes two insertion events corresponding
-to its start and end coordinates.
-* A bin is considered accessible in a given cell if it contains
-at least one insertion event.
-
-The resulting cell x bin matrix is binarized (0/1),
-indicating presence or absence of accessibility. This
-representation reflects what ATAC-seq directly measures (Tn5
-insertions) and avoids over-weighting bins with high fragment
-counts.
-
-### AnnData construction
-The binarized accessibility matrix is stored in an AnnData
-object:
-
-* Rows (adata.obs): cells (barcodes)
-* Columns (adata.var): genomic bins with coordinate metadata
-* Matrix (adata.X): sparse binary cell × bin accessibility
-matrix
-
-This format enables efficient downstream processing and interoperability with standard single-cell analysis tools.
-
-### TF-IDF normalization and LSI
-To account for variability in sequencing depth and bin
-prevalence, the accessibility matrix is transformed using
-TF–IDF normalization:
-
-* Term Frequency (TF): per-cell depth normalization
-* Inverse Document Frequency (IDF): down-weighting bins
-accessible in many cells
-
-Dimensionality reduction is then performed using truncated
-singular value decomposition (SVD), yielding a
-low-dimensional latent semantic indexing (LSI) embedding
-(e.g. 50 components), 
-which is stored in `adata.obsm["X_lsa"]`.
-This representation emphasizes cell-type–specific
-accessibility patterns and is suitable for graph-based
-clustering.
-
-### Hierarchical clustering with TooManyCells
-Cells are clustered using recursive spectral clustering via
-the TooManyCells framework. Clustering is performed in LSI
-space using diameter-normalized Euclidean similarity (DNES):
-* A similarity graph is constructed for the current set of
-cells.
-* The graph Laplacian is computed and partitioned using the Fiedler vector.
-* After each split, similarities are recomputed locally within each subset.
-Local renormalization at each branching point allows the
-algorithm to adapt to the intrinsic geometry of each
-subpopulation and improves sensitivity to fine-grained
-structure during recursive partitioning.
-
-### Tree pruning and cluster refinement
-Recursive spectral clustering intentionally over-partitions
-the data. The resulting hierarchy is pruned to obtain a
-smaller set of stable, interpretable clusters by:
-
-* Enforcing minimum cluster size and balance constraints during
-recursion
-* Removing unstable splits based on resampling or
-separability criteria
-* Merging clusters with highly similar pseudo-bulk
-accessibility profiles
-
-This strategy favors mild over-partitioning followed by
-principled merging, ensuring that biologically meaningful
-structure is preserved.
-
-### Output
-The final output is an AnnData object containing:
-* A binarized genome-wide accessibility matrix
-* TF-IDF LSI embeddings
-* Hierarchical and pruned cluster assignments
-
-This representation is designed to support downstream
-cluster-aware peak calling, motif analysis, and regulatory
-interpretation in line with the Too Many Peaks philosophy.
-
 ## Quick run (needs to be updated)
 If you want to see a concrete example of how
 to use toomanycells, check out the jupyter 
@@ -1346,6 +1230,122 @@ that of `Gene B` at node $X$, and as we move
 farther towards 
 node $Y$ the trend is inverted and now `Gene B` is 
 highly expressed relative to `Gene A` at node $Y$.
+
+
+## ATAC-seq matrix construction and clustering workflow
+This tool implements a preprocessing and clustering pipeline
+for single-cell ATAC-seq data inspired by the Too Many Peaks
+framework. The goal is to construct a cell-level
+representation of chromatin accessibility that supports
+hierarchical, cluster-aware peak discovery while remaining
+scalable to large datasets.
+
+### Input data
+The pipeline starts from a standard scATAC-seq fragments file
+,e.g., fragments.tsv.gz, where each row represents a
+sequenced DNA fragment associated with a single cell barcode.
+Each fragment corresponds to two Tn5 transposase insertion
+events in the accessible chromatin.
+
+### Fragment preprocessing
+* Fragments are first standardized and filtered to remove
+technical artifacts
+* Only standard chromosomes (based on the selected genome
+build) are retained.
+* Fragments are sorted by genomic coordinate.
+* Genome blacklist regions are downloaded (e.g. ENCODE
+blacklist) and fragments overlapping blacklist intervals are
+removed.
+
+These steps ensure consistent genomic coordinates and reduce
+spurious signal arising from low-mapping regions.
+
+### Genome binning and fragment assignment
+The genome is partitioned into fixed-width bins (e.g. 5 kb).
+Chromatin accessibility is quantified at the level of bins
+rather than predefined peaks to avoid bias toward globally
+dominant regulatory elements.
+
+* Fragments are assigned to bins using a cut-site-based
+strategy
+* Each fragment contributes two insertion events corresponding
+to its start and end coordinates.
+* A bin is considered accessible in a given cell if it contains
+at least one insertion event.
+
+The resulting cell x bin matrix is binarized (0/1),
+indicating presence or absence of accessibility. This
+representation reflects what ATAC-seq directly measures (Tn5
+insertions) and avoids over-weighting bins with high fragment
+counts.
+
+### AnnData construction
+The binarized accessibility matrix is stored in an AnnData
+object:
+
+* Rows (adata.obs): cells (barcodes)
+* Columns (adata.var): genomic bins with coordinate metadata
+* Matrix (adata.X): sparse binary cell × bin accessibility
+matrix
+
+This format enables efficient downstream processing and interoperability with standard single-cell analysis tools.
+
+### TF-IDF normalization and LSI
+To account for variability in sequencing depth and bin
+prevalence, the accessibility matrix is transformed using
+TF–IDF normalization:
+
+* Term Frequency (TF): per-cell depth normalization
+* Inverse Document Frequency (IDF): down-weighting bins
+accessible in many cells
+
+Dimensionality reduction is then performed using truncated
+singular value decomposition (SVD), yielding a
+low-dimensional latent semantic indexing (LSI) embedding
+(e.g. 50 components), 
+which is stored in `adata.obsm["X_lsa"]`.
+This representation emphasizes cell-type–specific
+accessibility patterns and is suitable for graph-based
+clustering.
+
+### Hierarchical clustering with TooManyCells
+Cells are clustered using recursive spectral clustering via
+the TooManyCells framework. Clustering is performed in LSI
+space using diameter-normalized Euclidean similarity (DNES):
+* A similarity graph is constructed for the current set of
+cells.
+* The graph Laplacian is computed and partitioned using the Fiedler vector.
+* After each split, similarities are recomputed locally within each subset.
+Local renormalization at each branching point allows the
+algorithm to adapt to the intrinsic geometry of each
+subpopulation and improves sensitivity to fine-grained
+structure during recursive partitioning.
+
+### Tree pruning and cluster refinement
+Recursive spectral clustering intentionally over-partitions
+the data. The resulting hierarchy is pruned to obtain a
+smaller set of stable, interpretable clusters by:
+
+* Enforcing minimum cluster size and balance constraints during
+recursion
+* Removing unstable splits based on resampling or
+separability criteria
+* Merging clusters with highly similar pseudo-bulk
+accessibility profiles
+
+This strategy favors mild over-partitioning followed by
+principled merging, ensuring that biologically meaningful
+structure is preserved.
+
+### Output
+The final output is an AnnData object containing:
+* A binarized genome-wide accessibility matrix
+* TF-IDF LSI embeddings
+* Hierarchical and pruned cluster assignments
+
+This representation is designed to support downstream
+cluster-aware peak calling, motif analysis, and regulatory
+interpretation in line with the Too Many Peaks philosophy.
 
 ## Acknowledgments
 I would like to thank 
