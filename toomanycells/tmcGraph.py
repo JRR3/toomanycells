@@ -763,7 +763,6 @@ class TMCGraph:
     def collapse_branch(
             self,
             branch: int,
-            # modify_adata: bool = False,
         ):
         """
         All cells belonging to a branch are to be
@@ -779,13 +778,15 @@ class TMCGraph:
         descendants = nx_descendants(self.G, branch)
         #We are going to relabel the clusters
         #using the branch number.
-        sp_cluster = "sp_cluster"
-        mask = self.A.obs[sp_cluster].isin(descendants)
-        self.A.obs.loc[mask, sp_cluster] = branch
 
         # The set of leaf nodes is not updated.
-        # leaf_nodes = self.set_of_leaf_nodes.intersection(
-        #     descendants)
+        leaf_nodes = self.set_of_leaf_nodes.intersection(
+            descendants)
+
+        sp_cluster = "sp_cluster"
+        mask = self.A.obs[sp_cluster].isin(leaf_nodes)
+        self.A.obs.loc[mask, sp_cluster] = branch
+
 
         s_feature = "size"
         if s_feature in self.G.nodes[branch]:
@@ -829,26 +830,23 @@ class TMCGraph:
         # x = self.A.obs[source_col]
         # print(x)
 
-        set_A = set(self.A.obs[source_col].values)
-        set_B = set(map_ori_to_pruned_id.keys())
-        print(f"{max(set_A)=}")
-        print(f"{max(set_B)=}")
-        A_B = set_A - set_B
-        # B_A = set_B - set_A
+        # set_A = set(self.A.obs[source_col].values)
+        # set_B = set(map_ori_to_pruned_id.keys())
+        # print(f"{max(set_A)=}")
+        # print(f"{max(set_B)=}")
+        # A_B = set_A - set_B
+        # # B_A = set_B - set_A
 
-        print("---------")
-        print(f"{set_A.issubset(set_B)=}")
-        print("---------")
-        print(A_B)
+        # print("---------")
+        # print(f"{set_A.issubset(set_B)=}")
+        # print("---------")
+        # print(A_B)
 
         x = self.A.obs[source_col].map(map_ori_to_pruned_id)
         self.A.obs[mapped_col] = x
 
-        if self.A.obs[mapped_col].isna().any():
-            raise ValueError("NAN! @ label_nodes_by_depth_first")
-
-        x = self.A.obs[mapped_col].astype(int)
-        self.A.obs[mapped_col] = x
+        # x = self.A.obs[mapped_col].astype(int)
+        # self.A.obs[mapped_col] = x
 
         if update_graph:
             from networkx import relabel_nodes
@@ -913,7 +911,7 @@ class TMCGraph:
                 continue
 
             not_leaf_node = 0 < self.G.out_degree(node_id)
-            is_leaf_node = not not_leaf_node
+            # is_leaf_node = not not_leaf_node
             has_feature = feature in self.G.nodes[node_id]
 
             if has_feature:
@@ -938,7 +936,9 @@ class TMCGraph:
                     else:
                         pass
                 #We have to collapse the branch.
-                print(f"Branch {node_to_remove}: {feature}={value}")
+                print(
+                    f"Branch {node_to_remove}:" 
+                    f" {feature}={value}")
                 self.collapse_branch(node_to_remove)
             else:
                 # The value was above threshold.
@@ -952,8 +952,5 @@ class TMCGraph:
                     # in the second position of the tuple.
                     DQ.append((child, node_id))
 
-
-        if self.A.obs["sp_cluster"].isna().any():
-            raise ValueError("NAN! @ prune_tree_by_feature G")
 
     #====END=OF=CLASS=====================

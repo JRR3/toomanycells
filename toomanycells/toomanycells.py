@@ -3325,11 +3325,26 @@ class TooManyCells:
         return self.A[mask]
 
     #=====================================
+    def verify_alignment_between_obs_clusters_and_G(self):
+
+
+        self.tmcGraph.find_leaf_nodes()
+        x = self.tmcGraph.set_of_leaf_nodes
+        self.set_of_leaf_nodes = x
+
+        sp_cluster = "sp_cluster"
+        check_1 = self.set_of_leaf_nodes == set(
+            self.A.obs[sp_cluster])
+
+        if not check_1:
+            raise ValueError("Mismatch for leaf nodes.")
+
+
+    #=====================================
     def prune_tree_by_feature(
             self,
             feature: str,
             mad_multiplier: float,
-            # modify_adata: bool = False,
             update_graph: bool = False,
             cell_ann_col: Optional[str] = None,
         ):
@@ -3347,15 +3362,12 @@ class TooManyCells:
         :type cell_ann_col: Optional[str]
         """
 
+        self.verify_alignment_between_obs_clusters_and_G()
+
         self.tmcGraph.prune_tree_by_feature(
             feature,
             mad_multiplier,
         )
-
-        # self.tmcGraph.find_leaf_nodes()
-
-        if self.A.obs["sp_cluster"].isna().any():
-            raise ValueError("NAN! @ prune_tree_by_feature TMC")
 
         self.tmcGraph.label_nodes_by_depth_first(
             mapped_col="sp_cluster",
