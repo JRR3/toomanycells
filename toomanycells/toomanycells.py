@@ -2742,6 +2742,8 @@ class TooManyCells:
         x_label: str = "",
         y_label: str = "",
         fig_label: str = "",
+        shade_AUC: bool = True,
+        fig_dir: Optional[str] = None,
     ):
         """
         Plot a smoothed curve from dataframe 
@@ -2778,16 +2780,28 @@ class TooManyCells:
             {
                 "figure.dpi": 300,
                 "font.size": 18,
+                "pdf.fonttype": 42,
+                "ps.fonttype": 42,
+                "svg.fonttype": 'none',
             }
         )
         import matplotlib.pyplot as plt
         from scipy.interpolate import UnivariateSpline
+
+        if fig_dir is None:
+            fig_dir = self.output
 
         # Drop missing values and sort by x
         data = df[[x_col, y_col]].dropna().sort_values(
             by=x_col)
         x = data[x_col].to_numpy()
         y = data[y_col].to_numpy()
+
+        # Store coordinates as a CSV.
+        fname = f"coords_for_{fig_label}.csv"
+        fname = os.path.join(fig_dir, fname)
+        data.to_csv(fname, index=False)
+
 
         # Fit smoothing spline
         spline = UnivariateSpline(x, y, s=smoothing_factor)
@@ -2822,36 +2836,41 @@ class TooManyCells:
                              "be 'Above' or 'Below'")
 
         # Shade area under curve
-        plt.fill_between(
-            x_smooth,
-            y_smooth,
-            0,
-            where=mask,
-            interpolate=True,
-            alpha=0.3,
-            # label=f"Shaded area ({direction.capitalize()}
-            # {x_threshold})"
-        )
+        if shade_AUC:
 
-        # Threshold line
-        plt.axvline(x_threshold,
-                    linestyle="--",
-                    linewidth=1.5,
-                    color="blue",
-                    # label="x_threshold",
-        )
+            plt.fill_between(
+                x_smooth,
+                y_smooth,
+                0,
+                where=mask,
+                interpolate=True,
+                alpha=0.3,
+            )
+
+            # Threshold line
+            plt.axvline(x_threshold,
+                        linestyle="--",
+                        linewidth=1.5,
+                        color="blue",
+                        # label="x_threshold",
+            )
 
         plt.ylim([0, y.max()])
         plt.xlabel(x_label)
         plt.ylabel(y_label)
         # plt.legend()
         fname = f"{fig_label}_dist.png"
-        fname = os.path.join(self.output, fname)
+        fname = os.path.join(fig_dir, fname)
+        plt.savefig(fname, bbox_inches="tight")
+
+        fname = f"{fig_label}_dist.svg"
+        fname = os.path.join(fig_dir, fname)
         plt.savefig(fname, bbox_inches="tight")
 
     #=====================================
     def plot_marker_distributions(
             self,
+            shade_AUC: bool = True,
     ):
         """
         For every marker in the list of markers
@@ -2864,6 +2883,11 @@ class TooManyCells:
         """
 
         import plotly.graph_objects as go
+
+        fig_dir = os.path.join(self.output,
+                               "marker_distributions")
+        os.makedirs(fig_dir, exist_ok=True)
+
         fig = go.Figure()
         n_markers = len(self.list_of_markers)
         max_markers = n_markers
@@ -2904,13 +2928,6 @@ class TooManyCells:
             y_data = self.node_mad_dist_df[y_label]
 
 
-            # Store coordinates as a CSV.
-            fname = f"coords_for_{marker}.csv"
-            fname = os.path.join(self.output, fname)
-            cols = [x_label, y_label]
-            coords = self.node_mad_dist_df[cols]
-            coords.to_csv(fname, index=False)
-
             #Individual plots
             threshold = self.marker_to_mad_threshold[marker]
             direction = self.marker_to_mad_direction[marker]
@@ -2923,6 +2940,8 @@ class TooManyCells:
                 x_label = x_axis_title,
                 y_label = y_axis_title,
                 fig_label = marker,
+                shade_AUC = shade_AUC,
+                fig_dir = fig_dir,
             )
 
 
@@ -2966,7 +2985,7 @@ class TooManyCells:
         )
         # fig.update_layout(title_text="Node exp. distribution")
         fname = "distributions.html"
-        fname = os.path.join(self.output, fname)
+        fname = os.path.join(fig_dir, fname)
         fig.write_html(fname)
 
 
