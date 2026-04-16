@@ -15,6 +15,7 @@ from anndata import AnnData
 
 import os
 import sys
+from pathlib import Path
 
 from numpy import abs as np_abs
 from numpy import array as np_array
@@ -134,8 +135,8 @@ class TooManyCells:
             S = input.set_of_leaf_nodes.copy()
             self.set_of_leaf_nodes = S
 
-        elif isinstance(input, str):
-            self.source = os.path.abspath(input)
+        elif isinstance(input, (str, Path)):
+            self.source = os.path.abspath(str(input))
             if self.source.endswith(".h5ad"):
                 self.t0 = clock()
 
@@ -1632,99 +1633,102 @@ class TooManyCells:
 
 
     #=================================================
-    def check_if_cells_belong_to_group(
-            self,
-            cells: Series,
-            group: str,
-            conversion_threshold: float = 0.9,
-            cell_ann_col: str = "cell_annotations",
-    ):
-        """
-        The "cells" parameter is a series that contains
-        the cell types as values and the indices 
-        correspond to the barcodes.
+    # This function will be removed. Apr 16 2026
+    # TODO
+    #=================================================
+    # def check_if_cells_belong_to_group(
+    #         self,
+    #         cells: Series,
+    #         group: str,
+    #         conversion_threshold: float = 0.9,
+    #         cell_ann_col: str = "cell_annotations",
+    # ):
+    #     """
+    #     The "cells" parameter is a series that contains
+    #     the cell types as values and the indices 
+    #     correspond to the barcodes.
 
-        We want to determine if a set of cells 
-        belongs to a group previously defined
-        in the CSV file "cell_markers".
-        """
-        #This is the question we are trying to
-        #answer.
-        belongs_to_group = False
-        CA = cell_ann_col
+    #     We want to determine if a set of cells 
+    #     belongs to a group previously defined
+    #     in the CSV file "cell_markers".
+    #     """
+    #     #This is the question we are trying to
+    #     #answer.
+    #     belongs_to_group = False
+    #     CA = cell_ann_col
 
-        #What cells types belong to 
-        #the given group?
-        x = self.group_to_cell_types[group]
-        cell_types_in_group = x
+    #     #What cells types belong to 
+    #     #the given group?
+    #     x = self.group_to_cell_types[group]
+    #     cell_types_in_group = x
 
-        #Now we are going to iterate over the
-        #cells that belong to the majority
-        #group. We do this to determine if 
-        #the non-majority cells could qualify
-        #as a member of the majority group by
-        #using a marker for cells of the 
-        #majority group.
-        for cell_type in cell_types_in_group:
-            if belongs_to_group:
-                break
-            print(f"Are they {cell_type}?")
-            print("\t", "Marker ", "Reference ", "Measure ")
-            markers = self.cell_type_to_markers[cell_type]
+    #     #Now we are going to iterate over the
+    #     #cells that belong to the majority
+    #     #group. We do this to determine if 
+    #     #the non-majority cells could qualify
+    #     #as a member of the majority group by
+    #     #using a marker for cells of the 
+    #     #majority group.
+    #     for cell_type in cell_types_in_group:
+    #         if belongs_to_group:
+    #             break
+    #         print(f"Are they {cell_type}?")
+    #         print("\t", "Marker ", "Reference ", "Measure ")
+    #         markers = self.cell_type_to_markers[cell_type]
 
-            for marker in markers:
-                #Zeros were ignored during the calculations.
-                # Why? Because this is the 
-                #reference, and we want to make sure that
-                #if something is above the reference, then
-                #it is likely that it is a member of that
-                #cell type.
-                x = self.marker_to_median_value_for_cell_type[
-                    marker][cell_type]
-                marker_value = x
-                if marker_value is None:
-                    #Nothing to be done.
-                    continue
+    #         for marker in markers:
+    #             #Zeros were ignored during the calculations.
+    #             # Why? Because this is the 
+    #             #reference, and we want to make sure that
+    #             #if something is above the reference, then
+    #             #it is likely that it is a member of that
+    #             #cell type.
+    #             x = self.marker_to_median_value_for_cell_type[
+    #                 marker][cell_type]
+    #             marker_value = x
+    #             if marker_value is None:
+    #                 #Nothing to be done.
+    #                 continue
 
-                #Here we do not ignore the zeros. The 
-                #reasoning is the same as above. We want to
-                #have a high degree of confidence that 
-                #these cells are actually of the alleged
-                #cell type. #If we do not ignore the zeros,
-                #it is more likely to produce a smaller 
-                #value, making it harder to exceed the
-                #reference.
-                x=self.compute_median_and_mad_exp_from_indices(
-                    marker, 
-                    cells.index, 
-                    ignore_zero=False,
-                    only_median=True)
-                expression_value = x
-                print("\t", marker, marker_value, x)
-                #Let X be the mean/median expression 
-                #value of that marker for the
-                #given minority.
-                #Let Y be the mean/median expression
-                #value of that same marker for
-                #the cells in the sample that 
-                #are known to express that
-                #marker. If X is above Y 
-                #multiplied by the conversion
-                #threshold, then we add that
-                #minority to the majority,
-                if marker_value * conversion_threshold < x:
-                    belongs_to_group = True
-                    print("\t","To convert.")
-                    break
+    #             #Here we do not ignore the zeros. The 
+    #             #reasoning is the same as above. We want to
+    #             #have a high degree of confidence that 
+    #             #these cells are actually of the alleged
+    #             #cell type. #If we do not ignore the zeros,
+    #             #it is more likely to produce a smaller 
+    #             #value, making it harder to exceed the
+    #             #reference.
+    #             x=self.compute_median_and_mad_exp_from_indices(
+    #                 marker, 
+    #                 cells.index, 
+    #                 ignore_zero=False,
+    #                 only_median=True)
+    #             expression_value = x
+    #             print("\t", marker, marker_value, x)
+    #             #Let X be the mean/median expression 
+    #             #value of that marker for the
+    #             #given minority.
+    #             #Let Y be the mean/median expression
+    #             #value of that same marker for
+    #             #the cells in the sample that 
+    #             #are known to express that
+    #             #marker. If X is above Y 
+    #             #multiplied by the conversion
+    #             #threshold, then we add that
+    #             #minority to the majority,
+    #             if marker_value * conversion_threshold < x:
+    #                 belongs_to_group = True
+    #                 print("\t","To convert.")
+    #                 break
 
-        if belongs_to_group:
-            self.A.obs[CA].loc[cells.index] = group
-            return True
-        else:
-            print("===============================")
-            print(f">>>Cells do not belong to {group}.")
-            print("===============================")
-            return False
+    #     if belongs_to_group:
+    #         self.A.obs[CA].loc[cells.index] = group
+    #         return True
+    #     else:
+    #         print("===============================")
+    #         print(f">>>Cells do not belong to {group}.")
+    #         print("===============================")
+    #         return False
 
 
     #=====================================
@@ -2073,7 +2077,9 @@ class TooManyCells:
                 #Generate indices for cells 
                 #times list of markers.
                 indices = np_ix(
-                    mask, self.list_of_column_idx)
+                    mask,
+                    self.list_of_column_idx,
+                )
                 values = self.X[indices]
                 sum_exp_vec = values.sum(axis=0)
                 mean_exp_vec = sum_exp_vec / n_cells
@@ -2655,8 +2661,8 @@ class TooManyCells:
             sorted_groups_df.iloc[row_idx] = x
 
             # Here we check if a cell belongs to 
-            # two different cell groups. By definitions,
-            # this groups are disjoint. For example,
+            # two different cell groups. By definition,
+            # these groups are disjoint. For example,
             # we do not expect a cell to belong to
             # the Fibroblast category and the Lymphocyte
             # category.
@@ -2722,6 +2728,126 @@ class TooManyCells:
         self.A.obs[tmc_group] = list_of_status
         self.generate_cell_annotation_file(
             status_str, tag="group_status")
+    
+    #=====================================
+    def plot_smoothed_curve_with_shading(
+        self,
+        df,
+        x_col,
+        y_col,
+        x_threshold,
+        direction="Above",
+        smoothing_factor=None,
+        n_points=1000,
+        x_label: str = "",
+        y_label: str = "",
+        fig_label: str = "",
+    ):
+        """
+        Plot a smoothed curve from dataframe 
+        columns and shade the area under the 
+        curve either above or below a threshold 
+        on the x-axis.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe containing x and y columns.
+        x_col : str
+            Name of x column.
+        y_col : str
+            Name of y column.
+        x_threshold : float
+            Threshold on x-axis for shading.
+        direction : str
+            'Above' -> shade where x >= x_threshold
+            'Below' -> shade where x <= x_threshold
+        smoothing_factor : float or None
+            Passed to UnivariateSpline(s=...). 
+            Larger values = smoother curve.
+            If None, spline chooses interpolation-like 
+            behavior.
+        n_points : int
+            Number of points for dense smooth plotting.
+        """
+
+        import numpy as np
+        import pandas as pd
+        import matplotlib as mpl
+        mpl.rcParams.update(
+            {
+                "figure.dpi": 300,
+                "font.size": 18,
+            }
+        )
+        import matplotlib.pyplot as plt
+        from scipy.interpolate import UnivariateSpline
+
+        # Drop missing values and sort by x
+        data = df[[x_col, y_col]].dropna().sort_values(
+            by=x_col)
+        x = data[x_col].to_numpy()
+        y = data[y_col].to_numpy()
+
+        # Fit smoothing spline
+        spline = UnivariateSpline(x, y, s=smoothing_factor)
+
+        # Dense x grid for smooth curve
+        x_smooth = np.linspace(x.min(), x.max(), n_points)
+        y_smooth = spline(x_smooth)
+
+        # Plot raw points + smooth curve
+        plt.figure(figsize=(8, 5))
+        plt.scatter(x, y,
+                    s=20,
+                    alpha=0.5,
+                    # label="Raw data",
+        )
+
+        plt.plot(x_smooth,
+                 y_smooth,
+                 linewidth=2,
+                 color="blue",
+                #  label="Smoothed curve",
+        )
+
+        # Build shading mask
+        direction = direction.lower()
+        if direction == "above":
+            mask = x_smooth >= x_threshold
+        elif direction == "below":
+            mask = x_smooth <= x_threshold
+        else:
+            raise ValueError("Direction must " 
+                             "be 'Above' or 'Below'")
+
+        # Shade area under curve
+        plt.fill_between(
+            x_smooth,
+            y_smooth,
+            0,
+            where=mask,
+            interpolate=True,
+            alpha=0.3,
+            # label=f"Shaded area ({direction.capitalize()}
+            # {x_threshold})"
+        )
+
+        # Threshold line
+        plt.axvline(x_threshold,
+                    linestyle="--",
+                    linewidth=1.5,
+                    color="blue",
+                    # label="x_threshold",
+        )
+
+        plt.ylim([0, y.max()])
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+        # plt.legend()
+        fname = f"{fig_label}_dist.png"
+        fname = os.path.join(self.output, fname)
+        plt.savefig(fname, bbox_inches="tight")
 
     #=====================================
     def plot_marker_distributions(
@@ -2761,6 +2887,9 @@ class TooManyCells:
                    "annotations": []}]
         )
         list_of_dict.append(D)
+        x_axis_title = "threshold (MADs from the median)"
+        y_axis_title = "# of nodes above threshold"
+
         for rank, marker in enumerate(self.list_of_markers):
 
             if rank == max_markers:
@@ -2773,6 +2902,29 @@ class TooManyCells:
 
             x_data = self.node_mad_dist_df[x_label]
             y_data = self.node_mad_dist_df[y_label]
+
+
+            # Store coordinates as a CSV.
+            fname = f"coords_for_{marker}.csv"
+            fname = os.path.join(self.output, fname)
+            cols = [x_label, y_label]
+            coords = self.node_mad_dist_df[cols]
+            coords.to_csv(fname, index=False)
+
+            #Individual plots
+            threshold = self.marker_to_mad_threshold[marker]
+            direction = self.marker_to_mad_direction[marker]
+            self.plot_smoothed_curve_with_shading(
+                df = self.node_mad_dist_df,
+                x_col = x_label,
+                y_col = y_label,
+                x_threshold = threshold,
+                direction=direction,
+                x_label = x_axis_title,
+                y_label = y_axis_title,
+                fig_label = marker,
+            )
+
 
             fig.add_trace(
                 go.Scatter(x=x_data,
@@ -2805,8 +2957,8 @@ class TooManyCells:
         title = "Node expression distribution"
         fig.update_layout(
             title=title,
-            xaxis_title = "threshold (MADs from the median)",
-            yaxis_title = "Number of nodes above threshold",
+            xaxis_title = x_axis_title,
+            yaxis_title = y_axis_title,
             font=dict(family="monospace", size=18),           
             hoverlabel=dict(
                 font=dict(family="monospace", size=18)
@@ -3326,7 +3478,12 @@ class TooManyCells:
 
     #=====================================
     def verify_alignment_between_obs_clusters_and_G(self):
-
+        """
+        This function is used to make sure that the 
+        clusters stored in the sp_cluster column match
+        the information present in current graph 
+        (binary tree).
+        """
 
         self.tmcGraph.find_leaf_nodes()
         x = self.tmcGraph.set_of_leaf_nodes
@@ -3344,28 +3501,32 @@ class TooManyCells:
     def prune_tree_by_feature(
             self,
             feature: str,
-            mad_multiplier: float,
+            feature_value: float = 0,
+            mad_multiplier: float = 0,
             update_graph: bool = False,
             cell_ann_col: Optional[str] = None,
         ):
         """
-        Docstring for prune_tree_by_feature
-        
-        :param self: Description
-        :param feature: Description
-        :type feature: str
-        :param mad_multiplier: Description
-        :type mad_multiplier: float
-        :param modify_adata: Description
-        :type modify_adata: bool
-        :param cell_ann_col: Description
-        :type cell_ann_col: Optional[str]
+        feature: 
+        What feature should we use to prune the tree?
+
+        mad_multiplier:
+        Should we use MAD units?
+
+        update_graph:
+        Should we edit the graph object 
+        within the AnnData object.
+
+        cell_ann_col:
+        What is the name of the column that contains 
+        the cell annotations?
         """
 
         self.verify_alignment_between_obs_clusters_and_G()
 
         self.tmcGraph.prune_tree_by_feature(
             feature,
+            feature_value,
             mad_multiplier,
         )
 
@@ -3383,6 +3544,31 @@ class TooManyCells:
         # fname = os_path_join(self.output, fname)
         # self.A.write(fname)
 
+    #=====================================
+    def populate_fragments_information(
+            self,
+            fragments_tsv_gz: str,
+            fragments_col: str = "fragments",
+            use_count_column: bool = True,
+            max_count: int = 1000,
+            cell_ann_col: Optional[str] = None,
+        ):
+        """
+        Prune the tree based on a feature like modularity
+        or size.
+        """
+
+        self.tmcGraph.populate_fragments_information(
+            fragments_tsv_gz,
+            fragments_col,
+            use_count_column,
+            max_count,
+        )
+
+        self.tmcGraph.generate_tmci_structures_from_graph(
+            include_fragments=True,
+        )
+        self.store_outputs(cell_ann_col=cell_ann_col)
 
 
     #====END=OF=CLASS=====================

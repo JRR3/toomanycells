@@ -365,6 +365,7 @@ class TMCGraph:
     def generate_tmci_structures_from_graph(
             self,
             show_stubs: bool = False,
+            include_fragments: bool = False,
     ):
         """
         This function has been tested on simple examples.
@@ -455,7 +456,8 @@ class TMCGraph:
                 #Leaf node
                 mask = self.A.obs["sp_cluster"] == node_id
                 rows = np_nonzero(mask)[0]
-                L = self.cells_to_json(rows)
+                L = self.cells_to_json(rows,
+                                       include_fragments)
                 self.J[j_index].append(L)
                 self.J[j_index].append([])
 
@@ -471,12 +473,28 @@ class TMCGraph:
                 '_cellRow': {'unRow': cell_number}}
 
     #=====================================
-    def cells_to_json(self,rows):
+    def cells_to_json(
+            self,
+            rows,
+            include_fragments: bool = False,
+            fragments_col: str = "fragments",
+    ):
         L = []
+        n_fragments: int = 0
         for row in rows:
             cell_id = self.A.obs.index[row]
+            if include_fragments:
+                frags = self.A.obs.loc[cell_id, fragments_col]
+                n_fragments += frags
             D = self.cell_to_json(cell_id, row)
             L.append(D)
+        
+        if include_fragments:
+            return {'_item': L,
+                    '_significance': None,
+                    '_fragments': n_fragments,
+                    '_distance': None}
+
         return {'_item': L,
                 '_significance': None,
                 '_distance': None}
@@ -496,7 +514,9 @@ class TMCGraph:
         fname = "cluster_tree.json"
         fname = os_path_join(self.output, fname)
 
-        with open(fname,"w",encoding="utf-8") as output_file:
+        with open(fname,
+                  "w",
+                  encoding="utf-8") as output_file:
             from json import dump as json_dump 
             json_dump(
                 self.J,
@@ -767,6 +787,8 @@ class TMCGraph:
         """
         All cells belonging to a branch are to be
         collapsed into one leaf node.
+
+        Note that this function modifies the AnnData object.
         """
         not_leaf_node = 0 < self.G.out_degree(branch)
         is_leaf_node = not not_leaf_node
@@ -864,11 +886,17 @@ class TMCGraph:
     def prune_tree_by_feature(
             self,
             feature: str,
-            mad_multiplier: float,
+            feature_value: float = 0,
+            mad_multiplier: float = 0,
         ):
         """
-        Prune the tree based on a feature like modularity
-        or size.
+        Prune the tree based on a feature like modularity,
+        number of fragments, or size.
+
+        Note that when this function is called from the
+        parent object in the TMC class, the leaf nodes
+        are computed, so that we can be sure we are 
+        operating on the current tree.
 
         If the value of the feature at a given node is 
         below the threshold, then the node in question
@@ -877,26 +905,37 @@ class TMCGraph:
         to that node, essentially converting a branch node
         into a leaf node. The AnnData object will also
         be modified.
+
+        Note that the behavior is different between the
+        size feature and the modularity feature.
+        Modularity is a branch feature, whereas size is 
+        a node feature.
         """
 
-        list_of_values = []
-        for node in self.G.nodes:
-            if feature in self.G.nodes[node]:
-                value = self.G.nodes[node][feature]
-                # if feature == "size":
-                #     if value < 1:
-                #         raise ValueError("XXX")
-                list_of_values.append(value)
-        
-        from scipy.stats import median_abs_deviation
-        from numpy import median as np_median
-        median_abs_dev = median_abs_deviation(list_of_values)
-        print(f"{median_abs_dev=}")
+        if feature_value != 0 and mad_multiplier != 0:
+            raise ValueError("Cannot use both arguments.")
 
-        median = np_median(list_of_values)
-        print(f"{median=}")
-        threshold = median + mad_multiplier * median_abs_dev
-        print(f"{threshold=}")
+        if mad_multiplier != 0:
+            list_of_values = []
+            for node in self.G.nodes:
+                if feature in self.G.nodes[node]:
+                    value = self.G.nodes[node][feature]
+                    list_of_values.append(value)
+            
+            from scipy.stats import median_abs_deviation
+            from numpy import median as np_median
+            median_abs_dev = median_abs_deviation(
+                list_of_values)
+            median = np_median(list_of_values)
+            threshold = mad_multiplier * median_abs_dev
+            threshold += median
+
+        if feature_value != 0:
+            threshold = feature_value
+
+        # print(f"{median=}")
+        # print(f"{threshold=}")
+        # print(f"{median_abs_dev=}")
 
         DQ = deque()
 
@@ -930,7 +969,7 @@ class TMCGraph:
 
                 node_to_remove = node_id
 
-                if feature == "size":
+                if feature in {"size", "fragments"}:
                     if parent_id is not None:
                         node_to_remove = parent_id
                     else:
@@ -952,5 +991,117 @@ class TMCGraph:
                     # in the second position of the tuple.
                     DQ.append((child, node_id))
 
+    #=====================================
+    def populate_fragments_information(
+            self,
+            fragments_tsv_gz: str,
+            fragments_col: str = "fragments",
+            use_count_column: bool = True,
+            max_count: int = 1000,
+        ):
+        """
+        Extract the fragment information from the fragments
+        file and assign to each barcode/cell.
+        
+        Then compute the total number of fragments for
+        each leaf node and then for each internal node.
+        """
+
+        from collections import defaultdict
+        import gzip
+
+        fragments_per_barcode = defaultdict(int)
+
+        with gzip.open(fragments_tsv_gz, "rt") as fh:
+            for line in fh:
+                if not line.strip():
+                    continue
+
+                fields = line.rstrip("\n").split("\t")
+                # This is an example of a line from the file.
+                # fields=[
+                # (0) 'chr1',
+                # (1) '3000760',
+                # (2) '3001367',
+                # (3) 'GTGACAAGCACCTTAC',
+                # (4) '2']
+                # Note that the barcode is in field #3
+
+                if len(fields) < 4:
+                    continue
+
+                barcode = fields[3]
+
+                if use_count_column and len(fields) >= 5:
+                    try:
+                        count = int(fields[4])
+                    except ValueError:
+                        count = 1
+                else:
+                    count = 1
+
+                count = min(count, max_count)
+
+                fragments_per_barcode[barcode] += count
+
+        # Create a column in the .obs dataframe.
+        self.A.obs[fragments_col] = 0
+
+        # Update the fragments_col of the dataframe.
+        for barcode, frags in fragments_per_barcode.items():
+            self.A.obs.loc[barcode, fragments_col] = frags
+
+        #======================== 
+        # What follows is necessary to do the pruning.
+        # But for the visualization the function could 
+        # return here.
+        #======================== 
+        # We compute for each node the number of
+        # total fragments.
+
+        f_feature = fragments_col
+        sp_cluster = "sp_cluster"
+
+        # First, we compute the number of fragments 
+        # for the leaf nodes.
+        for node in self.G.nodes:
+            if self.G.out_degree(node) != 0:
+                # This is not a leaf node.
+                continue
+            
+            # This is a leaf node.
+            # We compute the cumulative sum of fragments
+            # for this leaf node.
+            mask = self.A.obs[sp_cluster] == node
+            mask = mask[mask]
+            n_fragments = 0
+            for barcode in mask.index:
+                n_fragments += fragments_per_barcode[barcode]
+
+            # print(f"{node}:{n_fragments=}")
+
+            self.G.nodes[node][f_feature] = n_fragments
+
+        S = [0]
+        visited = set()
+        while 0 < len(S):
+
+            node = S.pop()
+            children = list(self.G.successors(node))
+
+            if node not in visited:
+                visited.add(node)
+                if 0 < len(children):
+                    S.append(node)
+                    for child in children:
+                        S.append(child)
+
+            else:
+                n_fragments = 0
+                for child in children:
+                    frags = self.G.nodes[child][f_feature]
+                    n_fragments += frags
+
+                self.G.nodes[node][f_feature] = n_fragments
 
     #====END=OF=CLASS=====================
