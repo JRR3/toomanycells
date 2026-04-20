@@ -1,6 +1,6 @@
 [project]
 name = "toomanycells"
-version = "1.0.72"
+version = "1.0.73"
 dynamic = [
     "dependencies",
 ]
@@ -10,7 +10,7 @@ requires-python = ">=3.9"
 keywords = [
     "toomanycells",
 ]
-license = "BSD-3-Clause"
+license = { file = "LICENSE" }
 authors = [
   {name = "Javier Ruiz-Ramirez", email = "javier.ruizramirez@uhn.ca"},
 ]
@@ -48,7 +48,7 @@ exclude = ["docs*"]
 dependencies = {file = ["requirements.txt"]}
 
 [tool.bumpversion]
-current_version = "1.0.72"
+current_version = "1.0.73"
 commit = true
 tag = true
 
