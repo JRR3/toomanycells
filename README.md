@@ -213,6 +213,8 @@ you have the following tree
 
 ![Original tree](https://github.com/JRR3/toomanycells/blob/main/tests/pruned_tree_v0.svg)
 
+
+### Pruning by modularity
 Now imagine that you want to prune it in a way such that
 clusters that originate from branches whose modularity $Q$
 is less than $-1.44$ MADs (median absolute deviations) from
@@ -230,6 +232,7 @@ The resulting is shown below.
 
 ![Pruned tree v1](https://github.com/JRR3/toomanycells/blob/main/tests/pruned_tree_v1.svg)
     
+### Pruning by number of cells
 Now imagine that you want to further prune the tree, but now
 you want to remove clusters whose size is below 10 MADs from
 the median. This is how you would do that.
@@ -245,6 +248,30 @@ obj.prune_tree_by_feature(
 And this is the resulting tree.
 
 ![Pruned tree v2](https://github.com/JRR3/toomanycells/blob/main/tests/pruned_tree_v2.svg)
+
+### Pruning by number of fragments
+By the way, if you are working with data (cells/spots)
+that have a corresponding fragments file like 
+```
+ args.fragmentsPath = H3K27me3_filtered.fragments.tsv.gz
+```
+then you can use this function to populate the tree with
+the fragment information
+```
+obj.populate_fragments_information(
+   fragments_tsv_gz = args.fragmentsPath,
+   max_count = args.max_count,
+   cell_ann_col = args.annotationsColumn,
+)
+```
+and then prune by the number of fragments, e.g., 300K
+```
+obj.prune_tree_by_feature(
+    feature = "fragments",
+    feature_value = 300000,
+    cell_ann_col = "cell_labels",
+)
+```
     
 ## Quick run (needs to be updated)
 If you want to see a concrete example of how
@@ -839,8 +866,9 @@ For a different example using the following markers
      COL1A2         X         40     Above
         FAP         Y         33     Below
 ```
-we obtain these plots
+we obtain the corresponding plot for COL1A2
 ![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/col1a2_dist_above_40.svg)
+and for FAP
 ![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/fap_dist_below_33.svg)
 
 
