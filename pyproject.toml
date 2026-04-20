@@ -10,14 +10,14 @@ requires-python = ">=3.9"
 keywords = [
     "toomanycells",
 ]
-license = {text = "BSD License"}
+license = "BSD-3-Clause"
 authors = [
   {name = "Javier Ruiz-Ramirez", email = "javier.ruizramirez@uhn.ca"},
 ]
 classifiers = [
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: GNU General Public License v3",
     "Natural Language :: English",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -46,11 +46,6 @@ exclude = ["docs*"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
-
-
-[tool.distutils.bdist_wheel]
-universal = true
-
 
 [tool.bumpversion]
 current_version = "1.0.71"
