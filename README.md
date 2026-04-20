@@ -223,7 +223,6 @@ that.
 obj.prune_tree_by_feature(
     feature = "Q",
     mad_multiplier = -1.44,
-    modify_adata = True,
     cell_ann_col = "cell_labels",
 )
 ```
@@ -239,7 +238,6 @@ the median. This is how you would do that.
 obj.prune_tree_by_feature(
     feature = "size",
     mad_multiplier = 10,
-    modify_adata = True,
     cell_ann_col = "cell_labels",
 )
 ```
@@ -966,7 +964,8 @@ of $B$ is $x = B(i,:)$, and the $j$-th row of $B$
 is $y=B(j,:)$, then the similarity between $x$ and
 $y$ is
 
-$$S(x,y)=\frac{x\cdot y}{||x||_2\cdot ||y||_2}.$$
+$$ S(x,y)=\frac{x\cdot y}{\left\lVert x \right\rVert _2
+   \cdot \left\lVert y \right\rVert _2 }.$$
 
 However, this is not the only way to compute
 a similarity matrix. We will list all the available

@@ -33,6 +33,7 @@ from typing import Tuple
 from typing import Union
 from typing import Optional
 from numpy.typing import ArrayLike
+from numpy.typing import NDArray
 
 from scipy.sparse import issparse
 
@@ -2304,7 +2305,7 @@ class TooManyCells:
     def select_cells_based_on_inequalities(
             self,
             cell_ann_col: str = "",
-            n_markers_binary_threshold: int = 3,
+            max_n_masks: int = 3,
             return_updated_adata = False,
         ) -> AnnData:
         """
@@ -2372,6 +2373,10 @@ class TooManyCells:
 
         from numpy import full as np_full
 
+        storage_dir = os.path.join(
+            self.output, "marker_distributions")
+        os.makedirs(storage_dir, exist_ok=True)
+
         n_cells = self.A.shape[0]
         mask_intersection = np_full(n_cells, True)
         n_markers = len(self.marker_to_mad_threshold)
@@ -2381,7 +2386,7 @@ class TooManyCells:
         # If we only have two markers, then we can create
         # a high-high, high-low, low-high and 
         # low-low classification.
-        list_of_masks = []
+        list_of_above_masks = []
         list_of_markers = []
 
         for marker, threshold in dict_iterator:
@@ -2392,22 +2397,30 @@ class TooManyCells:
                                              "mad"]
             median = self.node_exp_stats_df.loc[marker,
                                                 "median"]
-            marker_exp = mad * threshold + median
+            marker_threshold = mad * threshold + median
             matrix_col = self.marker_to_column_idx[marker]
             vec = self.A.X[:,matrix_col]
 
             if issparse(self.A.X):
                 vec = vec.toarray().squeeze()
 
-            if direction == "above":
-                mask = marker_exp <= vec
-            elif direction == "below":
-                mask = vec <= marker_exp
+            # Note that we store the original mask if the 
+            # direction is above and we store the complement
+            # when the direction is below. The reason is that
+            # we are only interested on those cells that are
+            # above the threshold 
+            if direction.lower() == "above":
+                mask = marker_threshold < vec
+                if 1 < n_markers <= max_n_masks:
+                    list_of_above_masks.append(mask)
+            elif direction.lower() == "below":
+                mask = vec < marker_threshold
+                if 1 < n_markers <= max_n_masks:
+                    # Transform it into an above mask.
+                    list_of_above_masks.append(~mask)
             else:
                 raise ValueError("Unexpected direction")
 
-            if 1 < n_markers <= n_markers_binary_threshold:
-                list_of_masks.append(mask)
 
             mask_intersection &= mask
             df = self.A.obs.sp_cluster.loc[mask]
@@ -2422,11 +2435,11 @@ class TooManyCells:
 
             fname  = f"{marker}_exp_{direction}"
             fname += f"_MAD_threshold.csv"
-            fname = os.path.join(self.output, fname)
+            fname = os.path.join(storage_dir, fname)
             df.to_csv(fname, index=True)
             
         fname = "remaining_cells_after_intersection.csv"
-        fname = os.path.join(self.output, fname)
+        fname = os.path.join(storage_dir, fname)
         df = self.A.obs.sp_cluster.loc[mask_intersection]
         df = df.to_frame(name="Node")
 
@@ -2439,7 +2452,7 @@ class TooManyCells:
         #Write the file of intersections.
         df.to_csv(fname, index=True)
 
-        if 1 < n_markers <= n_markers_binary_threshold:
+        if 1 < n_markers <= max_n_masks:
 
             df = self.A.obs.sp_cluster
             df = df.to_frame(name="Node")
@@ -2449,15 +2462,21 @@ class TooManyCells:
 
             df["Class"] = ""
             mask = np_full(n_cells, True)
-            vec_classes = df["Class"].values
+            vec_classes = df["Class"].to_numpy()
             exp_states  = ("High", "Low")
 
-            def add_category(states: Tuple[str],
+            def add_category(states: Tuple[str, ...],
                              level: int,
-                             vec_bool: ArrayLike,
+                             vec_bool: NDArray,
                              state_name: str,
-                             vec_str: ArrayLike,
+                             vec_str: NDArray,
                 ):
+                """
+                Note that the vector of bools vec_bool is
+                supposed to store the masks that represent
+                those cells whose expression value is above
+                the threshold.
+                """
 
                 if level == n_markers:
                     #Assign the final name
@@ -2470,10 +2489,9 @@ class TooManyCells:
 
                 marker_name = list_of_markers[level]
 
-
                 for state in states:
 
-                    if 0 == level:
+                    if level == 0:
                         new_state_name = state_name
                     else:
                         new_state_name = f"{state_name}-"
@@ -2482,10 +2500,12 @@ class TooManyCells:
                     new_vec_bool = vec_bool.copy()
 
                     if state == "High":
-                        new_vec_bool &= list_of_masks[level]
+                        new_vec_bool &= list_of_above_masks[
+                            level]
 
                     elif state == "Low":
-                        new_vec_bool &= ~list_of_masks[level]
+                        new_vec_bool &= ~list_of_above_masks[
+                            level]
 
                     else:
                         raise ValueError("Unknown state.")
@@ -2511,7 +2531,7 @@ class TooManyCells:
             print(df["Class"].value_counts(normalize=True))
 
             fname = "cell_classes_from_markers.csv"
-            fname = os.path.join(self.output, fname)
+            fname = os.path.join(storage_dir, fname)
 
             #Write the file of 
             df.to_csv(fname, index=True)
