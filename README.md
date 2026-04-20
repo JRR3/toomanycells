@@ -743,8 +743,10 @@ markers across all nodes can be generated through this call
 tmc_obj.plot_marker_distributions()
 ```
 
-The plots will be all contained in a dynamic html file. 
-Here are some examples.
+Indiviual plots in PNG and SVG format will be produced
+for each marker, together with a CSV file of the coordinates.
+Moreover, a dynamic html file will be produced containing 
+all the plots. Here are some examples.
 
 This is the distribution for CD9:
 
@@ -762,8 +764,8 @@ If we want to isolate the cells that satisfy the conditions
 
 ```
      Marker      Cell  Threshold Direction
-       CD9  Neuro-2a        1.0     Above
-      SDC1  Neuro-2a        1.0     Above
+        CD9  Neuro-2a        1.0     Above
+       SDC1  Neuro-2a        1.0     Above
 ```
 
 We can use the call
@@ -824,10 +826,23 @@ i.e., about `70%` of cells,
 are low in CD9 and low in SDC1, and about `10%` of cells
 are high in both. Note that in this particular example
 when we say high it means
-that the expression is above 1 MAD from the median, and
-low is the complement of that.
+that the expression is 1 MAD (as specified in the
+file of constraints) above the median, and
+low is the complement, i.e., less than or equal to 1 MAD 
+above the median.
 
 ![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/4plex_data_full_marker_class.svg)
+
+For a different example using the following markers
+```
+     Marker      Cell  Threshold Direction
+     COL1A2         X         40     Above
+        FAP         Y         33     Below
+```
+we obtain these plots
+![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/col1a2_dist_above_40.svg)
+![Expression](https://github.com/JRR3/toomanycells/blob/main/tests/fap_dist_below_33.svg)
+
 
 
 ## Heterogeneity quantification
