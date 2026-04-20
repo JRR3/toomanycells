@@ -1,6 +1,6 @@
 [project]
 name = "toomanycells"
-version = "1.0.71"
+version = "1.0.72"
 dynamic = [
     "dependencies",
 ]
@@ -48,7 +48,7 @@ exclude = ["docs*"]
 dependencies = {file = ["requirements.txt"]}
 
 [tool.bumpversion]
-current_version = "1.0.71"
+current_version = "1.0.72"
 commit = true
 tag = true
 
