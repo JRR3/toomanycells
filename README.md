@@ -264,7 +264,10 @@ obj.populate_fragments_information(
    cell_ann_col = args.annotationsColumn,
 )
 ```
-and then prune by the number of fragments, e.g., 300K
+where `max_count` represents the allowed upper bound for 
+the number of times a specific fragment was observed for 
+a particular barcode, and now we can prune by 
+the number of fragments, e.g., 300K
 ```
 obj.prune_tree_by_feature(
     feature = "fragments",
@@ -272,6 +275,7 @@ obj.prune_tree_by_feature(
     cell_ann_col = "cell_labels",
 )
 ```
+i.e., the leaf nodes must have at least 300K fragments.
     
 ## Quick run (needs to be updated)
 If you want to see a concrete example of how
